@@ -1,0 +1,4 @@
+# Ignore AI agent skill folders from GitHub language statistics
+.agents/** linguist-vendored
+.claude/** linguist-vendored
+.windsurf/** linguist-vendored
