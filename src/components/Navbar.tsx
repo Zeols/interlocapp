@@ -23,7 +23,7 @@ export default function Navbar() {
           <div className="logo-icon">
             <Icon path={mdiBusDoubleDecker} size={1.2} color="var(--color-text-light)" />
           </div>
-          <span className="logo-text">RUTA LA SIN RIVAL</span>
+          <span className="logo-text">InterloCapp</span>
         </Link>
         <div className="navbar-actions">
           <Link href="/login" className="btn btn-primary">

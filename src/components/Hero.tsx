@@ -13,7 +13,7 @@ export default function Hero() {
         <div className="hero-content">
           <div className="badge">
             <span className="badge-dot"></span>
-            Viaja con Ruta La Sin Rival
+            Viaja con InterlocApp
           </div>
           <h1 className="hero-title">
             Viaja cómodo y seguro a tu destino sin hacer <span className="highlight">filas</span>
@@ -28,8 +28,8 @@ export default function Hero() {
             </Link>
             <div className="stats-row">
               <div className="stat">
-                <span className="stat-number">+10k</span>
-                <span className="stat-label">Pasajeros felices</span>
+                <span className="stat-number">0</span>
+                <span className="stat-label">Pasajeros actuales</span>
               </div>
               <div className="stat-divider"></div>
               <div className="stat">

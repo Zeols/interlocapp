@@ -15,7 +15,7 @@ const generateSeats = (): Seat[] => {
     // Algunos ocupados o no disponibles de prueba
     if (i === 3 || i === 7 || i === 12) status = 'occupied';
     if (i === 9 || i === 15) status = 'unavailable';
-    
+
     seats.push({
       id: `seat-${i}`,
       number: num,
@@ -63,15 +63,15 @@ export default function CompraPage() {
 
           <div className="compra-grid">
             <div className="compra-col left-col">
-              <SeatMap 
-                seats={seats} 
-                onSeatSelect={handleSeatSelect} 
-                selectedSeatId={selectedSeatId} 
+              <SeatMap
+                seats={seats}
+                onSeatSelect={handleSeatSelect}
+                selectedSeatId={selectedSeatId}
               />
             </div>
-            
+
             <div className="compra-col right-col">
-              <PurchaseForm 
+              <PurchaseForm
                 selectedSeatNumber={selectedSeat?.number || null}
                 basePrice={150}
               />
