@@ -13,7 +13,7 @@ export default function Home() {
 
       <footer className="footer section-padding">
         <div className="container">
-          <p>© {new Date().getFullYear()} RutaCorp - Derechos reservados</p>
+          <p>© {new Date().getFullYear()} InterlocApp - Derechos reservados</p>
         </div>
       </footer>
 
