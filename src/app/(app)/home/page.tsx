@@ -3,23 +3,23 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@mdi/react";
-import { 
-  mdiBus, 
-  mdiArrowRight, 
-  mdiMapMarker, 
-  mdiCalendar, 
+import {
+  mdiBus,
+  mdiArrowRight,
+  mdiMapMarker,
+  mdiCalendar,
   mdiMagnify,
   mdiClockOutline,
   mdiShieldCheckOutline
 } from "@mdi/js";
 
 const POPULAR_ROUTES = [
-  { origin: "Managua", destination: "León",       duration: "2h 30min", price: 85  },
-  { origin: "Managua", destination: "Granada",    duration: "1h 15min", price: 65  },
-  { origin: "Managua", destination: "Estelí",     duration: "2h 30min", price: 90  },
-  { origin: "Managua", destination: "Masaya",     duration: "45min",    price: 40  },
-  { origin: "Managua", destination: "Chinandega", duration: "3h",       price: 100 },
-  { origin: "Managua", destination: "Rivas",      duration: "2h",       price: 75  },
+  { origin: "Managua", destination: "León", duration: "2h 30min", price: 85 },
+  { origin: "Managua", destination: "Granada", duration: "1h 15min", price: 65 },
+  { origin: "Managua", destination: "Estelí", duration: "2h 30min", price: 90 },
+  { origin: "Managua", destination: "Masaya", duration: "45min", price: 40 },
+  { origin: "Managua", destination: "Chinandega", duration: "3h", price: 100 },
+  { origin: "Managua", destination: "Rivas", duration: "2h", price: 75 },
 ];
 
 export default function HomePage() {
@@ -28,7 +28,7 @@ export default function HomePage() {
   const goTrips = () => router.push("/trips");
 
   // Simulating logged-in user
-  const userName = "María González";
+  const userName = "Enrique Pomares";
   const firstName = userName.split(" ")[0];
 
   return (
@@ -49,8 +49,8 @@ export default function HomePage() {
               Compra tu boleto en segundos, elige tu asiento y viaja con comodidad
               a cualquier destino desde Managua.
             </p>
-            <button 
-              onClick={goTrips} 
+            <button
+              onClick={goTrips}
               className="inline-flex items-center gap-3 bg-primary hover:bg-primary-dark text-white font-bold text-base px-6 py-3 rounded-xl transition-colors group"
             >
               Comprar boleto
@@ -61,7 +61,7 @@ export default function HomePage() {
           {/* Quick search panel */}
           <div className="bg-white border border-gray-100 rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
             <p className="text-sm font-bold text-gray-900 mb-6">Búsqueda rápida</p>
-            
+
             <div className="space-y-4">
               <div className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
                 <Icon path={mdiMapMarker} size={1} className="text-primary" />
@@ -70,7 +70,7 @@ export default function HomePage() {
                   <p className="text-sm font-bold text-gray-900">Managua</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
                 <Icon path={mdiMapMarker} size={1} className="text-gray-300" />
                 <div>
@@ -78,7 +78,7 @@ export default function HomePage() {
                   <p className="text-sm font-medium text-gray-400">Seleccionar destino...</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
                 <Icon path={mdiCalendar} size={1} className="text-gray-300" />
                 <div>
@@ -86,9 +86,9 @@ export default function HomePage() {
                   <p className="text-sm font-medium text-gray-400">Seleccionar fecha...</p>
                 </div>
               </div>
-              
-              <button 
-                onClick={goTrips} 
+
+              <button
+                onClick={goTrips}
                 className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-4 rounded-2xl mt-2 flex items-center justify-center gap-2 transition-colors"
               >
                 <Icon path={mdiMagnify} size={0.8} />
@@ -106,15 +106,15 @@ export default function HomePage() {
             <h2 className="text-2xl font-black text-gray-900">Rutas populares</h2>
             <p className="text-gray-500 mt-1">Salidas diarias desde Managua</p>
           </div>
-          <button 
-            onClick={goTrips} 
+          <button
+            onClick={goTrips}
             className="flex items-center gap-1 text-sm font-bold text-primary hover:text-primary-dark transition-colors group"
           >
-            Ver todos los viajes 
+            Ver todos los viajes
             <Icon path={mdiArrowRight} size={0.7} className="transition-transform group-hover:translate-x-1" />
           </button>
         </div>
-        
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {POPULAR_ROUTES.map((r) => (
             <button

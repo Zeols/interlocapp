@@ -24,8 +24,8 @@ export function Navbar() {
     <nav className="bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm sticky top-0 z-50 px-8 py-4 flex items-center justify-between">
       {/* Left side: Brand or Back Button */}
       {showBackButton ? (
-        <button 
-          onClick={() => router.back()} 
+        <button
+          onClick={() => router.back()}
           className="flex items-center gap-3 bg-transparent border-none cursor-pointer group"
         >
           <div className="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center text-gray-600 transition-colors group-hover:bg-primary group-hover:text-white">
@@ -43,14 +43,14 @@ export function Navbar() {
           </div>
           {/* Main Links (only shown when not showing back button) */}
           <div className="hidden md:flex items-center gap-6">
-            <Link 
-              href="/home" 
+            <Link
+              href="/home"
               className={`text-sm font-bold pb-1 border-b-2 transition-colors ${pathname === "/home" ? "border-primary text-gray-900" : "border-transparent text-gray-500 hover:text-gray-900"}`}
             >
               Inicio
             </Link>
-            <Link 
-              href="/trips" 
+            <Link
+              href="/trips"
               className={`text-sm font-bold pb-1 border-b-2 transition-colors ${pathname === "/trips" ? "border-primary text-gray-900" : "border-transparent text-gray-500 hover:text-gray-900"}`}
             >
               Ver viajes
@@ -61,7 +61,7 @@ export function Navbar() {
 
       {/* Right side: User Profile */}
       <div className="flex items-center">
-        <UserChip name="María González" email="maria@example.com" />
+        <UserChip name="Enrique Pomares" email="enrique@gmail.com" />
       </div>
     </nav>
   );
