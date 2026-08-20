@@ -9,7 +9,10 @@ import {
   mdiCalendar, 
   mdiCheck,
   mdiArrowRight,
-  mdiClockOutline
+  mdiClockOutline,
+  mdiFilterVariant,
+  mdiChevronDown,
+  mdiChevronUp
 } from "@mdi/js";
 
 const COOPERATIVES = ["TransNica", "El Expreso", "Tica Bus"];
@@ -35,6 +38,7 @@ export default function TripsPage() {
   const [coopFilter, setCoopFilter] = useState<Record<string, boolean>>(
     Object.fromEntries(COOPERATIVES.map(c => [c, false]))
   );
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   const toggleSchedule = (k: string) => setScheduleFilter(p => ({ ...p, [k]: !p[k] }));
   const toggleCoop = (k: string) => setCoopFilter(p => ({ ...p, [k]: !p[k] }));
@@ -55,16 +59,6 @@ export default function TripsPage() {
   });
 
   const goPurchase = () => router.push("/compra");
-
-  // Flat pills for schedules
-  const getScheduleStyle = (schedule: string) => {
-    switch (schedule) {
-      case 'mañana': return "bg-orange-50 text-orange-600 border border-orange-100";
-      case 'tarde': return "bg-sky-50 text-sky-600 border border-sky-100";
-      case 'noche': return "bg-indigo-50 text-indigo-600 border border-indigo-100";
-      default: return "bg-gray-50 text-gray-600 border border-gray-200";
-    }
-  };
 
   return (
     <div className="w-full pb-16">
@@ -106,17 +100,25 @@ export default function TripsPage() {
       <div className="max-w-6xl mx-auto px-8 mt-8 flex flex-col lg:flex-row gap-8 items-start">
         {/* Sidebar */}
         <aside className="w-full lg:w-64 shrink-0 bg-white border border-gray-100 rounded-3xl p-6 shadow-sm sticky top-[100px]">
-          <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
-            <h2 className="text-lg font-black text-gray-900">Filtros</h2>
+          <div className={`flex items-center justify-between ${showMobileFilters ? 'mb-6 pb-4 border-b border-gray-100' : 'lg:mb-6 lg:pb-4 lg:border-b lg:border-gray-100'}`}>
+            <button 
+              onClick={() => setShowMobileFilters(!showMobileFilters)}
+              className="flex items-center gap-2 lg:pointer-events-none"
+            >
+              <Icon path={mdiFilterVariant} size={0.9} className="text-gray-900 lg:hidden" />
+              <h2 className="text-lg font-black text-gray-900">Filtros</h2>
+              <Icon path={showMobileFilters ? mdiChevronUp : mdiChevronDown} size={0.9} className="text-gray-500 lg:hidden ml-1" />
+            </button>
             {hasFilters && (
-              <button onClick={clearFilters} className="text-sm font-bold text-primary hover:text-primary-dark">
+              <button onClick={clearFilters} className="text-sm font-bold text-primary hover:text-primary-dark ml-4">
                 Limpiar
               </button>
             )}
           </div>
           
-          <div className="mb-8">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Horario de salida</p>
+          <div className={`${showMobileFilters ? 'block' : 'hidden'} lg:block`}>
+            <div className="mb-8">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Horario de salida</p>
             <div className="space-y-3">
               {["mañana", "tarde", "noche"].map(k => (
                 <button key={k} onClick={() => toggleSchedule(k)} className="flex items-center gap-3 w-full group">
@@ -146,6 +148,7 @@ export default function TripsPage() {
               ))}
             </div>
           </div>
+          </div>
         </aside>
         
         {/* Main Content */}
@@ -168,15 +171,6 @@ export default function TripsPage() {
             <div className="space-y-4">
               {filtered.map(trip => (
                 <div key={trip.id} className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-2 mb-6">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getScheduleStyle(trip.schedule)}`}>
-                      {trip.schedule}
-                    </span>
-                    <span className="px-3 py-1 rounded-full text-xs font-bold text-gray-500 bg-gray-50 border border-gray-200">
-                      {trip.type}
-                    </span>
-                  </div>
-                  
                   <div className="flex flex-col md:flex-row items-center gap-6 md:gap-0">
                     <div className="flex-1 flex flex-row items-center w-full">
                       <div className="text-center w-24 shrink-0">
@@ -186,8 +180,10 @@ export default function TripsPage() {
                       </div>
                       
                       <div className="flex-1 flex flex-col items-center px-4 shrink-0 min-w-[120px]">
-                        <p className="text-xs font-bold text-gray-400 mb-2 flex items-center gap-1">
+                        <p className="text-xs font-bold text-gray-400 mb-2 flex items-center justify-center gap-1">
                           <Icon path={mdiClockOutline} size={0.6} /> {trip.duration}
+                          <span className="mx-1">•</span>
+                          <span className={trip.type === 'Directo' ? 'text-emerald-500 font-black' : 'text-amber-500 font-bold'}>{trip.type}</span>
                         </p>
                         <div className="w-full flex items-center relative h-6">
                           <div className="w-2 h-2 rounded-full border-2 border-primary bg-white z-10" />
