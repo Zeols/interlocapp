@@ -31,7 +31,7 @@ export default function LandingPage() {
         </div>
         <button 
           onClick={goLogin}
-          className="bg-gray-900 hover:bg-gray-800 text-white font-bold px-6 py-2.5 rounded-full transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer shadow-md hover:shadow-lg"
+          className="bg-gray-900 hover:bg-gray-800 text-white font-bold px-4 py-2 text-sm md:text-base md:px-6 md:py-2.5 rounded-full whitespace-nowrap transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer shadow-md hover:shadow-lg"
         >
           Iniciar Sesión
         </button>
