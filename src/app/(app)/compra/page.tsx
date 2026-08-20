@@ -223,33 +223,31 @@ export default function PurchasePage() {
 
         {/* Right Column: Summary */}
         <div className="w-full lg:w-96 shrink-0 sticky top-[100px]">
-          <div className="bg-gray-900 rounded-3xl p-6 md:p-8 text-white shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl pointer-events-none" />
-
+          <div className="bg-white border border-gray-100 rounded-3xl p-6 md:p-8 text-gray-900 shadow-sm relative overflow-hidden">
             <h2 className="text-2xl font-black mb-8 relative z-10">Resumen de pago</h2>
 
             <div className="space-y-4 mb-8 relative z-10">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-gray-400 font-medium">Boletos ({selectedSeats.length})</p>
+                  <p className="text-gray-500 font-medium">Boletos ({selectedSeats.length})</p>
                   {selectedSeats.length > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">Asientos: {selectedSeats.map(s => `#${s.id}`).join(", ")}</p>
+                    <p className="text-xs text-gray-400 mt-1">Asientos: {selectedSeats.map(s => `#${s.id}`).join(", ")}</p>
                   )}
                 </div>
-                <p className="font-bold text-lg">{fmt(ticketTotal)}</p>
+                <p className="font-bold text-lg text-gray-900">{fmt(ticketTotal)}</p>
               </div>
 
               {baggage > 0 && (
                 <div className="flex items-start justify-between">
-                  <p className="text-gray-400 font-medium">Equipaje ({baggage})</p>
-                  <p className="font-bold text-lg">{fmt(baggageTotal)}</p>
+                  <p className="text-gray-500 font-medium">Equipaje ({baggage})</p>
+                  <p className="font-bold text-lg text-gray-900">{fmt(baggageTotal)}</p>
                 </div>
               )}
             </div>
 
-            <div className="pt-6 border-t border-white/10 flex items-end justify-between mb-8 relative z-10">
+            <div className="pt-6 border-t border-gray-100 flex items-end justify-between mb-8 relative z-10">
               <p className="text-gray-400 font-bold uppercase tracking-wider text-sm">Total</p>
-              <p className="text-4xl font-black text-white">{fmt(total)}</p>
+              <p className="text-4xl font-black text-gray-900">{fmt(total)}</p>
             </div>
 
             <button
@@ -261,8 +259,8 @@ export default function PurchasePage() {
               <Icon path={mdiArrowRight} size={0.9} className="transition-transform group-hover:translate-x-1" />
             </button>
 
-            <div className="flex items-center justify-center gap-2 text-xs font-semibold text-emerald-400 mt-6 relative z-10">
-              <Icon path={mdiShieldCheck} size={0.7} />
+            <div className="flex items-center justify-center gap-2 text-xs font-semibold text-gray-500 mt-6 relative z-10">
+              <Icon path={mdiShieldCheck} size={0.7} className="text-emerald-500" />
               Pago procesado con encriptación SSL
             </div>
           </div>
