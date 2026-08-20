@@ -1,284 +1,129 @@
 "use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import Icon from '@mdi/react';
-import { mdiBusDoubleDecker, mdiEmailOutline, mdiLockOutline, mdiArrowRight } from '@mdi/js';
-import { useRouter } from 'next/navigation';
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import Icon from "@mdi/react";
+import { mdiBus, mdiEmailOutline, mdiLockOutline, mdiArrowRight, mdiArrowLeft } from "@mdi/js";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const goBack = () => router.push("/");
+  const goForgot = () => router.push("/forgot");
+  const goSignup = () => router.push("/signup");
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    // Simulate API call for now
-    setTimeout(() => {
-      setIsLoading(false);
-      router.push('/compra');
-    }, 1000);
+    if (email) {
+      router.push("/home");
+    }
   };
 
   return (
-    <div className="login-layout">
-      <div className="login-visual">
-        <div className="visual-content">
-          <h1>Tu viaje comienza aquí</h1>
-          <p>Inicia sesión para comprar tus boletos, elegir tus asientos y llevar un registro de todos tus viajes.</p>
+    <div className="min-h-screen flex w-full">
+      {/* Lado izquierdo oscuro */}
+      <div className="hidden lg:flex w-[45%] bg-gray-900 p-16 flex-col justify-center relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[40vw] h-[40vw] bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
+        <div className="relative z-10 text-white max-w-lg">
+          <h2 className="text-5xl font-black leading-[1.1] mb-6">
+            Tu viaje comienza
+            <br />
+            aquí
+          </h2>
+          <p className="text-gray-400 text-lg leading-relaxed">
+            Inicia sesión para comprar tus boletos, elegir tus asientos y llevar
+            un registro de todos tus viajes.
+          </p>
         </div>
-        <div className="decoration-blob blob-orange"></div>
-        <div className="decoration-blob blob-red"></div>
       </div>
-      
-      <div className="login-form-container">
-        <Link href="/" className="back-link">
-          &larr; Volver al inicio
-        </Link>
-        
-        <div className="form-box">
-          <div className="form-header">
-            <div className="logo-icon">
-              <Icon path={mdiBusDoubleDecker} size={1.5} color="var(--color-text-light)" />
-            </div>
-            <h2>Iniciar Sesión</h2>
-            <p>Ingresa tus credenciales para continuar</p>
-          </div>
 
-          <form onSubmit={handleLogin}>
-            <div className="input-group">
-              <label htmlFor="email">Correo electrónico</label>
-              <div className="input-wrapper">
-                <Icon path={mdiEmailOutline} size={1} color="var(--color-text-muted)" className="input-icon" />
-                <input 
-                  type="email" 
-                  id="email" 
-                  placeholder="ejemplo@cooperativa.com" 
+      {/* Formulario */}
+      <div className="flex-1 bg-white relative flex flex-col justify-center p-8 lg:p-16">
+        <button 
+          onClick={goBack} 
+          className="absolute top-8 left-8 flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors"
+        >
+          <Icon path={mdiArrowLeft} size={0.7} /> Volver al inicio
+        </button>
+        
+        <div className="w-full max-w-md mx-auto">
+          <div className="mb-8">
+            <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mb-6">
+              <Icon path={mdiBus} size={1.5} />
+            </div>
+            <h2 className="text-3xl font-black text-gray-900 mb-2">Iniciar Sesión</h2>
+            <p className="text-gray-500">
+              Ingresa tus credenciales para continuar
+            </p>
+          </div>
+          
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Correo electrónico</label>
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                  <Icon path={mdiEmailOutline} size={0.9} />
+                </div>
+                <input
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  required 
+                  placeholder="ejemplo@cooperativa.com"
+                  className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-base rounded-xl py-3.5 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  required
                 />
               </div>
             </div>
-
-            <div className="input-group">
-              <label htmlFor="password">Contraseña</label>
-              <div className="input-wrapper">
-                <Icon path={mdiLockOutline} size={1} color="var(--color-text-muted)" className="input-icon" />
-                <input 
-                  type="password" 
-                  id="password" 
-                  placeholder="••••••••" 
+            
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Contraseña</label>
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                  <Icon path={mdiLockOutline} size={0.9} />
+                </div>
+                <input
+                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required 
+                  placeholder="••••••••"
+                  className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-base rounded-xl py-3.5 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  required
                 />
               </div>
             </div>
-
-            <div className="form-actions">
-              <Link href="#" className="forgot-password">
+            
+            <div className="flex justify-end pt-1">
+              <button 
+                type="button" 
+                onClick={goForgot}
+                className="text-sm font-semibold text-primary hover:text-primary-dark transition-colors"
+              >
                 ¿Olvidaste tu contraseña?
-              </Link>
+              </button>
             </div>
-
-            <button type="submit" className="btn btn-primary login-btn" disabled={isLoading}>
-              {isLoading ? 'Iniciando sesión...' : 'Entrar'}
-              {!isLoading && <Icon path={mdiArrowRight} size={0.8} />}
+            
+            <button 
+              type="submit" 
+              className="w-full bg-primary hover:bg-primary-dark text-white font-bold text-lg py-4 rounded-xl flex items-center justify-center gap-2 transition-all mt-4 group"
+            >
+              Entrar
+              <Icon path={mdiArrowRight} size={0.9} className="transition-transform group-hover:translate-x-1" />
             </button>
           </form>
+          
+          <div className="mt-8 text-center text-gray-500 font-medium">
+            ¿No tienes cuenta?{' '}
+            <button 
+              onClick={goSignup}
+              className="text-primary hover:text-primary-dark font-bold transition-colors"
+            >
+              Regístrate
+            </button>
+          </div>
         </div>
       </div>
-
-      <style jsx>{`
-        .login-layout {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          min-height: 100vh;
-          background-color: var(--color-bg-main);
-        }
-
-        .login-visual {
-          background-color: var(--color-text-main);
-          color: var(--color-text-light);
-          padding: var(--space-xl) var(--space-lg);
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .visual-content {
-          position: relative;
-          z-index: 10;
-          max-width: 480px;
-          margin: 0 auto;
-        }
-
-        .visual-content h1 {
-          font-size: clamp(2rem, 4vw, 3rem);
-          margin-bottom: var(--space-sm);
-        }
-
-        .visual-content p {
-          font-size: 1.125rem;
-          color: #a0a0a0;
-          line-height: 1.6;
-        }
-
-        .decoration-blob {
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(80px);
-          z-index: 1;
-          opacity: 0.6;
-        }
-
-        .blob-orange {
-          width: 400px;
-          height: 400px;
-          background-color: var(--color-primary);
-          top: -100px;
-          left: -100px;
-        }
-
-        .blob-red {
-          width: 300px;
-          height: 300px;
-          background-color: var(--color-secondary);
-          bottom: 10%;
-          right: -50px;
-        }
-
-        .login-form-container {
-          padding: var(--space-lg);
-          display: flex;
-          flex-direction: column;
-          position: relative;
-        }
-
-        .back-link {
-          position: absolute;
-          top: var(--space-md);
-          left: var(--space-lg);
-          color: var(--color-text-muted);
-          font-weight: 500;
-          transition: color var(--transition-fast);
-        }
-
-        .back-link:hover {
-          color: var(--color-primary);
-        }
-
-        .form-box {
-          margin: auto;
-          width: 100%;
-          max-width: 400px;
-        }
-
-        .form-header {
-          text-align: center;
-          margin-bottom: var(--space-lg);
-        }
-
-        .logo-icon {
-          width: 64px;
-          height: 64px;
-          background-color: var(--color-primary);
-          border-radius: var(--radius-md);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin: 0 auto var(--space-sm);
-          box-shadow: var(--shadow-md);
-        }
-
-        .form-header h2 {
-          font-size: 2rem;
-          margin-bottom: var(--space-xs);
-        }
-
-        .form-header p {
-          color: var(--color-text-muted);
-        }
-
-        .input-group {
-          margin-bottom: var(--space-md);
-        }
-
-        .input-group label {
-          display: block;
-          font-weight: 500;
-          margin-bottom: 0.5rem;
-          color: var(--color-text-main);
-        }
-
-        .input-wrapper {
-          position: relative;
-          display: flex;
-          align-items: center;
-        }
-
-        .input-wrapper :global(.input-icon) {
-          position: absolute;
-          left: 1rem;
-        }
-
-        .input-wrapper input {
-          width: 100%;
-          padding: 0.875rem 1rem 0.875rem 3rem;
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-sm);
-          font-family: var(--font-body);
-          font-size: 1rem;
-          transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-          background-color: var(--color-bg-subtle);
-        }
-
-        .input-wrapper input:focus {
-          outline: none;
-          border-color: var(--color-primary);
-          box-shadow: 0 0 0 3px rgba(254, 125, 34, 0.2);
-          background-color: var(--color-bg-main);
-        }
-
-        .form-actions {
-          display: flex;
-          justify-content: flex-end;
-          margin-bottom: var(--space-lg);
-        }
-
-        .forgot-password {
-          font-size: 0.875rem;
-          color: var(--color-primary);
-          font-weight: 500;
-        }
-
-        .forgot-password:hover {
-          text-decoration: underline;
-        }
-
-        .login-btn {
-          width: 100%;
-          padding: 1rem;
-          justify-content: center;
-        }
-
-        @media (max-width: 992px) {
-          .login-layout {
-            grid-template-columns: 1fr;
-          }
-          .login-visual {
-            display: none;
-          }
-          .form-box {
-            margin-top: 4rem;
-          }
-        }
-      `}</style>
     </div>
   );
 }
