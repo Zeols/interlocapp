@@ -3,10 +3,10 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@mdi/react";
-import { 
-  mdiBus, 
-  mdiMapMarker, 
-  mdiCalendar, 
+import {
+  mdiBus,
+  mdiMapMarker,
+  mdiCalendar,
   mdiCheck,
   mdiArrowRight,
   mdiClockOutline,
@@ -24,6 +24,8 @@ const ALL_TRIPS = [
   { id: 4, origin: "Managua", destination: "Masaya", departure: "08:00 AM", arrival: "08:45 AM", duration: "45min", cooperative: "TransNica", price: 40, schedule: "mañana", type: "Escalas" },
   { id: 5, origin: "Managua", destination: "Chinandega", departure: "02:00 PM", arrival: "05:00 PM", duration: "3h", cooperative: "El Expreso", price: 100, schedule: "tarde", type: "Directo" },
   { id: 6, origin: "Managua", destination: "Rivas", departure: "06:30 PM", arrival: "08:30 PM", duration: "2h", cooperative: "Tica Bus", price: 75, schedule: "noche", type: "Directo" },
+  { id: 6, origin: "Managua", destination: "Jinotepe", departure: "06:30 PM", arrival: "08:30 PM", duration: "2h", cooperative: "Tica Bus", price: 100, schedule: "noche", type: "Directo" },
+
 ];
 
 export default function TripsPage() {
@@ -68,29 +70,29 @@ export default function TripsPage() {
           <div className="flex flex-1 w-full flex-col md:flex-row bg-gray-50 rounded-2xl border border-gray-200 divide-y md:divide-y-0 md:divide-x divide-gray-200 overflow-hidden">
             <div className="flex-1 flex items-center px-4 py-3 gap-3 bg-white">
               <Icon path={mdiMapMarker} size={0.9} className="text-primary" />
-              <input 
-                className="w-full outline-none bg-transparent text-gray-900 font-medium placeholder:text-gray-400" 
-                value={origin} 
-                onChange={e => setOrigin(e.target.value)} 
-                placeholder="Origen" 
+              <input
+                className="w-full outline-none bg-transparent text-gray-900 font-medium placeholder:text-gray-400"
+                value={origin}
+                onChange={e => setOrigin(e.target.value)}
+                placeholder="Origen"
               />
             </div>
             <div className="flex-1 flex items-center px-4 py-3 gap-3 bg-white">
               <Icon path={mdiMapMarker} size={0.9} className="text-gray-400" />
-              <input 
-                className="w-full outline-none bg-transparent text-gray-900 font-medium placeholder:text-gray-400" 
-                value={destination} 
-                onChange={e => setDestination(e.target.value)} 
-                placeholder="Destino" 
+              <input
+                className="w-full outline-none bg-transparent text-gray-900 font-medium placeholder:text-gray-400"
+                value={destination}
+                onChange={e => setDestination(e.target.value)}
+                placeholder="Destino"
               />
             </div>
             <div className="flex-1 flex items-center px-4 py-3 gap-3 bg-white">
               <Icon path={mdiCalendar} size={0.9} className="text-gray-400" />
-              <input 
+              <input
                 type="date"
-                className="w-full outline-none bg-transparent text-gray-900 font-medium text-sm placeholder:text-gray-400 uppercase" 
-                value={date} 
-                onChange={e => setDate(e.target.value)} 
+                className="w-full outline-none bg-transparent text-gray-900 font-medium text-sm placeholder:text-gray-400 uppercase"
+                value={date}
+                onChange={e => setDate(e.target.value)}
               />
             </div>
           </div>
@@ -101,7 +103,7 @@ export default function TripsPage() {
         {/* Sidebar */}
         <aside className="w-full lg:w-64 shrink-0 bg-white border border-gray-100 rounded-3xl p-6 shadow-sm sticky top-[100px]">
           <div className={`flex items-center justify-between ${showMobileFilters ? 'mb-6 pb-4 border-b border-gray-100' : 'lg:mb-6 lg:pb-4 lg:border-b lg:border-gray-100'}`}>
-            <button 
+            <button
               onClick={() => setShowMobileFilters(!showMobileFilters)}
               className="flex items-center gap-2 lg:pointer-events-none"
             >
@@ -115,42 +117,42 @@ export default function TripsPage() {
               </button>
             )}
           </div>
-          
+
           <div className={`${showMobileFilters ? 'block' : 'hidden'} lg:block`}>
             <div className="mb-8">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Horario de salida</p>
-            <div className="space-y-3">
-              {["mañana", "tarde", "noche"].map(k => (
-                <button key={k} onClick={() => toggleSchedule(k)} className="flex items-center gap-3 w-full group">
-                  <div className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${scheduleFilter[k] ? 'bg-primary border-primary' : 'bg-gray-50 border border-gray-300 group-hover:border-primary/50'}`}>
-                    {scheduleFilter[k] && <Icon path={mdiCheck} size={0.6} className="text-white" />}
-                  </div>
-                  <span className={`text-sm font-medium ${scheduleFilter[k] ? 'text-gray-900' : 'text-gray-600 group-hover:text-gray-900'}`}>
-                    {k.charAt(0).toUpperCase() + k.slice(1)}
-                  </span>
-                </button>
-              ))}
+              <div className="space-y-3">
+                {["mañana", "tarde", "noche"].map(k => (
+                  <button key={k} onClick={() => toggleSchedule(k)} className="flex items-center gap-3 w-full group">
+                    <div className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${scheduleFilter[k] ? 'bg-primary border-primary' : 'bg-gray-50 border border-gray-300 group-hover:border-primary/50'}`}>
+                      {scheduleFilter[k] && <Icon path={mdiCheck} size={0.6} className="text-white" />}
+                    </div>
+                    <span className={`text-sm font-medium ${scheduleFilter[k] ? 'text-gray-900' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                      {k.charAt(0).toUpperCase() + k.slice(1)}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-          
-          <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Cooperativa</p>
-            <div className="space-y-3">
-              {COOPERATIVES.map(c => (
-                <button key={c} onClick={() => toggleCoop(c)} className="flex items-center gap-3 w-full group">
-                  <div className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${coopFilter[c] ? 'bg-primary border-primary' : 'bg-gray-50 border border-gray-300 group-hover:border-primary/50'}`}>
-                    {coopFilter[c] && <Icon path={mdiCheck} size={0.6} className="text-white" />}
-                  </div>
-                  <span className={`text-sm font-medium ${coopFilter[c] ? 'text-gray-900' : 'text-gray-600 group-hover:text-gray-900'}`}>
-                    {c}
-                  </span>
-                </button>
-              ))}
+
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Cooperativa</p>
+              <div className="space-y-3">
+                {COOPERATIVES.map(c => (
+                  <button key={c} onClick={() => toggleCoop(c)} className="flex items-center gap-3 w-full group">
+                    <div className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${coopFilter[c] ? 'bg-primary border-primary' : 'bg-gray-50 border border-gray-300 group-hover:border-primary/50'}`}>
+                      {coopFilter[c] && <Icon path={mdiCheck} size={0.6} className="text-white" />}
+                    </div>
+                    <span className={`text-sm font-medium ${coopFilter[c] ? 'text-gray-900' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                      {c}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
           </div>
         </aside>
-        
+
         {/* Main Content */}
         <main className="flex-1 w-full">
           <div className="mb-6">
@@ -158,7 +160,7 @@ export default function TripsPage() {
               Mostrando <span className="text-gray-900">{filtered.length}</span> viajes disponibles
             </p>
           </div>
-          
+
           {filtered.length === 0 ? (
             <div className="bg-white border border-gray-100 rounded-3xl p-12 text-center shadow-sm">
               <div className="w-16 h-16 bg-gray-50 rounded-full mx-auto mb-4 flex items-center justify-center text-gray-300">
@@ -171,19 +173,17 @@ export default function TripsPage() {
             <div className="space-y-4">
               {filtered.map(trip => (
                 <div key={trip.id} className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex flex-col md:flex-row items-center gap-6 md:gap-0">
-                    <div className="flex-1 flex flex-row items-center w-full">
-                      <div className="text-center w-24 shrink-0">
-                        <p className="text-2xl font-black text-gray-900 leading-none">{trip.departure.split(" ")[0]}</p>
-                        <p className="text-xs font-bold text-gray-400 mt-1">{trip.departure.split(" ")[1]}</p>
-                        <p className="text-sm font-semibold text-gray-600 mt-2">{trip.origin}</p>
+                  <div className="flex flex-col md:flex-row items-center gap-4 md:gap-0">
+                    <div className="flex-1 flex flex-row items-center w-full justify-between">
+                      <div className="text-center w-16 md:w-24 shrink-0">
+                        <p className="text-xl md:text-2xl font-black text-gray-900 leading-none">{trip.departure.split(" ")[0]}</p>
+                        <p className="text-[10px] md:text-xs font-bold text-gray-400 mt-1">{trip.departure.split(" ")[1]}</p>
+                        <p className="text-xs md:text-sm font-semibold text-gray-600 mt-2 truncate">{trip.origin}</p>
                       </div>
-                      
-                      <div className="flex-1 flex flex-col items-center px-4 shrink-0 min-w-[120px]">
-                        <p className="text-xs font-bold text-gray-400 mb-2 flex items-center justify-center gap-1">
+
+                      <div className="flex-1 flex flex-col items-center px-2 md:px-4 min-w-[60px] md:min-w-[120px]">
+                        <p className="text-xs font-bold text-gray-400 mb-2 flex items-center justify-center gap-1 whitespace-nowrap">
                           <Icon path={mdiClockOutline} size={0.6} /> {trip.duration}
-                          <span className="mx-1">•</span>
-                          <span className={trip.type === 'Directo' ? 'text-emerald-500 font-black' : 'text-amber-500 font-bold'}>{trip.type}</span>
                         </p>
                         <div className="w-full flex items-center relative h-6">
                           <div className="w-2 h-2 rounded-full border-2 border-primary bg-white z-10" />
@@ -196,16 +196,16 @@ export default function TripsPage() {
                         </div>
                         <p className="text-xs font-bold text-primary mt-2">{trip.cooperative}</p>
                       </div>
-                      
-                      <div className="text-center w-24 shrink-0">
-                        <p className="text-2xl font-black text-gray-900 leading-none">{trip.arrival.split(" ")[0]}</p>
-                        <p className="text-xs font-bold text-gray-400 mt-1">{trip.arrival.split(" ")[1]}</p>
-                        <p className="text-sm font-semibold text-gray-600 mt-2">{trip.destination}</p>
+
+                      <div className="text-center w-16 md:w-24 shrink-0">
+                        <p className="text-xl md:text-2xl font-black text-gray-900 leading-none">{trip.arrival.split(" ")[0]}</p>
+                        <p className="text-[10px] md:text-xs font-bold text-gray-400 mt-1">{trip.arrival.split(" ")[1]}</p>
+                        <p className="text-xs md:text-sm font-semibold text-gray-600 mt-2 truncate">{trip.destination}</p>
                       </div>
                     </div>
-                    
+
                     <div className="w-full md:w-px h-px md:h-24 bg-gray-100 mx-0 md:mx-6 shrink-0" />
-                    
+
                     <div className="w-full md:w-auto flex flex-row md:flex-col items-center justify-between shrink-0 gap-4">
                       <div className="text-left md:text-right">
                         <p className="text-2xl font-black text-gray-900">C${trip.price}</p>

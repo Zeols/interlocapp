@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@mdi/react";
-import { 
-  mdiBus, 
+import {
+  mdiBus,
   mdiMapMarker,
   mdiClockOutline,
   mdiShieldCheck,
@@ -32,8 +32,8 @@ function initSeats(): Seat[] {
     const status: SeatStatus = OCCUPIED_IDS.includes(id)
       ? "occupied"
       : UNAVAILABLE_IDS.includes(id)
-      ? "unavailable"
-      : "available";
+        ? "unavailable"
+        : "available";
     return { id, status };
   });
 }
@@ -48,8 +48,8 @@ const SEAT_ROWS = [
 
 export default function PurchasePage() {
   const router = useRouter();
-  const userEmail = "maria@example.com";
-  
+  const userEmail = "steven@gmail.com";
+
   // Simulated trip info
   const trip = {
     origin: "Managua",
@@ -60,7 +60,7 @@ export default function PurchasePage() {
   };
 
   const BAGGAGE_PRICE = 50;
-  
+
   const [seats, setSeats] = useState<Seat[]>(initSeats());
   const [baggage, setBaggage] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -94,7 +94,7 @@ export default function PurchasePage() {
           <p className="inline-block bg-primary/10 text-primary font-bold text-xs uppercase tracking-wider px-3 py-1 rounded-full mb-4">
             Transportes Seguros
           </p>
-          <h1 className="text-3xl lg:text-4xl font-black text-gray-900 mb-6">Compra de Boleto</h1>
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-gray-900 mb-6">Compra de Boleto</h1>
           <div className="flex flex-wrap items-center gap-3">
             <span className="flex items-center gap-1.5 text-sm font-bold text-gray-900 bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl">
               <Icon path={mdiMapMarker} size={0.7} className="text-primary" />
@@ -117,49 +117,49 @@ export default function PurchasePage() {
               <h2 className="text-xl font-black text-gray-900">Selección de Asientos</h2>
               <p className="text-gray-500 mt-1">Haz clic en los asientos disponibles para seleccionarlos</p>
             </div>
-            
-            <div className="flex flex-col items-center max-w-sm mx-auto bg-gray-50 border border-gray-200 rounded-3xl p-8 mb-8 relative">
+
+            <div className="flex flex-col items-center max-w-sm mx-auto bg-gray-50 border border-gray-200 rounded-3xl p-4 sm:p-8 mb-8 relative">
               <div className="absolute top-4 w-1/2 h-2 bg-gray-200 rounded-full" />
               <div className="w-10 h-10 border-4 border-gray-200 rounded-full absolute -top-5 bg-white" />
-              
+
               <div className="w-full flex flex-col gap-4 mt-6">
                 {SEAT_ROWS.map((row, i) => (
                   <div key={i} className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 sm:gap-3">
                       {row.slice(0, 2).map(id => {
                         const s = seats.find(x => x.id === id)!;
                         let style = "bg-white border-gray-300 text-gray-600 hover:border-primary";
                         if (s.status === 'selected') style = "bg-primary border-primary text-white scale-110 shadow-md";
                         if (s.status === 'occupied') style = "bg-gray-200 border-gray-200 text-gray-400 cursor-not-allowed opacity-70";
                         if (s.status === 'unavailable') style = "bg-gray-100 border-gray-100 text-transparent cursor-not-allowed";
-                        
+
                         return (
-                          <button 
-                            key={id} 
-                            onClick={() => toggleSeat(id)} 
+                          <button
+                            key={id}
+                            onClick={() => toggleSeat(id)}
                             disabled={s.status === 'occupied' || s.status === 'unavailable'}
-                            className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center font-bold text-sm transition-all ${style}`}
+                            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl border-2 flex items-center justify-center font-bold text-sm transition-all ${style}`}
                           >
                             {s.status !== 'unavailable' ? id : ''}
                           </button>
                         );
                       })}
                     </div>
-                    <div className="w-8 shrink-0" /> {/* Aisle */}
-                    <div className="flex items-center gap-3">
+                    <div className="w-4 sm:w-8 shrink-0" /> {/* Aisle */}
+                    <div className="flex items-center gap-1.5 sm:gap-3">
                       {row.slice(2, 4).map(id => {
                         const s = seats.find(x => x.id === id)!;
                         let style = "bg-white border-gray-300 text-gray-600 hover:border-primary";
                         if (s.status === 'selected') style = "bg-primary border-primary text-white scale-110 shadow-md";
                         if (s.status === 'occupied') style = "bg-gray-200 border-gray-200 text-gray-400 cursor-not-allowed opacity-70";
                         if (s.status === 'unavailable') style = "bg-gray-100 border-gray-100 text-transparent cursor-not-allowed";
-                        
+
                         return (
-                          <button 
-                            key={id} 
-                            onClick={() => toggleSeat(id)} 
+                          <button
+                            key={id}
+                            onClick={() => toggleSeat(id)}
                             disabled={s.status === 'occupied' || s.status === 'unavailable'}
-                            className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center font-bold text-sm transition-all ${style}`}
+                            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl border-2 flex items-center justify-center font-bold text-sm transition-all ${style}`}
                           >
                             {s.status !== 'unavailable' ? id : ''}
                           </button>
@@ -190,7 +190,7 @@ export default function PurchasePage() {
               <h2 className="text-xl font-black text-gray-900">Equipaje Extra</h2>
               <p className="text-gray-500 mt-1">Agrega piezas adicionales de equipaje</p>
             </div>
-            
+
             <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-2xl">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-primary shadow-sm">
@@ -202,16 +202,16 @@ export default function PurchasePage() {
                 </div>
               </div>
               <div className="flex items-center gap-4 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
-                <button 
-                  onClick={() => setBaggage(Math.max(0, baggage - 1))} 
-                  disabled={baggage === 0} 
+                <button
+                  onClick={() => setBaggage(Math.max(0, baggage - 1))}
+                  disabled={baggage === 0}
                   className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${baggage === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
                 >
                   <Icon path={mdiMinus} size={0.7} />
                 </button>
                 <span className="w-4 text-center font-bold text-gray-900">{baggage}</span>
-                <button 
-                  onClick={() => setBaggage(baggage + 1)} 
+                <button
+                  onClick={() => setBaggage(baggage + 1)}
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors"
                 >
                   <Icon path={mdiPlus} size={0.7} />
@@ -223,46 +223,44 @@ export default function PurchasePage() {
 
         {/* Right Column: Summary */}
         <div className="w-full lg:w-96 shrink-0 sticky top-[100px]">
-          <div className="bg-gray-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl pointer-events-none" />
-            
+          <div className="bg-white border border-gray-100 rounded-3xl p-6 md:p-8 text-gray-900 shadow-sm relative overflow-hidden">
             <h2 className="text-2xl font-black mb-8 relative z-10">Resumen de pago</h2>
-            
+
             <div className="space-y-4 mb-8 relative z-10">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-gray-400 font-medium">Boletos ({selectedSeats.length})</p>
+                  <p className="text-gray-500 font-medium">Boletos ({selectedSeats.length})</p>
                   {selectedSeats.length > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">Asientos: {selectedSeats.map(s => `#${s.id}`).join(", ")}</p>
+                    <p className="text-xs text-gray-400 mt-1">Asientos: {selectedSeats.map(s => `#${s.id}`).join(", ")}</p>
                   )}
                 </div>
-                <p className="font-bold text-lg">{fmt(ticketTotal)}</p>
+                <p className="font-bold text-lg text-gray-900">{fmt(ticketTotal)}</p>
               </div>
-              
+
               {baggage > 0 && (
                 <div className="flex items-start justify-between">
-                  <p className="text-gray-400 font-medium">Equipaje ({baggage})</p>
-                  <p className="font-bold text-lg">{fmt(baggageTotal)}</p>
+                  <p className="text-gray-500 font-medium">Equipaje ({baggage})</p>
+                  <p className="font-bold text-lg text-gray-900">{fmt(baggageTotal)}</p>
                 </div>
               )}
             </div>
-            
-            <div className="pt-6 border-t border-white/10 flex items-end justify-between mb-8 relative z-10">
+
+            <div className="pt-6 border-t border-gray-100 flex items-end justify-between mb-8 relative z-10">
               <p className="text-gray-400 font-bold uppercase tracking-wider text-sm">Total</p>
-              <p className="text-4xl font-black text-white">{fmt(total)}</p>
+              <p className="text-4xl font-black text-gray-900">{fmt(total)}</p>
             </div>
 
-            <button 
-              onClick={() => setShowSuccess(true)} 
+            <button
+              onClick={() => setShowSuccess(true)}
               disabled={selectedSeats.length === 0}
               className={`w-full bg-primary hover:bg-primary-dark text-white font-bold text-lg py-4 rounded-xl flex items-center justify-center gap-2 transition-all group relative z-10 ${selectedSeats.length === 0 ? 'opacity-50 cursor-not-allowed hover:bg-primary' : ''}`}
             >
               Pagar Boleto
               <Icon path={mdiArrowRight} size={0.9} className="transition-transform group-hover:translate-x-1" />
             </button>
-            
-            <div className="flex items-center justify-center gap-2 text-xs font-semibold text-emerald-400 mt-6 relative z-10">
-              <Icon path={mdiShieldCheck} size={0.7} />
+
+            <div className="flex items-center justify-center gap-2 text-xs font-semibold text-gray-500 mt-6 relative z-10">
+              <Icon path={mdiShieldCheck} size={0.7} className="text-emerald-500" />
               Pago procesado con encriptación SSL
             </div>
           </div>
@@ -273,15 +271,15 @@ export default function PurchasePage() {
       <AnimatePresence>
         {showSuccess && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"
               onClick={() => { setShowSuccess(false); goTrips(); }}
             />
-            
-            <motion.div 
+
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -290,12 +288,12 @@ export default function PurchasePage() {
               <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-inner">
                 <Icon path={mdiCheckCircleOutline} size={2.5} />
               </div>
-              
+
               <p className="inline-block bg-primary/10 text-primary font-bold text-xs uppercase tracking-wider px-3 py-1 rounded-full mb-3">
                 Pago confirmado
               </p>
               <h2 className="text-3xl font-black text-gray-900 mb-8">¡Compra realizada!</h2>
-              
+
               <div className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-6 mb-8 text-left">
                 <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
                   <div className="flex items-center gap-2 font-bold text-gray-900">
@@ -313,7 +311,7 @@ export default function PurchasePage() {
                   Salida <span className="font-bold text-gray-900">{trip.departure}</span> · {trip.cooperative}
                 </p>
               </div>
-              
+
               <div className="flex items-start gap-4 text-left bg-blue-50 text-blue-800 p-4 rounded-2xl mb-8">
                 <div className="mt-0.5 shrink-0">
                   <Icon path={mdiEmailOutline} size={1} className="text-blue-500" />
@@ -321,20 +319,20 @@ export default function PurchasePage() {
                 <div>
                   <p className="font-bold text-sm mb-1">Boleto enviado por correo</p>
                   <p className="text-xs text-blue-600/80 leading-relaxed">
-                    Recibirás tu ticket en <span className="font-bold">{userEmail}</span>. 
+                    Recibirás tu ticket en <span className="font-bold">{userEmail}</span>.
                     También estará registrado en el sistema.
                   </p>
                 </div>
               </div>
-              
-              <button 
-                onClick={() => { setShowSuccess(false); goHome(); }} 
+
+              <button
+                onClick={() => { setShowSuccess(false); goHome(); }}
                 className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-4 rounded-xl transition-colors mb-3"
               >
                 Volver al inicio
               </button>
-              <button 
-                onClick={() => { setShowSuccess(false); goTrips(); }} 
+              <button
+                onClick={() => { setShowSuccess(false); goTrips(); }}
                 className="w-full bg-transparent text-gray-500 hover:text-gray-900 font-bold py-3 rounded-xl transition-colors"
               >
                 Ver detalles del viaje
