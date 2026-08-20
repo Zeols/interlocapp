@@ -52,7 +52,6 @@ export default function SeatMap({ seats, onSeatSelect, selectedSeatId }: SeatMap
         <div className="seats-grid">
           {seats.map((seat, index) => {
             const isSelected = seat.id === selectedSeatId;
-            // The AI design suggests: emerald for available, rose for occupied, amber/orange for selected, slate for unavailable.
             // We use our custom classes matching our orange/coral theme in components.css
             let statusClass = seat.status;
             if (isSelected) statusClass = 'selected';

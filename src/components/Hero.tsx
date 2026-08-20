@@ -11,10 +11,6 @@ export default function Hero() {
       <div className="container hero-grid">
 
         <div className="hero-content">
-          <div className="badge">
-            <span className="badge-dot"></span>
-            Viaja con InterlocApp
-          </div>
           <h1 className="hero-title">
             Viaja cómodo y seguro a tu destino sin hacer <span className="highlight">filas</span>
           </h1>
@@ -84,34 +80,6 @@ export default function Hero() {
           grid-template-columns: 1.2fr 1fr;
           gap: var(--space-lg);
           align-items: center;
-        }
-
-        .badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          padding: 6px 16px;
-          background-color: rgba(254, 125, 34, 0.1);
-          color: var(--color-primary-dark);
-          border-radius: var(--radius-pill);
-          font-family: var(--font-heading);
-          font-weight: 600;
-          font-size: 0.875rem;
-          margin-bottom: var(--space-sm);
-        }
-
-        .badge-dot {
-          width: 8px;
-          height: 8px;
-          background-color: var(--color-secondary);
-          border-radius: 50%;
-          animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-          0% { box-shadow: 0 0 0 0 rgba(249, 56, 34, 0.4); }
-          70% { box-shadow: 0 0 0 6px rgba(249, 56, 34, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(249, 56, 34, 0); }
         }
 
         .hero-title {
