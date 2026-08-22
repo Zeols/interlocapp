@@ -31,7 +31,7 @@ export function Navbar() {
           <div className="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center text-gray-600 transition-colors group-hover:bg-primary group-hover:text-white">
             <Icon path={mdiArrowLeft} size={0.8} />
           </div>
-          <span className="font-bold text-gray-900 text-lg">InterlocApp</span>
+          <span className="font-bold text-gray-900 text-lg">Turkitin</span>
         </button>
       ) : (
         <div className="flex items-center gap-10">

@@ -27,9 +27,9 @@ export default function LandingPage() {
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-md">
             <Icon path={mdiBus} size={1} />
           </div>
-          <span className="font-bold text-gray-900 text-xl tracking-tight">InterlocApp</span>
+          <span className="font-bold text-gray-900 text-xl tracking-tight">Turkitin</span>
         </div>
-        <button 
+        <button
           onClick={goLogin}
           className="bg-gray-900 hover:bg-gray-800 text-white font-bold px-4 py-2 text-sm md:text-base md:px-6 md:py-2.5 rounded-full whitespace-nowrap transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer shadow-md hover:shadow-lg"
         >
@@ -46,14 +46,14 @@ export default function LandingPage() {
           <p className="text-lg text-gray-500 mb-8 max-w-md">
             Compra tus boletos interurbanos en línea, elige tu asiento favorito de antemano y viaja en la mejor flota de la región.
           </p>
-          <button 
-            onClick={goLogin} 
+          <button
+            onClick={goLogin}
             className="inline-flex items-center gap-3 bg-primary hover:bg-primary-dark text-white font-bold text-lg px-8 py-4 rounded-full transition-all duration-300 group hover:scale-105 active:scale-95 cursor-pointer shadow-lg shadow-primary/30 hover:shadow-primary/40"
           >
             Comenzar ahora
             <Icon path={mdiArrowRight} size={1} className="transition-transform group-hover:translate-x-1" />
           </button>
-          
+
           <div className="flex items-center gap-12 mt-16">
             <div>
               <p className="text-3xl font-black text-gray-900">0</p>

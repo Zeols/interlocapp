@@ -91,9 +91,6 @@ export default function PurchasePage() {
       {/* Page Header */}
       <div className="bg-white border-b border-gray-100 py-10 px-8">
         <div className="max-w-6xl mx-auto">
-          <p className="inline-block bg-primary/10 text-primary font-bold text-xs uppercase tracking-wider px-3 py-1 rounded-full mb-4">
-            Transportes Seguros
-          </p>
           <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-gray-900 mb-6">Compra de Boleto</h1>
           <div className="flex flex-wrap items-center gap-3">
             <span className="flex items-center gap-1.5 text-sm font-bold text-gray-900 bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl">
