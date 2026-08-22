@@ -27,7 +27,7 @@ export default function LandingPage() {
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-md">
             <Icon path={mdiBus} size={1} />
           </div>
-          <span className="font-bold text-gray-900 text-xl tracking-tight">Turkitin</span>
+          <span className="font-bold text-gray-900 text-xl tracking-tight">InterlocApp</span>
         </div>
         <button
           onClick={goLogin}
