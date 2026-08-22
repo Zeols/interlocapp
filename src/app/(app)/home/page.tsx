@@ -146,7 +146,7 @@ export default function HomePage() {
             <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center text-white">
               <Icon path={mdiBus} size={0.6} />
             </div>
-            <span className="font-black text-gray-900 tracking-tight">InterlocApp</span>
+            <span className="font-black text-gray-900 tracking-tight">Turkitin</span>
           </div>
           <p className="text-sm text-gray-500 font-medium">Transportes seguros en Nicaragua</p>
           <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full">
