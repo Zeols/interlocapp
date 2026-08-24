@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Icon from "@mdi/react";
 import {
   mdiBus,
@@ -12,6 +13,69 @@ import {
   mdiShieldCheckOutline,
 } from "@mdi/js";
 import { BrowserCard } from "@/components/ui/BrowserCard";
+import ShimmerButton from "@/components/magicui/shimmer-button";
+import { GridPattern } from "@/components/magicui/grid-pattern";
+import { BentoGrid, BentoCard } from "@/components/magicui/bento-grid";
+import Marquee from "@/components/magicui/marquee";
+
+const features = [
+  {
+    IconPath: mdiTicketConfirmationOutline,
+    name: "Compra Anticipada",
+    description: "Olvídate de las filas en la terminal. Compra o reserva tu boleto desde tu celular de manera rápida y segura.",
+    href: "/login",
+    cta: "Comprar ahora",
+    background: <div className="absolute right-0 top-0 origin-top rounded-bl-full bg-primary/10 w-32 h-32 transition-all duration-300 ease-out group-hover:scale-[1.2]"></div>,
+    className: "lg:col-span-1 bg-gray-50",
+    iconClassName: "bg-primary/10 text-primary",
+    textClassName: "text-gray-900",
+    descriptionClassName: "text-gray-500",
+  },
+  {
+    IconPath: mdiViewGridOutline,
+    name: "Elige tu Asiento",
+    description: "Revisa el mapa del autobús en tiempo real y escoge tu lugar favorito con total libertad.",
+    href: "/login",
+    cta: "Ver mapa",
+    background: <div className="absolute -right-4 -top-4 w-40 h-40 bg-rose-50 rounded-full blur-2xl opacity-50 group-hover:opacity-100 transition-opacity"></div>,
+    className: "lg:col-span-2 bg-gray-50",
+    iconClassName: "bg-rose-50 text-rose-500",
+    textClassName: "text-gray-900",
+    descriptionClassName: "text-gray-500",
+  },
+  {
+    IconPath: mdiNavigationVariantOutline,
+    name: "Rastreo en Vivo",
+    description: "Conoce la ubicación exacta de tu unidad y los puntos de abordaje sin incertidumbre.",
+    href: "/login",
+    cta: "Rastrear",
+    background: <div className="absolute left-0 bottom-0 origin-bottom rounded-tr-[100px] bg-blue-50 w-full h-32 opacity-40 group-hover:opacity-70 transition-opacity"></div>,
+    className: "lg:col-span-2 bg-gray-50",
+    iconClassName: "bg-blue-50 text-blue-500",
+    textClassName: "text-gray-900",
+    descriptionClassName: "text-gray-500",
+  },
+  {
+    IconPath: mdiShieldCheckOutline,
+    name: "Puntualidad y Confort",
+    description: "Nuestra moderna flota garantiza salidas a tiempo, viajes seguros y la máxima comodidad.",
+    href: "/login",
+    cta: "Saber más",
+    background: <div className="absolute inset-0 bg-gradient-to-br from-transparent to-gray-100/50"></div>,
+    className: "lg:col-span-1 bg-gray-900",
+    iconClassName: "bg-white/10 text-white",
+    textClassName: "text-white",
+    descriptionClassName: "text-gray-400",
+  },
+];
+
+const advantages = [
+  { title: "Rastreo GPS en tiempo real" },
+  { title: "Elige tu asiento VIP" },
+  { title: "Viajes seguros y confortables" },
+  { title: "Sin filas en la terminal" },
+  { title: "Cancelaciones flexibles" },
+];
 
 export default function LandingPage() {
   const router = useRouter();
@@ -21,14 +85,14 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <nav className="flex items-center justify-between px-8 py-6 max-w-6xl mx-auto w-full">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-md">
+    <div className="min-h-screen bg-white flex flex-col relative overflow-hidden">
+      <nav className="flex items-center justify-between px-8 py-6 max-w-6xl mx-auto w-full relative z-20">
+        <Link href="/" className="flex items-center gap-3 cursor-pointer group">
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-md transition-transform group-hover:scale-105">
             <Icon path={mdiBus} size={1} />
           </div>
-          <span className="font-bold text-gray-900 text-xl tracking-tight">InterlocApp</span>
-        </div>
+          <span className="font-bold text-gray-900 text-xl tracking-tight transition-colors group-hover:text-primary">InterlocApp</span>
+        </Link>
         <button
           onClick={goLogin}
           className="bg-gray-900 hover:bg-gray-800 text-white font-bold px-4 py-2 text-sm md:text-base md:px-6 md:py-2.5 rounded-full whitespace-nowrap transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer shadow-md hover:shadow-lg"
@@ -37,22 +101,32 @@ export default function LandingPage() {
         </button>
       </nav>
 
-      <main className="flex-1 w-full max-w-6xl mx-auto px-8 py-12 md:py-24 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-        {/* Hero Left */}
+      {/* Hero Section */}
+      <main className="flex-1 w-full max-w-6xl mx-auto px-8 py-12 md:py-24 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center relative z-10">
+        <GridPattern
+          width={40}
+          height={40}
+          x={-1}
+          y={-1}
+          className="absolute inset-0 h-full w-full opacity-50 [mask-image:linear-gradient(to_bottom,white,transparent_80%)] -z-10"
+        />
+        
         <div>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 leading-[1.1] tracking-tight mb-6">
-            Viaja cómodo y seguro a tu destino sin hacer filas
+          <h1 className="text-4xl md:text-5xl lg:text-7xl font-black text-gray-900 leading-[1.1] tracking-tight mb-6">
+            Viaja cómodo y seguro sin hacer filas
           </h1>
-          <p className="text-lg text-gray-500 mb-8 max-w-md">
+          <p className="text-lg md:text-xl text-gray-500 mb-8 max-w-md leading-relaxed">
             Compra tus boletos interurbanos en línea, elige tu asiento favorito de antemano y viaja en la mejor flota de la región.
           </p>
-          <button
-            onClick={goLogin}
-            className="inline-flex items-center gap-3 bg-primary hover:bg-primary-dark text-white font-bold text-lg px-8 py-4 rounded-full transition-all duration-300 group hover:scale-105 active:scale-95 cursor-pointer shadow-lg shadow-primary/30 hover:shadow-primary/40"
-          >
-            Comenzar ahora
-            <Icon path={mdiArrowRight} size={1} className="transition-transform group-hover:translate-x-1" />
-          </button>
+          
+          <div className="mt-8 flex gap-4" onClick={goLogin}>
+            <ShimmerButton className="shadow-2xl">
+              <span className="flex items-center gap-2 whitespace-pre-wrap text-center text-sm font-medium leading-none tracking-tight text-white dark:from-white dark:to-slate-900/10 lg:text-lg">
+                Comenzar ahora
+                <Icon path={mdiArrowRight} size={0.8} />
+              </span>
+            </ShimmerButton>
+          </div>
 
           <div className="flex items-center gap-12 mt-16">
             <div>
@@ -66,64 +140,29 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Hero Right */}
-        <div className="hidden lg:block w-full">
+        <div className="hidden lg:block w-full relative">
+          <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full"></div>
           <BrowserCard />
         </div>
       </main>
 
       {/* Features Section */}
-      <section className="bg-white py-24">
-        <div className="max-w-4xl mx-auto px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4 tracking-tight">
-            Por qué elegir viajar con nosotros
-          </h2>
-          <p className="text-lg text-gray-500 mb-16">
-            La mejor experiencia de viaje a tu alcance.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-            <div className="bg-gray-50 border border-gray-100 rounded-3xl p-8">
-              <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mb-6">
-                <Icon path={mdiTicketConfirmationOutline} size={1.2} />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Compra Anticipada</h3>
-              <p className="text-gray-500 leading-relaxed">
-                Olvídate de las filas en la terminal. Compra o reserva tu boleto desde tu celular de manera rápida y segura.
-              </p>
-            </div>
-
-            <div className="bg-gray-50 border border-gray-100 rounded-3xl p-8">
-              <div className="w-14 h-14 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mb-6">
-                <Icon path={mdiViewGridOutline} size={1.2} />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Elige tu Asiento</h3>
-              <p className="text-gray-500 leading-relaxed">
-                Revisa el mapa del autobús en tiempo real y escoge tu lugar favorito.
-              </p>
-            </div>
-
-            <div className="bg-gray-50 border border-gray-100 rounded-3xl p-8">
-              <div className="w-14 h-14 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center mb-6">
-                <Icon path={mdiNavigationVariantOutline} size={1.2} />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Rastreo en Vivo</h3>
-              <p className="text-gray-500 leading-relaxed">
-                Conoce la ubicación exacta de tu unidad y los puntos de abordaje sin incertidumbre.
-              </p>
-            </div>
-
-            {/* Changed the dark card to a light/flat card per user request "elimina degradados y vestigios de IA" */}
-            <div className="bg-gray-900 rounded-3xl p-8 text-white">
-              <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center mb-6">
-                <Icon path={mdiShieldCheckOutline} size={1.2} />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">Puntualidad y Confort</h3>
-              <p className="text-gray-400 leading-relaxed">
-                Nuestra moderna flota garantiza salidas a tiempo, viajes seguros y la máxima comodidad.
-              </p>
-            </div>
+      <section className="bg-white py-24 relative z-10">
+        <div className="max-w-5xl mx-auto px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-black text-gray-900 mb-4 tracking-tight">
+              Por qué elegir viajar con nosotros
+            </h2>
+            <p className="text-lg md:text-xl text-gray-500">
+              La mejor experiencia de viaje a tu alcance, potenciada por tecnología.
+            </p>
           </div>
+
+          <BentoGrid className="lg:grid-rows-2">
+            {features.map((feature) => (
+              <BentoCard key={feature.name} {...feature} />
+            ))}
+          </BentoGrid>
         </div>
       </section>
     </div>
