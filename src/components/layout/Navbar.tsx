@@ -61,7 +61,7 @@ export function Navbar() {
 
       {/* Right side: User Profile */}
       <div className="flex items-center">
-        <UserChip name="Enrique Pomares" email="enrique@gmail.com" />
+        <UserChip name="User" email="user@ejemplo.com" />
       </div>
     </nav>
   );

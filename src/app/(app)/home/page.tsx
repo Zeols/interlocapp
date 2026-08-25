@@ -28,7 +28,7 @@ export default function HomePage() {
   const goTrips = () => router.push("/trips");
 
   // Simulating logged-in user
-  const userName = "Enrique Pomares";
+  const userName = "User";
   const firstName = userName.split(" ")[0];
 
   return (

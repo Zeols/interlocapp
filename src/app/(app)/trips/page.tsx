@@ -58,7 +58,16 @@ export default function TripsPage() {
     return true;
   });
 
-  const goPurchase = () => router.push("/compra");
+  const goPurchase = (trip: any) => {
+    const params = new URLSearchParams({
+      origin: trip.origin,
+      destination: trip.destination,
+      departure: trip.departure,
+      cooperative: trip.cooperative,
+      price: trip.price.toString()
+    });
+    router.push(`/compra?${params.toString()}`);
+  };
 
   return (
     <div className="w-full pb-16">
@@ -209,7 +218,7 @@ export default function TripsPage() {
                         <p className="text-2xl font-black text-gray-900">C${trip.price}</p>
                         <p className="text-xs font-medium text-gray-400">por persona</p>
                       </div>
-                      <button onClick={goPurchase} className="bg-gray-900 hover:bg-gray-800 text-white font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 transition-colors">
+                      <button onClick={() => goPurchase(trip)} className="bg-gray-900 hover:bg-gray-800 text-white font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 transition-colors">
                         Seleccionar
                         <Icon path={mdiArrowRight} size={0.7} />
                       </button>
