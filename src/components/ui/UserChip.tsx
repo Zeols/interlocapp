@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import Icon from "@mdi/react";
 import { mdiChevronDown, mdiAccountOutline, mdiCogOutline, mdiLogout } from "@mdi/js";
 import { motion, AnimatePresence } from "framer-motion";
@@ -55,14 +56,22 @@ export function UserChip({ name, email }: { name: string; email: string }) {
               <p className="text-gray-500 text-xs mt-0.5 truncate">{email}</p>
             </div>
             <div className="h-px bg-gray-100 my-2" />
-            <button className="flex items-center gap-3 w-full px-4 py-2.5 bg-transparent border-none rounded-lg cursor-pointer text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 group">
+            <Link 
+              href="/profile"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 w-full px-4 py-2.5 bg-transparent border-none rounded-lg cursor-pointer text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 group"
+            >
               <Icon path={mdiAccountOutline} size={0.7} className="text-gray-400 transition-colors group-hover:text-gray-600" />
               Ver perfil
-            </button>
-            <button className="flex items-center gap-3 w-full px-4 py-2.5 bg-transparent border-none rounded-lg cursor-pointer text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 group">
+            </Link>
+            <Link 
+              href="/settings"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 w-full px-4 py-2.5 bg-transparent border-none rounded-lg cursor-pointer text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 group"
+            >
               <Icon path={mdiCogOutline} size={0.7} className="text-gray-400 transition-colors group-hover:text-gray-600" />
               Ajustes
-            </button>
+            </Link>
             <div className="h-px bg-gray-100 my-2" />
             <button className="flex items-center gap-3 w-full px-4 py-2.5 bg-transparent border-none rounded-lg cursor-pointer text-sm font-medium text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 group">
               <Icon path={mdiLogout} size={0.7} className="text-red-400 transition-colors group-hover:text-red-500" />

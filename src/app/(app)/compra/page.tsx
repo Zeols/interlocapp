@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import Icon from "@mdi/react";
 import {
   mdiBus,
@@ -46,17 +47,18 @@ const SEAT_ROWS = [
   [17, 18, 19, 20],
 ];
 
-export default function PurchasePage() {
+function PurchaseContent() {
   const router = useRouter();
-  const userEmail = "steven@gmail.com";
+  const searchParams = useSearchParams();
+  const userEmail = "user@ejemplo.com";
 
-  // Simulated trip info
+  // Dynamic trip info from URL parameters
   const trip = {
-    origin: "Managua",
-    destination: "León",
-    departure: "06:00 AM",
-    cooperative: "TransNica",
-    price: 85
+    origin: searchParams.get("origin") || "Managua",
+    destination: searchParams.get("destination") || "León",
+    departure: searchParams.get("departure") || "06:00 AM",
+    cooperative: searchParams.get("cooperative") || "TransNica",
+    price: Number(searchParams.get("price")) || 85
   };
 
   const BAGGAGE_PRICE = 50;
@@ -168,14 +170,14 @@ export default function PurchasePage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-6">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-600">
+            <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 mt-4">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-semibold text-gray-600">
                 <div className="w-4 h-4 rounded border-2 border-gray-300 bg-white" /> Disponible
               </div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-semibold text-gray-600">
                 <div className="w-4 h-4 rounded border-2 border-primary bg-primary" /> Seleccionado
               </div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-semibold text-gray-600">
                 <div className="w-4 h-4 rounded border-2 border-gray-200 bg-gray-200" /> Ocupado
               </div>
             </div>
@@ -280,7 +282,7 @@ export default function PurchasePage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white w-full max-w-md rounded-[2rem] p-10 relative z-10 shadow-2xl flex flex-col items-center text-center"
+              className="bg-white w-full max-w-md rounded-[2rem] p-6 sm:p-10 relative z-10 shadow-2xl flex flex-col items-center text-center max-h-[90vh] overflow-y-auto"
             >
               <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-inner">
                 <Icon path={mdiCheckCircleOutline} size={2.5} />
@@ -300,7 +302,7 @@ export default function PurchasePage() {
                   <span className="font-black text-lg text-primary">{fmt(total)}</span>
                 </div>
                 {selectedSeats.length > 0 && (
-                  <p className="text-sm font-medium text-gray-600 mb-1">
+                  <p className="text-sm font-medium text-gray-600 mb-1 break-words">
                     Asiento{selectedSeats.length > 1 ? "s" : ""} <span className="font-bold text-gray-900">#{selectedSeats.map(s => s.id).join(", #")}</span>
                   </p>
                 )}
@@ -339,5 +341,13 @@ export default function PurchasePage() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function PurchasePage() {
+  return (
+    <Suspense fallback={<div className="flex w-full items-center justify-center p-20 text-gray-500 font-bold">Cargando...</div>}>
+      <PurchaseContent />
+    </Suspense>
   );
 }
