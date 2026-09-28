@@ -43,4 +43,8 @@ next-env.d.ts
 /src/generated/prisma
 
 # Antigravity Skills
+.agents/
 .agents/skills/
+.claude/
+.windsurf/
+AGENTS.md
