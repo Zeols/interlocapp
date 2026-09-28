@@ -15,67 +15,6 @@ import {
 import { BrowserCard } from "@/components/ui/BrowserCard";
 import ShimmerButton from "@/components/magicui/shimmer-button";
 import { GridPattern } from "@/components/magicui/grid-pattern";
-import { BentoGrid, BentoCard } from "@/components/magicui/bento-grid";
-import Marquee from "@/components/magicui/marquee";
-
-const features = [
-  {
-    IconPath: mdiTicketConfirmationOutline,
-    name: "Compra Anticipada",
-    description: "Olvídate de las filas en la terminal. Compra o reserva tu boleto desde tu celular de manera rápida y segura.",
-    href: "/login",
-    cta: "Comprar ahora",
-    background: <div className="absolute right-0 top-0 origin-top rounded-bl-full bg-primary/10 w-32 h-32 transition-all duration-300 ease-out group-hover:scale-[1.2]"></div>,
-    className: "lg:col-span-1 bg-gray-50",
-    iconClassName: "bg-primary/10 text-primary",
-    textClassName: "text-gray-900",
-    descriptionClassName: "text-gray-500",
-  },
-  {
-    IconPath: mdiViewGridOutline,
-    name: "Elige tu Asiento",
-    description: "Revisa el mapa del autobús en tiempo real y escoge tu lugar favorito con total libertad.",
-    href: "/login",
-    cta: "Ver mapa",
-    background: <div className="absolute -right-4 -top-4 w-40 h-40 bg-rose-50 rounded-full blur-2xl opacity-50 group-hover:opacity-100 transition-opacity"></div>,
-    className: "lg:col-span-2 bg-gray-50",
-    iconClassName: "bg-rose-50 text-rose-500",
-    textClassName: "text-gray-900",
-    descriptionClassName: "text-gray-500",
-  },
-  {
-    IconPath: mdiNavigationVariantOutline,
-    name: "Rastreo en Vivo",
-    description: "Conoce la ubicación exacta de tu unidad y los puntos de abordaje sin incertidumbre.",
-    href: "/login",
-    cta: "Rastrear",
-    background: <div className="absolute left-0 bottom-0 origin-bottom rounded-tr-[100px] bg-blue-50 w-full h-32 opacity-40 group-hover:opacity-70 transition-opacity"></div>,
-    className: "lg:col-span-2 bg-gray-50",
-    iconClassName: "bg-blue-50 text-blue-500",
-    textClassName: "text-gray-900",
-    descriptionClassName: "text-gray-500",
-  },
-  {
-    IconPath: mdiShieldCheckOutline,
-    name: "Puntualidad y Confort",
-    description: "Nuestra moderna flota garantiza salidas a tiempo, viajes seguros y la máxima comodidad.",
-    href: "/login",
-    cta: "Saber más",
-    background: <div className="absolute inset-0 bg-gradient-to-br from-transparent to-gray-100/50"></div>,
-    className: "lg:col-span-1 bg-gray-900",
-    iconClassName: "bg-white/10 text-white",
-    textClassName: "text-white",
-    descriptionClassName: "text-gray-400",
-  },
-];
-
-const advantages = [
-  { title: "Rastreo GPS en tiempo real" },
-  { title: "Elige tu asiento VIP" },
-  { title: "Viajes seguros y confortables" },
-  { title: "Sin filas en la terminal" },
-  { title: "Cancelaciones flexibles" },
-];
 
 export default function LandingPage() {
   const router = useRouter();
@@ -163,22 +102,76 @@ export default function LandingPage() {
       </div>
 
       {/* Features Section */}
-      <section className="bg-gray-50 py-24 relative z-10">
-        <div className="max-w-5xl mx-auto px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-black text-gray-900 mb-4 tracking-tight">
-              Por qué elegir viajar con nosotros
+      <section className="bg-white py-24 relative z-10 border-t border-gray-100">
+        <div className="max-w-6xl mx-auto px-8">
+          <div className="mb-20">
+            <h2 className="text-3xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight max-w-2xl">
+              Viajar ya no tiene que ser complicado.
             </h2>
-            <p className="text-lg md:text-xl text-gray-500">
-              La mejor experiencia de viaje a tu alcance, potenciada por tecnología.
+            <p className="text-xl text-gray-500 max-w-2xl">
+              Rediseñamos la experiencia de viajar en autobús. Desde la compra hasta la llegada, todo el control está en tu celular.
             </p>
           </div>
 
-          <BentoGrid className="lg:grid-rows-2">
-            {features.map((feature) => (
-              <BentoCard key={feature.name} {...feature} />
-            ))}
-          </BentoGrid>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12">
+            {/* Principal: Compra Anticipada */}
+            <div className="md:col-span-7 bg-gray-50 rounded-3xl p-10 md:p-14 flex flex-col justify-between items-start border border-gray-100">
+              <div>
+                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-gray-900 shadow-sm border border-gray-200 mb-8">
+                  <Icon path={mdiTicketConfirmationOutline} size={1.2} />
+                </div>
+                <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">Compra anticipada en segundos</h3>
+                <p className="text-gray-600 text-lg leading-relaxed max-w-md">
+                  Olvídate de las filas en la terminal. Compra, reserva y administra tus boletos directamente desde tu dispositivo, con múltiples métodos de pago seguros.
+                </p>
+              </div>
+              <Link href="/login" className="mt-10 inline-flex items-center gap-2 text-gray-900 font-bold hover:text-primary transition-colors">
+                Comprar ahora <Icon path={mdiArrowRight} size={0.8} />
+              </Link>
+            </div>
+
+            {/* Secundario: Elige tu Asiento */}
+            <div className="md:col-span-5 bg-gray-900 text-white rounded-3xl p-10 md:p-14 flex flex-col justify-between items-start">
+              <div>
+                <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white mb-8">
+                  <Icon path={mdiViewGridOutline} size={1.2} />
+                </div>
+                <h3 className="text-2xl font-bold mb-4">Elige tu asiento</h3>
+                <p className="text-gray-400 text-lg leading-relaxed">
+                  Revisa el mapa del autobús en tiempo real y escoge tu lugar favorito (ventana, pasillo o VIP) con total libertad antes de abordar.
+                </p>
+              </div>
+              <Link href="/login" className="mt-10 inline-flex items-center gap-2 text-white font-bold hover:text-gray-300 transition-colors">
+                Ver mapa de unidades <Icon path={mdiArrowRight} size={0.8} />
+              </Link>
+            </div>
+
+            {/* Rastreo */}
+            <div className="md:col-span-5 bg-blue-50/50 rounded-3xl p-10 md:p-14 flex flex-col justify-between items-start border border-blue-100/50">
+              <div>
+                <div className="w-12 h-12 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center mb-8">
+                  <Icon path={mdiNavigationVariantOutline} size={1.2} />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Rastreo en vivo</h3>
+                <p className="text-gray-600 text-lg leading-relaxed">
+                  Conoce la ubicación exacta de tu unidad en el mapa y los tiempos de llegada a los puntos de abordaje. Sin esperas a ciegas en la acera.
+                </p>
+              </div>
+            </div>
+
+            {/* Puntualidad */}
+            <div className="md:col-span-7 bg-gray-50 rounded-3xl p-10 md:p-14 flex flex-col justify-between items-start border border-gray-100">
+              <div>
+                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-gray-900 shadow-sm border border-gray-200 mb-8">
+                  <Icon path={mdiShieldCheckOutline} size={1.2} />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Puntualidad y Confort</h3>
+                <p className="text-gray-600 text-lg leading-relaxed max-w-md">
+                  Nuestra moderna flota es monitoreada 24/7 para garantizar salidas a tiempo, velocidad controlada, viajes seguros y la máxima comodidad a bordo de nuestras unidades.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </div>
