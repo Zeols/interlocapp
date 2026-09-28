@@ -31,7 +31,7 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-gray-50/50 flex">
       {/* Sidebar - Premium Light */}
-      <aside className="w-64 bg-white/80 backdrop-blur-xl border-r border-gray-200/60 flex flex-col fixed inset-y-0 left-0 z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+      <aside className="w-64 bg-white border-r border-gray-100 flex flex-col fixed inset-y-0 left-0 z-50 shadow-sm">
         <div className="p-6">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center text-white shadow-md transition-transform group-hover:scale-105">
@@ -74,7 +74,7 @@ export default function DashboardLayout({
         {/* Background ambient light */}
         <div className="absolute top-0 left-0 right-0 h-96 bg-gradient-to-b from-primary/5 to-transparent -z-10 pointer-events-none"></div>
 
-        <header className="h-20 bg-white/60 backdrop-blur-md border-b border-gray-200/60 px-8 flex items-center justify-between sticky top-0 z-40">
+        <header className="h-20 bg-white border-b border-gray-100 px-8 flex items-center justify-between sticky top-0 z-40">
           <h2 className="font-black text-gray-900 text-xl tracking-tight">Panel Operativo</h2>
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">

@@ -58,7 +58,7 @@ export default function TripsPage() {
     return true;
   });
 
-  const goPurchase = (trip: any) => {
+  const goPurchase = (trip: { origin: string, destination: string, departure: string, cooperative: string, price: number }) => {
     const params = new URLSearchParams({
       origin: trip.origin,
       destination: trip.destination,

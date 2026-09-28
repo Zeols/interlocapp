@@ -25,16 +25,14 @@ export default function LoginPage() {
     <div className="min-h-screen flex w-full">
       {/* Lado izquierdo oscuro */}
       <div className="hidden lg:flex w-[45%] bg-gray-900 p-16 flex-col justify-center relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-[40vw] h-[40vw] bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
         <div className="relative z-10 text-white max-w-lg">
-          <h2 className="text-5xl font-black leading-[1.1] mb-6">
+          <h2 className="text-4xl md:text-5xl font-black leading-[1.1] tracking-tight mb-6">
             Tu viaje comienza
             <br />
             aquí
           </h2>
-          <p className="text-gray-400 text-lg leading-relaxed">
-            Inicia sesión para comprar tus boletos, elegir tus asientos y llevar
-            un registro de todos tus viajes.
+          <p className="text-gray-400 text-lg leading-relaxed max-w-md">
+            Inicia sesión para comprar tus boletos, elegir tus asientos y llevar un registro de todos tus viajes.
           </p>
         </div>
       </div>

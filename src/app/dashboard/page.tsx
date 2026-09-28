@@ -20,7 +20,7 @@ export default function DashboardHome() {
             Monitoreo en tiempo real de la flota y ventas.
           </p>
         </div>
-        <div className="text-sm text-gray-600 bg-white/80 backdrop-blur-md px-4 py-2 rounded-full border border-gray-200/60 shadow-sm font-medium flex items-center gap-2">
+        <div className="text-sm text-gray-600 bg-white px-4 py-2 rounded-full border border-gray-100 shadow-sm font-medium flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           {new Date().toLocaleDateString("es-ES", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </div>
@@ -29,7 +29,7 @@ export default function DashboardHome() {
       {/* Estadísticas (Bento Style) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {stats.map((stat, i) => (
-          <Card key={i} className="rounded-[2rem] border-gray-200/60 bg-white/80 backdrop-blur-sm shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+          <Card key={i} className="rounded-[2rem] border-gray-100 bg-white shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between pb-2 pt-6 px-6">
               <CardTitle className="text-sm font-bold text-gray-500">{stat.title}</CardTitle>
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${stat.bg} ${stat.color}`}>
@@ -49,7 +49,7 @@ export default function DashboardHome() {
       {/* Sección Inferior */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         <div className="lg:col-span-2">
-          <Card className="rounded-[2rem] border-gray-200/60 bg-white/80 backdrop-blur-sm shadow-sm h-full">
+          <Card className="rounded-[2rem] border-gray-100 bg-white shadow-sm h-full">
             <CardHeader className="px-8 pt-8">
               <CardTitle className="font-black text-gray-900">Últimas Ventas</CardTitle>
             </CardHeader>
