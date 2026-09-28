@@ -5,13 +5,14 @@ import { cn } from "@/lib/utils";
 // En el futuro, se puede integrar una solución interactiva de 21st.dev
 // por ejemplo, una cuadrícula interactiva con framer-motion.
 
-interface SeatMapProps extends React.HTMLAttributes<HTMLDivElement> {}
+type SeatMapProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function SeatMap({ className, ...props }: SeatMapProps) {
   // Simulamos un bus de 4 filas x 10 columnas
+  // Usamos una función determinista en lugar de Math.random() para mantener el componente puro
   const seats = Array.from({ length: 40 }, (_, i) => ({
     id: i + 1,
-    isAvailable: Math.random() > 0.3,
+    isAvailable: i % 3 !== 0,
   }));
 
   return (
