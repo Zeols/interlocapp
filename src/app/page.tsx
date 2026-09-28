@@ -103,70 +103,70 @@ export default function LandingPage() {
 
       {/* Features Section */}
       <section className="bg-white py-24 relative z-10 border-t border-gray-100">
-        <div className="max-w-6xl mx-auto px-8">
-          <div className="mb-20">
-            <h2 className="text-3xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight max-w-2xl">
+        <div className="max-w-5xl mx-auto px-6 md:px-8">
+          <div className="mb-16 md:mb-20">
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4 tracking-tight max-w-2xl">
               Viajar ya no tiene que ser complicado.
             </h2>
-            <p className="text-xl text-gray-500 max-w-2xl">
+            <p className="text-lg md:text-xl text-gray-500 max-w-2xl leading-relaxed">
               Rediseñamos la experiencia de viajar en autobús. Desde la compra hasta la llegada, todo el control está en tu celular.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8">
             {/* Principal: Compra Anticipada */}
-            <div className="md:col-span-7 bg-gray-50 rounded-3xl p-10 md:p-14 flex flex-col justify-between items-start border border-gray-100">
+            <div className="md:col-span-7 bg-gray-50/80 rounded-2xl p-8 md:p-10 flex flex-col justify-between items-start border border-gray-100 transition-colors hover:bg-gray-50">
               <div>
-                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-gray-900 shadow-sm border border-gray-200 mb-8">
-                  <Icon path={mdiTicketConfirmationOutline} size={1.2} />
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-gray-900 shadow-sm border border-gray-200 mb-6">
+                  <Icon path={mdiTicketConfirmationOutline} size={1} />
                 </div>
-                <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">Compra anticipada en segundos</h3>
-                <p className="text-gray-600 text-lg leading-relaxed max-w-md">
+                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3 tracking-tight">Compra anticipada</h3>
+                <p className="text-gray-600 text-base leading-relaxed max-w-md">
                   Olvídate de las filas en la terminal. Compra, reserva y administra tus boletos directamente desde tu dispositivo, con múltiples métodos de pago seguros.
                 </p>
               </div>
-              <Link href="/login" className="mt-10 inline-flex items-center gap-2 text-gray-900 font-bold hover:text-primary transition-colors">
-                Comprar ahora <Icon path={mdiArrowRight} size={0.8} />
+              <Link href="/login" className="mt-8 inline-flex items-center gap-2 text-gray-900 font-semibold text-sm hover:text-primary transition-colors group">
+                Comprar ahora <Icon path={mdiArrowRight} size={0.7} className="transition-transform group-hover:translate-x-1" />
               </Link>
             </div>
 
             {/* Secundario: Elige tu Asiento */}
-            <div className="md:col-span-5 bg-gray-900 text-white rounded-3xl p-10 md:p-14 flex flex-col justify-between items-start">
+            <div className="md:col-span-5 bg-gray-900 text-white rounded-2xl p-8 md:p-10 flex flex-col justify-between items-start">
               <div>
-                <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white mb-8">
-                  <Icon path={mdiViewGridOutline} size={1.2} />
+                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white mb-6">
+                  <Icon path={mdiViewGridOutline} size={1} />
                 </div>
-                <h3 className="text-2xl font-bold mb-4">Elige tu asiento</h3>
-                <p className="text-gray-400 text-lg leading-relaxed">
-                  Revisa el mapa del autobús en tiempo real y escoge tu lugar favorito (ventana, pasillo o VIP) con total libertad antes de abordar.
+                <h3 className="text-xl md:text-2xl font-bold mb-3 tracking-tight">Elige tu asiento</h3>
+                <p className="text-gray-400 text-base leading-relaxed">
+                  Revisa el mapa del autobús en tiempo real y escoge tu lugar favorito con total libertad antes de abordar.
                 </p>
               </div>
-              <Link href="/login" className="mt-10 inline-flex items-center gap-2 text-white font-bold hover:text-gray-300 transition-colors">
-                Ver mapa de unidades <Icon path={mdiArrowRight} size={0.8} />
+              <Link href="/login" className="mt-8 inline-flex items-center gap-2 text-white font-semibold text-sm hover:text-gray-300 transition-colors group">
+                Ver mapa de unidades <Icon path={mdiArrowRight} size={0.7} className="transition-transform group-hover:translate-x-1" />
               </Link>
             </div>
 
             {/* Rastreo */}
-            <div className="md:col-span-5 bg-blue-50/50 rounded-3xl p-10 md:p-14 flex flex-col justify-between items-start border border-blue-100/50">
+            <div className="md:col-span-5 bg-blue-50/50 rounded-2xl p-8 md:p-10 flex flex-col justify-between items-start border border-blue-100/50 transition-colors hover:bg-blue-50">
               <div>
-                <div className="w-12 h-12 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center mb-8">
-                  <Icon path={mdiNavigationVariantOutline} size={1.2} />
+                <div className="w-10 h-10 bg-blue-100/80 text-blue-700 rounded-xl flex items-center justify-center mb-6">
+                  <Icon path={mdiNavigationVariantOutline} size={1} />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Rastreo en vivo</h3>
-                <p className="text-gray-600 text-lg leading-relaxed">
-                  Conoce la ubicación exacta de tu unidad en el mapa y los tiempos de llegada a los puntos de abordaje. Sin esperas a ciegas en la acera.
+                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3 tracking-tight">Rastreo en vivo</h3>
+                <p className="text-gray-600 text-base leading-relaxed">
+                  Conoce la ubicación exacta de tu unidad en el mapa y los tiempos de llegada a los puntos de abordaje. Sin esperas a ciegas.
                 </p>
               </div>
             </div>
 
             {/* Puntualidad */}
-            <div className="md:col-span-7 bg-gray-50 rounded-3xl p-10 md:p-14 flex flex-col justify-between items-start border border-gray-100">
+            <div className="md:col-span-7 bg-gray-50/80 rounded-2xl p-8 md:p-10 flex flex-col justify-between items-start border border-gray-100 transition-colors hover:bg-gray-50">
               <div>
-                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-gray-900 shadow-sm border border-gray-200 mb-8">
-                  <Icon path={mdiShieldCheckOutline} size={1.2} />
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-gray-900 shadow-sm border border-gray-200 mb-6">
+                  <Icon path={mdiShieldCheckOutline} size={1} />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Puntualidad y Confort</h3>
-                <p className="text-gray-600 text-lg leading-relaxed max-w-md">
+                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3 tracking-tight">Puntualidad y confort</h3>
+                <p className="text-gray-600 text-base leading-relaxed max-w-md">
                   Nuestra moderna flota es monitoreada 24/7 para garantizar salidas a tiempo, velocidad controlada, viajes seguros y la máxima comodidad a bordo de nuestras unidades.
                 </p>
               </div>
@@ -174,6 +174,19 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="bg-white py-10 border-t border-gray-100">
+        <div className="max-w-5xl mx-auto px-6 md:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-2 text-gray-900 font-bold">
+            <Icon path={mdiBus} size={0.8} className="text-gray-400" />
+            <span>InterlocApp</span>
+          </div>
+          <p className="text-gray-500 text-sm font-medium">
+            © 2026 Todos los derechos reservados.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
