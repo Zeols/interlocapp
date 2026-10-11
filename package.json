@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@mdi/js": "^7.4.47",
@@ -26,3 +27,4 @@
     "typescript": "^5"
   }
 }
+
