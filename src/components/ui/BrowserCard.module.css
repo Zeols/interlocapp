@@ -1,0 +1,191 @@
+.cardWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 440px;
+  perspective: 1200px;
+}
+
+.cardBody {
+  position: relative;
+  z-index: 10;
+  background-color: #fff;
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  width: 320px;
+  border: 1px solid var(--color-border);
+  transform: rotateY(-5deg) rotateX(5deg);
+  transition: transform 0.5s, box-shadow 0.5s;
+}
+
+.cardBody:hover {
+  transform: rotateY(0) rotateX(0);
+  box-shadow: 0 20px 50px -12px rgba(254, 125, 34, 0.15);
+}
+
+.macDots {
+  display: flex;
+  gap: 0.375rem;
+  margin-bottom: 1.25rem;
+}
+
+.dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+}
+
+.dotRed {
+  background-color: #f87171;
+}
+
+.dotYellow {
+  background-color: #facc15;
+}
+
+.dotGreen {
+  background-color: #4ade80;
+}
+
+.ticketInfo {
+  margin-bottom: 1rem;
+}
+
+.iconBox {
+  width: 2.5rem;
+  height: 2.5rem;
+  background-color: rgba(254, 125, 34, 0.1);
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  color: var(--color-primary);
+}
+
+.seatNumber {
+  font-family: var(--font-heading);
+  font-weight: 900;
+  font-size: 1.5rem;
+  color: #030712;
+  line-height: 1.2;
+}
+
+.routeText {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin-top: 0.25rem;
+}
+
+.progressBar {
+  margin: 1.25rem 0;
+  height: 0.625rem;
+  background-color: #f3f4f6;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background-color: var(--color-primary);
+  border-radius: 9999px;
+  width: 65%;
+}
+
+.ticketDetails {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background-color: #f9fafb;
+  border-radius: 1rem;
+  border: 1px solid rgba(243, 244, 246, 0.5);
+}
+
+.ticketDetailsLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.smallIconBox {
+  width: 2.5rem;
+  height: 2.5rem;
+  background-color: #fff;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  border-radius: 0.75rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+}
+
+.ticketId {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticketStatus {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.badge {
+  background-color: #030712;
+  color: #fff;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.75rem;
+  text-align: center;
+  flex-shrink: 0;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.badgeTitle {
+  font-family: var(--font-heading);
+  font-weight: 900;
+  font-size: 0.75rem;
+}
+
+.badgeSub {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.625rem;
+  margin-top: 0.125rem;
+  font-weight: 500;
+}
+
+/* Decoraciones estéticas */
+.blob1 {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 400px;
+  height: 400px;
+  background-color: rgba(254, 125, 34, 0.2);
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.blob2 {
+  position: absolute;
+  bottom: 10%;
+  left: 10%;
+  width: 300px;
+  height: 300px;
+  background-color: rgba(253, 186, 78, 0.2);
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: -1;
+  pointer-events: none;
+}
