@@ -1,9 +1,9 @@
 "use client";
 
 import React from "react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/frontend/components/ui/card";
+import { Label } from "@/frontend/components/ui/label";
+import { Button } from "@/frontend/components/ui/button";
 import Icon from "@mdi/react";
 import { mdiBellOutline, mdiEarth, mdiCreditCardOutline } from "@mdi/js";
 

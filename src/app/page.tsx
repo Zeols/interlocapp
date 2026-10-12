@@ -12,7 +12,7 @@ import {
   mdiNavigationVariantOutline,
   mdiShieldCheckOutline,
 } from "@mdi/js";
-import { BrowserCard } from "@/components/ui/BrowserCard";
+import { BrowserCard } from "@/frontend/components/ui/BrowserCard";
 
 export default function LandingPage() {
   const router = useRouter();

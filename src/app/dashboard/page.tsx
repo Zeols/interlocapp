@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/frontend/components/ui/card";
 import Icon from "@mdi/react";
 import { mdiTicketConfirmationOutline, mdiBusDoubleDecker, mdiCurrencyUsd, mdiAccountGroup } from "@mdi/js";
 
