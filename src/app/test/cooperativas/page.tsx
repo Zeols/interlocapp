@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createCooperativa, getCooperativas } from '@/actions/cooperativas';
+import { createCooperativa, getCooperativas } from '@/backend/actions/cooperativas';
 
 export default function TestCooperativasPage() {
   const [log, setLog] = useState('');

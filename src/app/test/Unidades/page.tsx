@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createTipoUnidad, createUnidadWithAsientos, getUnidadesByCooperativa } from '@/actions/unidades';
+import { createTipoUnidad, createUnidadWithAsientos, getUnidadesByCooperativa } from '@/backend/actions/unidades';
 
 export default function TestUnidadesPage() {
   const [log, setLog] = useState('');

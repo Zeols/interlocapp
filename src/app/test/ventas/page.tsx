@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createTipoVenta, createTarifaEquipaje, getMapaAsientosViaje, procesarVentaBoletos } from '@/actions/ventas';
+import { createTipoVenta, createTarifaEquipaje, getMapaAsientosViaje, procesarVentaBoletos } from '@/backend/actions/ventas';
 
 export default function TestVentasPage() {
   const [log, setLog] = useState('');

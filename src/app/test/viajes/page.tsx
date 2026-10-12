@@ -8,7 +8,7 @@ import {
   createAsignacionUnidad,
   despacharViaje,
   getViajesByCooperativa,
-} from '@/actions/viajes';
+} from '@/backend/actions/viajes';
 
 export default function TestViajesPage() {
   const [log, setLog] = useState('');
