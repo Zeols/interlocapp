@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Icon from "@mdi/react";
 import { mdiBus, mdiArrowLeft } from "@mdi/js";
-import { UserChip } from "@/components/ui/UserChip";
+import { UserChip } from "@/frontend/components/ui/UserChip";
 
 export function Navbar() {
   const pathname = usePathname();

@@ -1,5 +1,5 @@
 import React from "react";
-import { Navbar } from "@/components/layout/Navbar";
+import { Navbar } from "@/frontend/components/layout/Navbar";
 
 export default function AppLayout({
   children,

@@ -1,5 +1,5 @@
 import React from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/frontend/lib/utils";
 
 // Placeholder para un componente de SeatMap (Mapa de Asientos)
 // En el futuro, se puede integrar una solución interactiva de 21st.dev
