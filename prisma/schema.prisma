@@ -161,7 +161,6 @@ model Usuario {
   rol         Rol          @relation(fields: [idRol], references: [idRol])
 
   asignacionesAsignadas AsignacionUnidad[] @relation("UsuarioOperario")
-  asignacionesAyudante  AsignacionUnidad[] @relation("UsuarioAyudante") // <-- AGREGAR ESTA LÍNEA
   cierresJornada        CierreJornada[]
 
   @@map("usuarios")
@@ -255,7 +254,6 @@ model AsignacionUnidad {
   idAsignacion Int              @id @default(autoincrement())
   idUnidad     Int
   idUsuario    Int              // Chofer principal
-  idAyudante   Int?             // <-- AGREGAR CAMPO NUEVO (Opcional)
   fechaHInicio DateTime
   fechaHFin    DateTime?
   estado       EstadoAsignacion @default(INICIADA)
@@ -263,7 +261,6 @@ model AsignacionUnidad {
   // Relaciones
   unidad    Unidad     @relation(fields: [idUnidad], references: [idUnidad], onDelete: Cascade)
   usuario   Usuario    @relation("UsuarioOperario", fields: [idUsuario], references: [idUsuario])
-  ayudante  Usuario?   @relation("UsuarioAyudante", fields: [idAyudante], references: [idUsuario]) // <-- AGREGAR RELACIÓN
   despachos Despacho[]
 
   @@map("asignaciones_unidad")
