@@ -4,10 +4,488 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
+//output = "../src/generated/prisma"
 }
+
 
 datasource db {
   provider = "postgresql"
+}
+
+// ==========================================
+// ENUMS (Estados y Tipos Operativos)
+// ==========================================
+
+enum EstadoCatalogo {
+  ACTIVO
+  INACTIVO
+}
+
+enum EstadoUsuario {
+  ACTIVO
+  INACTIVO
+  BLOQUEADO
+}
+
+enum EstadoUnidad {
+  DISPONIBLE
+  EN_RUTA
+  MANTENIMIENTO
+  INOPERATIVA
+}
+
+enum EstadoAsignacion {
+  INICIADA
+  FINALIZADA
+  CANCELADA
+}
+
+enum EstadoAsiento {
+  DISPONIBLE
+  OCUPADO
+  RESERVADO
+  BLOQUEADO
+}
+
+enum EstadoDespacho {
+  PENDIENTE
+  EN_CURSO
+  FINALIZADO
+  CANCELADO
+}
+
+enum EstadoViaje {
+  PROGRAMADO
+  EN_CURSO
+  FINALIZADO
+  CANCELADO
+}
+
+enum EstadoBoleto {
+  RESERVADO
+  PAGADO
+  ABORDADO
+  CANCELADO
+}
+
+enum EstadoVenta {
+  PENDIENTE
+  COMPLETADA
+  CANCELADA
+}
+
+enum EstadoIncidente {
+  REGISTRADO
+  EN_ATENCION
+  RESUELTO
+  CANCELADO
+}
+
+enum EstadoCierre {
+  PENDIENTE
+  CONFIRMADO
+  RECHAZADO
+}
+
+enum TipoGasto {
+  GASOLINA
+  MANTENIMIENTO
+  PEAJE
+  VIATICOS
+  OTRO
+}
+
+enum TipoIncidente {
+  AVERIA_MECANICA
+  ACCIDENTE
+  RETRASO
+  OTRO
+}
+
+// ==========================================
+// 1. ORGANIZACIÓN Y MULTI-TENANT
+// ==========================================
+
+model Cooperativa {
+  idCooperativa Int            @id @default(autoincrement())
+  nombre        String
+  telefono      String?
+  direccion     String?
+  estado        EstadoCatalogo @default(ACTIVO)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Relaciones
+  usuarios       Usuario[]
+  unidades       Unidad[]
+  rutas          Ruta[]
+  cierresJornada CierreJornada[]
+
+  @@map("cooperativas")
+}
+
+// ==========================================
+// 2. SEGURIDAD Y USUARIOS
+// ==========================================
+
+model Rol {
+  idRol       Int            @id @default(autoincrement())
+  nombre      String         @unique
+  descripcion String?
+  estado      EstadoCatalogo @default(ACTIVO)
+
+  // Relaciones
+  usuarios Usuario[]
+
+  @@map("roles")
+}
+
+model Usuario {
+  idUsuario     Int           @id @default(autoincrement())
+  idCooperativa Int?
+  idRol         Int
+  nombre        String
+  apellido      String
+  usuario       String        @unique
+  passwd        String
+  telefono      String?
+  correo        String        @unique
+  direccion     String?
+  estado        EstadoUsuario @default(ACTIVO)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relaciones
+  cooperativa Cooperativa? @relation(fields: [idCooperativa], references: [idCooperativa], onDelete: SetNull)
+  rol         Rol          @relation(fields: [idRol], references: [idRol])
+
+  asignacionesAsignadas AsignacionUnidad[] @relation("UsuarioOperario")
+  cierresJornada        CierreJornada[]
+
+  @@map("usuarios")
+}
+
+// ==========================================
+// 3. FINANZAS Y CIERRES DE JORNADA
+// ==========================================
+
+model CierreJornada {
+  idCierre       Int          @id @default(autoincrement())
+  idCooperativa  Int
+  idUsuario      Int
+  fechaHora      DateTime     @default(now())
+  montoEsperado  Decimal      @db.Decimal(10, 2)
+  montoEntregado Decimal      @db.Decimal(10, 2)
+  diferencia     Decimal      @db.Decimal(10, 2)
+  estado         EstadoCierre @default(PENDIENTE)
+
+  // Relaciones
+  cooperativa Cooperativa @relation(fields: [idCooperativa], references: [idCooperativa])
+  usuario     Usuario     @relation(fields: [idUsuario], references: [idUsuario])
+  gastos      Gasto[]
+
+  @@map("cierres_jornada")
+}
+
+model Gasto {
+  idGasto     Int       @id @default(autoincrement())
+  idCierre    Int?
+  tipo        TipoGasto
+  descripcion String?
+  monto       Decimal   @db.Decimal(10, 2)
+  fechaHora   DateTime  @default(now())
+
+  // Relaciones
+  cierreJornada          CierreJornada?          @relation(fields: [idCierre], references: [idCierre], onDelete: SetNull)
+  abastecimientoGasolina AbastecimientoGasolina?
+
+  @@map("gastos")
+}
+
+model AbastecimientoGasolina {
+  idAbastecGasol Int     @id @default(autoincrement())
+  idGasto        Int     @unique
+  cantidad       Decimal @db.Decimal(10, 2)
+  precioUnitario Decimal @db.Decimal(10, 2)
+  monto          Decimal @db.Decimal(10, 2)
+
+  // Relaciones
+  gasto Gasto @relation(fields: [idGasto], references: [idGasto], onDelete: Cascade)
+
+  @@map("abastecimientos_gasolina")
+}
+
+// ==========================================
+// 4. FLOTA Y UNIDADES
+// ==========================================
+
+model TipoUnidad {
+  idTipoUnidad Int            @id @default(autoincrement())
+  nombre       String
+  descripcion  String?
+  estado       EstadoCatalogo @default(ACTIVO)
+
+  // Relaciones
+  unidades Unidad[]
+
+  @@map("tipos_unidad")
+}
+
+model Unidad {
+  idUnidad      Int          @id @default(autoincrement())
+  idCooperativa Int
+  idTipoUnidad  Int
+  numeroUnidad  String
+  placa         String       @unique
+  estado        EstadoUnidad @default(DISPONIBLE)
+  createdAt     DateTime     @default(now())
+
+  // Relaciones
+  cooperativa  Cooperativa        @relation(fields: [idCooperativa], references: [idCooperativa], onDelete: Cascade)
+  tipoUnidad   TipoUnidad         @relation(fields: [idTipoUnidad], references: [idTipoUnidad])
+  asientos     Asiento[]
+  asignaciones AsignacionUnidad[]
+
+  @@map("unidades")
+}
+
+model AsignacionUnidad {
+  idAsignacion Int              @id @default(autoincrement())
+  idUnidad     Int
+  idUsuario    Int              // Chofer principal
+  fechaHInicio DateTime
+  fechaHFin    DateTime?
+  estado       EstadoAsignacion @default(INICIADA)
+
+  // Relaciones
+  unidad    Unidad     @relation(fields: [idUnidad], references: [idUnidad], onDelete: Cascade)
+  usuario   Usuario    @relation("UsuarioOperario", fields: [idUsuario], references: [idUsuario])
+  despachos Despacho[]
+
+  @@map("asignaciones_unidad")
+}
+
+model Asiento {
+  idAsiento Int           @id @default(autoincrement())
+  idUnidad  Int
+  numero    String
+  estado    EstadoAsiento @default(DISPONIBLE)
+
+  // Relaciones
+  unidad  Unidad   @relation(fields: [idUnidad], references: [idUnidad], onDelete: Cascade)
+  boletos Boleto[]
+
+  @@map("asientos")
+}
+
+// ==========================================
+// 5. RUTAS, CHECKPOINTS Y TARIFAS
+// ==========================================
+
+model Ruta {
+  idRuta        Int            @id @default(autoincrement())
+  idCooperativa Int
+  nombre        String
+  descripcion   String?
+  estado        EstadoCatalogo @default(ACTIVO)
+
+  // Relaciones
+  cooperativa Cooperativa @relation(fields: [idCooperativa], references: [idCooperativa], onDelete: Cascade)
+  puntosRuta  PuntoRuta[]
+  tarifas     Tarifa[]
+  viajes      Viaje[]
+
+  @@map("rutas")
+}
+
+model Punto {
+  idPunto     Int            @id @default(autoincrement())
+  nombre      String
+  descripcion String?
+  estado      EstadoCatalogo @default(ACTIVO)
+
+  // Relaciones
+  puntosRuta     PuntoRuta[]
+  tarifasOrigen  Tarifa[]    @relation("TarifaOrigen")
+  tarifasDestino Tarifa[]    @relation("TarifaDestino")
+
+  @@map("puntos")
+}
+
+model PuntoRuta {
+  idPuntoRuta Int @id @default(autoincrement())
+  idRuta      Int
+  idPunto     Int
+  orden       Int
+
+  // Relaciones
+  ruta           Ruta           @relation(fields: [idRuta], references: [idRuta], onDelete: Cascade)
+  punto          Punto          @relation(fields: [idPunto], references: [idPunto])
+  controlesViaje ControlViaje[]
+
+  @@map("puntos_ruta")
+}
+
+model Tarifa {
+  idTarifa       Int            @id @default(autoincrement())
+  idRuta         Int
+  idPuntoOrigen  Int?
+  idPuntoDestino Int?
+  monto          Decimal        @db.Decimal(10, 2)
+  estado         EstadoCatalogo @default(ACTIVO)
+
+  // Relaciones
+  ruta         Ruta     @relation(fields: [idRuta], references: [idRuta], onDelete: Cascade)
+  puntoOrigen  Punto?   @relation("TarifaOrigen", fields: [idPuntoOrigen], references: [idPunto], onDelete: SetNull)
+  puntoDestino Punto?   @relation("TarifaDestino", fields: [idPuntoDestino], references: [idPunto], onDelete: SetNull)
+  boletos      Boleto[]
+
+  @@map("tarifas")
+}
+
+// ==========================================
+// 6. OPERACIÓN DE VIAJES Y DESPACHOS
+// ==========================================
+
+model Viaje {
+  idViaje            Int         @id @default(autoincrement())
+  idRuta             Int
+  fecha              DateTime    @db.Date
+  hrSalidaProgramada DateTime
+  hrSalidaEstimada   DateTime?
+  hrLlegadaReal      DateTime?
+  sentido            String?
+  estado             EstadoViaje @default(PROGRAMADO)
+
+  // Relaciones
+  ruta           Ruta           @relation(fields: [idRuta], references: [idRuta])
+  despacho       Despacho?
+  controlesViaje ControlViaje[]
+  ventas         Venta[]
+  boletos        Boleto[]
+
+  @@map("viajes")
+}
+
+model Despacho {
+  idDespacho   Int            @id @default(autoincrement())
+  idViaje      Int            @unique
+  idAsignacion Int
+  fechaHora    DateTime       @default(now())
+  estado       EstadoDespacho @default(PENDIENTE)
+  observacion  String?
+
+  // Relaciones
+  viaje            Viaje            @relation(fields: [idViaje], references: [idViaje], onDelete: Cascade)
+  asignacionUnidad AsignacionUnidad @relation(fields: [idAsignacion], references: [idAsignacion])
+  incidente        Incidente?
+
+  @@map("despachos")
+}
+
+model ControlViaje {
+  idControlViaje Int      @id @default(autoincrement())
+  idViaje        Int
+  idPuntoRuta    Int
+  fechaHora      DateTime @default(now())
+
+  // Relaciones
+  viaje     Viaje     @relation(fields: [idViaje], references: [idViaje], onDelete: Cascade)
+  puntoRuta PuntoRuta @relation(fields: [idPuntoRuta], references: [idPuntoRuta])
+
+  @@map("controles_viaje")
+}
+
+model Incidente {
+  idIncidente Int             @id @default(autoincrement())
+  idDespacho  Int?            @unique
+  tipo        TipoIncidente
+  descripcion String
+  fechaHora   DateTime        @default(now())
+  estado      EstadoIncidente @default(REGISTRADO)
+
+  // Relaciones
+  despacho Despacho? @relation(fields: [idDespacho], references: [idDespacho], onDelete: SetNull)
+
+  @@map("incidentes")
+}
+
+// ==========================================
+// 7. CANAL DE VENTA, BOLETOS Y EQUIPAJE
+// ==========================================
+
+model TipoVenta {
+  idTipoVenta Int            @id @default(autoincrement())
+  nombre      String         @unique
+  descripcion String?
+  estado      EstadoCatalogo @default(ACTIVO)
+
+  // Relaciones
+  ventas Venta[]
+
+  @@map("tipos_venta")
+}
+
+model Venta {
+  idVenta     Int         @id @default(autoincrement())
+  idViaje     Int?
+  idTipoVenta Int
+  fechaHora   DateTime    @default(now())
+  total       Decimal     @db.Decimal(10, 2)
+  estado      EstadoVenta @default(PENDIENTE)
+
+  // Relaciones
+  viaje     Viaje?    @relation(fields: [idViaje], references: [idViaje], onDelete: SetNull)
+  tipoVenta TipoVenta @relation(fields: [idTipoVenta], references: [idTipoVenta])
+  boletos   Boleto[]
+
+  @@map("ventas")
+}
+
+model Boleto {
+  idBoleto  Int          @id @default(autoincrement())
+  idVenta   Int
+  idViaje   Int
+  idAsiento Int
+  idTarifa  Int
+  monto     Decimal      @db.Decimal(10, 2)
+  fechaHora DateTime     @default(now())
+  estado    EstadoBoleto @default(RESERVADO)
+
+  // Relaciones
+  venta    Venta      @relation(fields: [idVenta], references: [idVenta], onDelete: Cascade)
+  viaje    Viaje      @relation(fields: [idViaje], references: [idViaje])
+  asiento  Asiento    @relation(fields: [idAsiento], references: [idAsiento])
+  tarifa   Tarifa     @relation(fields: [idTarifa], references: [idTarifa])
+  equipaje Equipaje?
+
+  @@map("boletos")
+}
+
+model TarifaEquipaje {
+  idTarifaEquipaje Int            @id @default(autoincrement())
+  descripcion      String
+  monto            Decimal        @db.Decimal(10, 2)
+  estado           EstadoCatalogo @default(ACTIVO)
+
+  // Relaciones
+  equipajes Equipaje[]
+
+  @@map("tarifas_equipaje")
+}
+
+model Equipaje {
+  idEquipaje       Int     @id @default(autoincrement())
+  idBoleto         Int?    @unique
+  idTarifaEquipaje Int
+  descripcion      String?
+  cantidad         Int     @default(1)
+  monto            Decimal @db.Decimal(10, 2)
+
+  // Relaciones
+  boleto         Boleto?        @relation(fields: [idBoleto], references: [idBoleto], onDelete: SetNull)
+  tarifaEquipaje TarifaEquipaje @relation(fields: [idTarifaEquipaje], references: [idTarifaEquipaje])
+
+  @@map("equipajes")
 }
