@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createRol, getRoles, createUsuario, getUsuariosByCooperativa } from '@/actions/usuarios';
+import { createRol, getRoles, createUsuario, getUsuariosByCooperativa } from '@/backend/actions/usuarios';
 
 export default function TestUsuariosPage() {
   const [log, setLog] = useState('');

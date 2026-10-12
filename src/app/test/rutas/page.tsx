@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createPunto, createRutaConPuntosYTarifas, getRutasByCooperativa } from '@/actions/rutas';
+import { createPunto, createRutaConPuntosYTarifas, getRutasByCooperativa } from '@/backend/actions/rutas';
 
 export default function TestRutasPage() {
   const [log, setLog] = useState('');
