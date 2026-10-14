@@ -15,30 +15,30 @@ export default function DashboardHome() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Resumen de Operaciones</h1>
+          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Resumen de Operaciones</h1>
           <p className="text-sm text-gray-500 font-medium mt-1">
             Monitoreo en tiempo real de la flota y ventas.
           </p>
         </div>
-        <div className="text-sm text-gray-600 bg-white px-4 py-2 rounded-full border border-gray-100 shadow-sm font-medium flex items-center gap-2">
+        <div className="text-xs sm:text-sm text-gray-600 bg-white px-4 py-2 rounded-full border border-gray-100 shadow-xs font-semibold flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           {new Date().toLocaleDateString("es-ES", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </div>
       </div>
 
       {/* Estadísticas (Bento Style) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
         {stats.map((stat, i) => (
-          <Card key={i} className="rounded-[2rem] border-gray-100 bg-white shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300">
+          <Card key={i} className="rounded-3xl border-gray-100 bg-white shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
             <CardHeader className="flex flex-row items-center justify-between pb-2 pt-6 px-6">
-              <CardTitle className="text-sm font-bold text-gray-500">{stat.title}</CardTitle>
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${stat.bg} ${stat.color}`}>
-                <Icon path={stat.icon} size={1} />
+              <CardTitle className="text-xs font-bold text-gray-400 uppercase tracking-wider">{stat.title}</CardTitle>
+              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${stat.bg} ${stat.color}`}>
+                <Icon path={stat.icon} size={0.9} />
               </div>
             </CardHeader>
             <CardContent className="px-6 pb-6">
-              <div className="text-3xl font-black text-gray-900 font-mono tracking-tight">{stat.value}</div>
-              <p className={`text-sm font-bold mt-2 flex items-center gap-1 ${stat.trend.startsWith('+') ? 'text-emerald-500' : 'text-gray-400'}`}>
+              <div className="text-3xl font-extrabold text-gray-900 tracking-tight">{stat.value}</div>
+              <p className={`text-xs font-bold mt-2 flex items-center gap-1 ${stat.trend.startsWith('+') ? 'text-emerald-500' : 'text-gray-400'}`}>
                 {stat.trend} <span className="text-gray-400 font-medium">vs ayer</span>
               </p>
             </CardContent>
@@ -49,30 +49,30 @@ export default function DashboardHome() {
       {/* Sección Inferior */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         <div className="lg:col-span-2">
-          <Card className="rounded-[2rem] border-gray-100 bg-white shadow-sm h-full">
+          <Card className="rounded-3xl border-gray-100 bg-white shadow-xs h-full">
             <CardHeader className="px-8 pt-8">
-              <CardTitle className="font-black text-gray-900">Últimas Ventas</CardTitle>
+              <CardTitle className="font-extrabold text-gray-900 tracking-tight">Últimas Ventas</CardTitle>
             </CardHeader>
             <CardContent className="px-8 pb-8">
               <div className="flex flex-col items-center justify-center py-16 text-gray-400 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
-                <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mb-4 text-gray-300">
-                  <Icon path={mdiTicketConfirmationOutline} size={1.5} />
+                <div className="w-14 h-14 bg-white rounded-2xl shadow-xs flex items-center justify-center mb-4 text-gray-300">
+                  <Icon path={mdiTicketConfirmationOutline} size={1.3} />
                 </div>
-                <p className="font-bold text-gray-500">Conectando con base de datos...</p>
-                <p className="text-sm mt-1">La tabla de transacciones aparecerá aquí</p>
+                <p className="font-bold text-gray-700">Conectando con base de datos...</p>
+                <p className="text-xs text-gray-400 mt-1">La tabla de transacciones aparecerá aquí</p>
               </div>
             </CardContent>
           </Card>
         </div>
         
-        {/* Ocupación Promedio con Diseño Circular Moderno */}
+        {/* Ocupación Promedio */}
         <div className="lg:col-span-1">
-          <Card className="rounded-[2rem] border-gray-200/60 bg-white/80 backdrop-blur-sm shadow-sm h-full flex flex-col items-center justify-center relative overflow-hidden group">
+          <Card className="rounded-3xl border-gray-100 bg-white shadow-xs h-full flex flex-col items-center justify-center relative overflow-hidden group">
             {/* Ambient glow */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-colors duration-500"></div>
             
             <CardHeader className="text-center z-10 w-full pt-8">
-              <CardTitle className="font-black text-gray-900">Ocupación Promedio</CardTitle>
+              <CardTitle className="font-extrabold text-gray-900 tracking-tight">Ocupación Promedio</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center py-6 z-10">
               
@@ -90,7 +90,7 @@ export default function DashboardHome() {
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-4xl font-black text-gray-900 font-mono">78%</span>
+                  <span className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">78%</span>
                 </div>
               </div>
 

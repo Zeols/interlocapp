@@ -1,61 +1,230 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import Icon from "@mdi/react";
-import {
-  mdiBus,
-  mdiArrowRight,
-  mdiTicketConfirmationOutline,
-  mdiViewGridOutline,
-  mdiNavigationVariantOutline,
-  mdiShieldCheckOutline,
-} from "@mdi/js";
+import { mdiMenu, mdiClose } from "@mdi/js";
 import { BrowserCard } from "@/frontend/components/ui/BrowserCard";
+import { RoutesSlider } from "@/frontend/components/ui/RoutesSlider";
+import { Logo } from "@/frontend/components/ui/Logo";
+import { Footer } from "@/frontend/components/layout/Footer";
 
 export default function LandingPage() {
   const router = useRouter();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const goLogin = () => {
     router.push("/login");
   };
 
-  return (
-    <div className="min-h-screen bg-white flex flex-col relative overflow-hidden">
-      <nav className="flex items-center justify-between px-6 md:px-8 py-6 max-w-5xl mx-auto w-full relative z-20">
-        <Link href="/" className="flex items-center gap-3 cursor-pointer group">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-sm transition-transform group-hover:-translate-y-0.5">
-            <Icon path={mdiBus} size={1} />
-          </div>
-          <span className="font-bold text-gray-900 text-xl tracking-tight transition-colors group-hover:text-primary">InterlocApp</span>
-        </Link>
-        <button
-          onClick={goLogin}
-          className="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-2 md:px-6 md:py-2.5 rounded-xl text-sm transition-all duration-200"
-        >
-          Iniciar Sesión
-        </button>
-      </nav>
+  const goSignup = () => {
+    router.push("/signup");
+  };
 
-      {/* Hero Section */}
-      <main className="flex-1 w-full max-w-5xl mx-auto px-6 md:px-8 py-12 md:py-20 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center relative z-10">
-        <div>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 leading-[1.1] tracking-tight mb-6">
-            Viaja cómodo y seguro sin hacer filas
-          </h1>
-          <p className="text-base md:text-lg text-gray-500 mb-8 max-w-md leading-relaxed">
-            Compra tus boletos interurbanos en línea, elige tu asiento favorito de antemano y viaja en la mejor flota de la región.
-          </p>
-          
-          <div className="mt-8 flex gap-4">
-            <button onClick={goLogin} className="bg-primary hover:bg-primary/90 text-white font-semibold px-6 py-3 rounded-xl flex items-center gap-2 transition-all group shadow-sm hover:shadow">
-              Comenzar ahora
-              <Icon path={mdiArrowRight} size={0.8} className="transition-transform group-hover:translate-x-1" />
+  const handleLogoClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setMobileMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (window.location.hash) {
+      window.history.pushState(null, "", "/");
+    }
+  };
+
+  const scrollToSection = (sectionId: string) => {
+    setMobileMenuOpen(false);
+    
+    setTimeout(() => {
+      const el = document.getElementById(sectionId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        try {
+          window.history.pushState(null, "", `#${sectionId}`);
+        } catch {
+          // ignore
+        }
+      }
+    }, 50);
+  };
+
+  return (
+    <div className="min-h-screen bg-white text-gray-900 flex flex-col relative overflow-x-clip">
+      {/* Barra de navegación perpetua (Fixed top) estilo Uber con micro-animaciones al tocar */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-xs">
+        <nav className="flex items-center justify-between px-4 sm:px-6 md:px-8 py-3.5 max-w-6xl mx-auto w-full">
+          {/* Bloque Izquierdo: Logo + Secciones con animación de tap */}
+          <div className="flex items-center gap-3 sm:gap-6">
+            <Link
+              href="/"
+              onClick={handleLogoClick}
+              className="flex items-center gap-2.5 cursor-pointer group"
+              title="Ir al inicio"
+            >
+              <Logo size={0.9} />
+              <span className="font-extrabold text-gray-900 text-lg sm:text-xl tracking-tight transition-colors group-hover:text-primary">
+                InterlocApp
+              </span>
+            </Link>
+
+            {/* Enlaces de ancla con micro-animación al pulsar (Desktop) */}
+            <div className="hidden md:flex items-center gap-1 text-sm font-semibold text-gray-700">
+              <motion.button
+                onClick={() => scrollToSection("rutas")}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.94 }}
+                transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                className="px-3.5 py-1.5 rounded-full hover:bg-gray-100 hover:text-gray-900 transition-colors focus-visible:outline-2 focus-visible:outline-primary cursor-pointer select-none"
+              >
+                Rutas
+              </motion.button>
+              <motion.button
+                onClick={() => scrollToSection("como-funciona")}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.94 }}
+                transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                className="px-3.5 py-1.5 rounded-full hover:bg-gray-100 hover:text-gray-900 transition-colors focus-visible:outline-2 focus-visible:outline-primary cursor-pointer select-none"
+              >
+                Cómo funciona
+              </motion.button>
+              <motion.button
+                onClick={() => scrollToSection("beneficios")}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.94 }}
+                transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                className="px-3.5 py-1.5 rounded-full hover:bg-gray-100 hover:text-gray-900 transition-colors focus-visible:outline-2 focus-visible:outline-primary cursor-pointer select-none"
+              >
+                Beneficios
+              </motion.button>
+            </div>
+          </div>
+
+          {/* Bloque Derecho: Botón Iniciar Sesión + Registrarte (Desktop) + Menú Hamburguesa (Móvil) */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <motion.button
+              onClick={goLogin}
+              whileTap={{ scale: 0.94 }}
+              className="hidden md:inline-flex px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-gray-900"
+            >
+              Iniciar sesión
+            </motion.button>
+            <motion.button
+              onClick={goSignup}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.94 }}
+              className="hidden md:inline-flex bg-gray-900 hover:bg-gray-800 text-white font-bold px-4 sm:px-5 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md focus-visible:outline-2 focus-visible:outline-gray-900"
+            >
+              Regístrate
+            </motion.button>
+
+            {/* Botón de Menú Hamburguesa para Móvil (Siempre visible y cómodo) */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="flex items-center justify-center w-10 h-10 rounded-2xl bg-gray-50 border border-gray-200/80 text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors md:hidden cursor-pointer"
+              aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú de navegación"}
+              aria-expanded={mobileMenuOpen}
+            >
+              <Icon path={mobileMenuOpen ? mdiClose : mdiMenu} size={0.9} />
             </button>
           </div>
+        </nav>
 
-          <div className="flex items-center gap-10 mt-16 border-t border-gray-100 pt-8">
+        {/* Menú Desplegable Móvil para las Secciones de la Landing Page */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="md:hidden border-t border-gray-100 bg-white/98 backdrop-blur-md overflow-hidden shadow-xl"
+            >
+              <div className="px-4 py-3 space-y-1">
+                <button
+                  type="button"
+                  onClick={() => scrollToSection("rutas")}
+                  className="w-full flex items-center px-4 py-3 rounded-2xl text-base font-bold text-gray-900 hover:bg-gray-100 active:bg-gray-200 transition-colors text-left cursor-pointer"
+                >
+                  Rutas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollToSection("como-funciona")}
+                  className="w-full flex items-center px-4 py-3 rounded-2xl text-base font-bold text-gray-900 hover:bg-gray-100 active:bg-gray-200 transition-colors text-left cursor-pointer"
+                >
+                  Cómo funciona
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollToSection("beneficios")}
+                  className="w-full flex items-center px-4 py-3 rounded-2xl text-base font-bold text-gray-900 hover:bg-gray-100 active:bg-gray-200 transition-colors text-left cursor-pointer"
+                >
+                  Beneficios
+                </button>
+
+                <div className="h-px bg-gray-100 my-2" />
+
+                <div className="pt-1 pb-2 flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      goLogin();
+                    }}
+                    className="w-full py-3 rounded-2xl text-sm font-bold text-gray-800 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors text-center cursor-pointer"
+                  >
+                    Iniciar sesión
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      goSignup();
+                    }}
+                    className="w-full py-3 rounded-2xl text-sm font-bold text-white bg-primary hover:bg-primary-dark active:scale-[0.99] transition-all text-center shadow-md shadow-primary/20 cursor-pointer"
+                  >
+                    Regístrate
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </header>
+
+      {/* Hero Section: Ocupa la pantalla completa de forma responsiva */}
+      <main className="w-full max-w-6xl mx-auto px-4 sm:px-6 md:px-8 pt-24 md:pt-28 pb-12 min-h-[calc(100dvh-4rem)] flex items-center grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 relative z-10">
+        <div className="lg:col-span-7 flex flex-col justify-center">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 leading-[1.12] tracking-tight mb-5">
+            Viajá cómodo sin hacer filas
+          </h1>
+          <p className="text-base sm:text-lg text-gray-500 mb-8 max-w-xl leading-relaxed">
+            Compra tus boletos de interlocal en línea, elegí tu asiento favorito de antemano y viajá de la mejor forma.
+          </p>
+
+          {/* Llamados a la acción minimalistas (Sin saturar) */}
+          <div className="flex flex-wrap items-center gap-3.5">
+            <motion.button
+              onClick={goLogin}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.96 }}
+              className="bg-primary hover:bg-primary-dark text-white font-bold px-7 py-3.5 rounded-2xl transition-all cursor-pointer shadow-md shadow-primary/20 text-sm sm:text-base"
+            >
+              Comenzar reserva
+            </motion.button>
+            <motion.a
+              href="#rutas"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.96 }}
+              className="px-6 py-3.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold transition-colors cursor-pointer text-sm sm:text-base inline-flex items-center justify-center"
+            >
+              Ver rutas
+            </motion.a>
+          </div>
+
+          {/* Métricas (Intactas) */}
+          <div className="flex items-center gap-10 mt-12 border-t border-gray-100 pt-8">
             <div>
               <p className="text-3xl font-black text-gray-900 tracking-tight">0</p>
               <p className="text-sm font-medium text-gray-500 mt-1">Pasajeros actuales</p>
@@ -67,16 +236,55 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div className="hidden lg:block w-full">
+        {/* Columna Derecha: Tarjeta Boleto Minimalista */}
+        <div className="lg:col-span-5 w-full flex justify-center mt-4 lg:mt-0">
           <BrowserCard />
         </div>
       </main>
 
-      {/* Features Section */}
-      <section className="bg-white py-24 relative z-10 border-t border-gray-100">
+      {/* Sección Rutas: A pantalla completa y con anclaje limpio */}
+      <section id="rutas" className="w-full relative border-t border-gray-200 scroll-mt-16 min-h-[calc(100dvh-4rem)] flex flex-col justify-center">
+        <RoutesSlider />
+      </section>
+
+      {/* Sección 2: Cómo funciona la app (A pantalla completa y con anclaje limpio) */}
+      <section id="como-funciona" className="bg-white py-16 md:py-24 border-t border-gray-100 scroll-mt-16 min-h-[calc(100dvh-4rem)] flex flex-col justify-center">
+        <div className="max-w-5xl mx-auto px-6 md:px-8 w-full">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight mb-12">
+            Cómo funciona
+          </h2>
+
+          <ol className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-12">
+            <li className="border-t-2 border-gray-900 pt-5">
+              <span className="block text-4xl font-black text-primary mb-4 tabular-nums">1</span>
+              <h3 className="text-lg font-extrabold text-gray-900 mb-2 tracking-tight">Busca tu ruta</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Elige origen, destino y la fecha en la que quieres viajar.
+              </p>
+            </li>
+            <li className="border-t-2 border-gray-900 pt-5">
+              <span className="block text-4xl font-black text-primary mb-4 tabular-nums">2</span>
+              <h3 className="text-lg font-extrabold text-gray-900 mb-2 tracking-tight">Elige tu asiento</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Revisa el croquis de la unidad y aparta ventana o pasillo.
+              </p>
+            </li>
+            <li className="border-t-2 border-gray-900 pt-5">
+              <span className="block text-4xl font-black text-primary mb-4 tabular-nums">3</span>
+              <h3 className="text-lg font-extrabold text-gray-900 mb-2 tracking-tight">Aborda con tu boleto</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Muestra el boleto digital al abordar. No hace falta imprimirlo.
+              </p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      {/* Sección 3: Beneficios (A pantalla completa y con anclaje limpio) */}
+      <section id="beneficios" className="bg-white py-16 md:py-24 relative z-10 border-t border-gray-100 scroll-mt-16 min-h-[calc(100dvh-4rem)] flex flex-col justify-center">
         <div className="max-w-5xl mx-auto px-6 md:px-8">
           <div className="mb-16 md:mb-20">
-            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4 tracking-tight max-w-2xl">
+            <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4 tracking-tight max-w-2xl">
               Viajar ya no tiene que ser complicado.
             </h2>
             <p className="text-lg md:text-xl text-gray-500 max-w-2xl leading-relaxed">
@@ -86,57 +294,35 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8">
             {/* Principal: Compra Anticipada */}
-            <div className="md:col-span-7 bg-gray-50/80 rounded-2xl p-8 md:p-10 flex flex-col justify-between items-start border border-gray-100 transition-colors hover:bg-gray-50">
+            <div className="md:col-span-7 bg-gray-50 rounded-3xl p-8 md:p-10 flex flex-col justify-between items-start border border-gray-100 transition-colors hover:bg-gray-100/70">
               <div>
-                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-gray-900 shadow-sm border border-gray-200 mb-6">
-                  <Icon path={mdiTicketConfirmationOutline} size={1} />
-                </div>
-                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3 tracking-tight">Compra anticipada</h3>
+                <h3 className="text-xl md:text-2xl font-extrabold text-gray-900 mb-3 tracking-tight">Compra anticipada</h3>
                 <p className="text-gray-600 text-base leading-relaxed max-w-md">
                   Olvídate de las filas en la terminal. Compra, reserva y administra tus boletos directamente desde tu dispositivo, con múltiples métodos de pago seguros.
                 </p>
               </div>
-              <Link href="/login" className="mt-8 inline-flex items-center gap-2 text-gray-900 font-semibold text-sm hover:text-primary transition-colors group">
-                Comprar ahora <Icon path={mdiArrowRight} size={0.7} className="transition-transform group-hover:translate-x-1" />
+              <Link href="/login" className="mt-8 inline-flex items-center text-gray-900 font-bold text-sm hover:text-primary transition-colors">
+                Comprar ahora
               </Link>
             </div>
 
             {/* Secundario: Elige tu Asiento */}
-            <div className="md:col-span-5 bg-gray-900 text-white rounded-2xl p-8 md:p-10 flex flex-col justify-between items-start">
+            <div className="md:col-span-5 bg-gray-900 text-white rounded-3xl p-8 md:p-10 flex flex-col justify-between items-start">
               <div>
-                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white mb-6">
-                  <Icon path={mdiViewGridOutline} size={1} />
-                </div>
-                <h3 className="text-xl md:text-2xl font-bold mb-3 tracking-tight">Elige tu asiento</h3>
+                <h3 className="text-xl md:text-2xl font-extrabold mb-3 tracking-tight">Elige tu asiento</h3>
                 <p className="text-gray-400 text-base leading-relaxed">
                   Revisa el mapa del autobús en tiempo real y escoge tu lugar favorito con total libertad antes de abordar.
                 </p>
               </div>
-              <Link href="/login" className="mt-8 inline-flex items-center gap-2 text-white font-semibold text-sm hover:text-gray-300 transition-colors group">
-                Ver mapa de unidades <Icon path={mdiArrowRight} size={0.7} className="transition-transform group-hover:translate-x-1" />
+              <Link href="/login" className="mt-8 inline-flex items-center text-white font-bold text-sm hover:text-gray-300 transition-colors">
+                Ver mapa de unidades
               </Link>
             </div>
 
-            {/* Rastreo */}
-            <div className="md:col-span-5 bg-blue-50/50 rounded-2xl p-8 md:p-10 flex flex-col justify-between items-start border border-blue-100/50 transition-colors hover:bg-blue-50">
-              <div>
-                <div className="w-10 h-10 bg-blue-100/80 text-blue-700 rounded-xl flex items-center justify-center mb-6">
-                  <Icon path={mdiNavigationVariantOutline} size={1} />
-                </div>
-                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3 tracking-tight">Rastreo en vivo</h3>
-                <p className="text-gray-600 text-base leading-relaxed">
-                  Conoce la ubicación exacta de tu unidad en el mapa y los tiempos de llegada a los puntos de abordaje. Sin esperas a ciegas.
-                </p>
-              </div>
-            </div>
-
             {/* Puntualidad */}
-            <div className="md:col-span-7 bg-gray-50/80 rounded-2xl p-8 md:p-10 flex flex-col justify-between items-start border border-gray-100 transition-colors hover:bg-gray-50">
+            <div className="md:col-span-12 bg-gray-50 rounded-3xl p-8 md:p-10 flex flex-col justify-between items-start border border-gray-100 transition-colors hover:bg-gray-100/70">
               <div>
-                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-gray-900 shadow-sm border border-gray-200 mb-6">
-                  <Icon path={mdiShieldCheckOutline} size={1} />
-                </div>
-                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3 tracking-tight">Puntualidad y confort</h3>
+                <h3 className="text-xl md:text-2xl font-extrabold text-gray-900 mb-3 tracking-tight">Puntualidad y confort</h3>
                 <p className="text-gray-600 text-base leading-relaxed max-w-md">
                   Nuestra moderna flota es monitoreada 24/7 para garantizar salidas a tiempo, velocidad controlada, viajes seguros y la máxima comodidad a bordo de nuestras unidades.
                 </p>
@@ -146,18 +332,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-white py-10 border-t border-gray-100">
-        <div className="max-w-5xl mx-auto px-6 md:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-2 text-gray-900 font-bold">
-            <Icon path={mdiBus} size={0.8} className="text-gray-400" />
-            <span>InterlocApp</span>
-          </div>
-          <p className="text-gray-500 text-sm font-medium">
-            © 2026 Todos los derechos reservados.
-          </p>
-        </div>
-      </footer>
+      {/* Footer minimalista y unificado */}
+      <Footer />
     </div>
   );
 }

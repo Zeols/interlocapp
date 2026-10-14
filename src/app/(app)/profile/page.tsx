@@ -1,61 +1,178 @@
 "use client";
 
-import React from "react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/frontend/components/ui/card";
-import { Label } from "@/frontend/components/ui/label";
-import { Input } from "@/frontend/components/ui/input";
-import { Button } from "@/frontend/components/ui/button";
+import React, { useState } from "react";
 import Icon from "@mdi/react";
-import { mdiAccountOutline, mdiKeyOutline } from "@mdi/js";
+import { mdiAccountOutline, mdiKeyOutline, mdiCheckCircleOutline } from "@mdi/js";
 
 export default function ProfilePage() {
+  const [activeTab, setActiveTab] = useState<"personal" | "password">("personal");
+  const [saved, setSaved] = useState(false);
+  const [name, setName] = useState("User");
+  const [email, setEmail] = useState("user@ejemplo.com");
+  const [phone, setPhone] = useState("+505 8888 8888");
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
+
   return (
-    <div className="max-w-4xl mx-auto px-8 py-12">
-      <div className="mb-10">
-        <h1 className="text-3xl font-black text-gray-900">Perfil</h1>
-        <p className="text-gray-500 mt-2">Gestiona tu información personal y opciones de seguridad.</p>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-8 sm:py-12 w-full">
+      <div className="mb-8 sm:mb-10">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight">Perfil</h1>
+        <p className="text-sm sm:text-base text-gray-500 mt-1.5">Gestiona tu información personal y opciones de seguridad.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 items-start">
+        {/* Navigation Tabs */}
         <div className="md:col-span-1">
-          <nav className="flex flex-col gap-2">
-            <button className="flex items-center gap-3 w-full px-4 py-3 bg-white border border-gray-200 rounded-xl cursor-pointer text-sm font-bold text-primary shadow-sm">
+          <nav className="flex flex-row md:flex-col gap-2">
+            <button
+              onClick={() => setActiveTab("personal")}
+              className={`flex items-center gap-3 w-full px-4 py-3 rounded-2xl cursor-pointer text-xs sm:text-sm font-bold transition-all ${
+                activeTab === "personal"
+                  ? "bg-gray-900 text-white shadow-xs"
+                  : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+              }`}
+            >
               <Icon path={mdiAccountOutline} size={0.8} />
               Datos Personales
             </button>
-            <button className="flex items-center gap-3 w-full px-4 py-3 bg-transparent border border-transparent rounded-xl cursor-pointer text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+            <button
+              onClick={() => setActiveTab("password")}
+              className={`flex items-center gap-3 w-full px-4 py-3 rounded-2xl cursor-pointer text-xs sm:text-sm font-bold transition-all ${
+                activeTab === "password"
+                  ? "bg-gray-900 text-white shadow-xs"
+                  : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+              }`}
+            >
               <Icon path={mdiKeyOutline} size={0.8} />
               Contraseña
             </button>
           </nav>
         </div>
 
-        <div className="md:col-span-2 space-y-6">
-          <Card className="border-gray-100 shadow-sm rounded-2xl">
-            <CardHeader>
-              <CardTitle>Datos Personales</CardTitle>
-              <CardDescription>
-                Actualiza tu información básica para tus futuros viajes.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nombre Completo</Label>
-                <Input id="name" defaultValue="User" className="rounded-xl" />
+        {/* Form Panel */}
+        <div className="md:col-span-2">
+          {activeTab === "personal" ? (
+            <div className="bg-white border border-gray-100 rounded-3xl p-6 sm:p-8 shadow-sm">
+              <div className="mb-6 pb-4 border-b border-gray-100">
+                <h2 className="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight">Datos Personales</h2>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                  Actualiza tu información básica para tus próximos boletos.
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Correo Electrónico</Label>
-                <Input id="email" type="email" defaultValue="user@ejemplo.com" className="rounded-xl" />
+
+              <form onSubmit={handleSave} className="space-y-4 sm:space-y-5">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    Nombre Completo
+                  </label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-2xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    Correo Electrónico
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-2xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    Teléfono de Contacto
+                  </label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+505 8888 8888"
+                    className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-2xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all"
+                  />
+                </div>
+
+                {saved && (
+                  <div className="flex items-center gap-2 p-3 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-2xl text-xs sm:text-sm font-semibold">
+                    <Icon path={mdiCheckCircleOutline} size={0.8} className="text-emerald-500 shrink-0" />
+                    Tus cambios han sido guardados correctamente.
+                  </div>
+                )}
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="bg-primary hover:bg-primary-dark text-white font-bold text-xs sm:text-sm px-7 py-3.5 rounded-2xl transition-all cursor-pointer shadow-md shadow-primary/20 hover:scale-[1.01] active:scale-[0.99]"
+                  >
+                    Guardar Cambios
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-100 rounded-3xl p-6 sm:p-8 shadow-sm">
+              <div className="mb-6 pb-4 border-b border-gray-100">
+                <h2 className="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight">Cambiar Contraseña</h2>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                  Mantén tu cuenta protegida usando una contraseña segura.
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Teléfono</Label>
-                <Input id="phone" type="tel" placeholder="+505 8888 8888" className="rounded-xl" />
-              </div>
-            </CardContent>
-            <CardFooter className="bg-gray-50/50 rounded-b-2xl border-t border-gray-100 px-6 py-4">
-              <Button className="rounded-xl font-bold">Guardar Cambios</Button>
-            </CardFooter>
-          </Card>
+
+              <form onSubmit={handleSave} className="space-y-4 sm:space-y-5">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    Contraseña Actual
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-2xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    Nueva Contraseña
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="Mínimo 8 caracteres"
+                    className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-2xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all"
+                    required
+                  />
+                </div>
+
+                {saved && (
+                  <div className="flex items-center gap-2 p-3 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-2xl text-xs sm:text-sm font-semibold">
+                    <Icon path={mdiCheckCircleOutline} size={0.8} className="text-emerald-500 shrink-0" />
+                    Contraseña actualizada exitosamente.
+                  </div>
+                )}
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="bg-primary hover:bg-primary-dark text-white font-bold text-xs sm:text-sm px-7 py-3.5 rounded-2xl transition-all cursor-pointer shadow-md shadow-primary/20 hover:scale-[1.01] active:scale-[0.99]"
+                  >
+                    Actualizar Contraseña
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
       </div>
     </div>
