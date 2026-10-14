@@ -1,33 +1,64 @@
 "use client";
 
 import React, { useState } from "react";
-import Icon from "@mdi/react";
-import { mdiBus } from "@mdi/js";
+import Image from "next/image";
 
 interface LogoProps {
   className?: string;
-  size?: number;
+  size?: number; // Multiplicador de escala (por defecto 1 = 40px)
+  variant?: "default" | "onDark";
+  showText?: boolean;
 }
 
-export function Logo({ className = "", size = 1 }: LogoProps) {
-  const [loaded, setLoaded] = useState(false);
+export function Logo({
+  className = "",
+  size = 1,
+  variant = "default",
+  showText = false,
+}: LogoProps) {
   const [hasError, setHasError] = useState(false);
+  const pxSize = Math.round(40 * size);
+
+  const logoImg = (
+    <img
+      src={hasError ? "/Logo InterlocApp.svg" : "/logo.svg"}
+      alt="InterlocApp"
+      width={pxSize}
+      height={pxSize}
+      className="w-full h-full object-contain"
+      onError={() => {
+        if (!hasError) setHasError(true);
+      }}
+    />
+  );
 
   return (
-    <div className={`relative flex items-center justify-center shrink-0 ${className}`}>
-      {!hasError && (
-        <img
-          src="/logo.png"
-          alt="InterlocApp Logo"
-          className={`w-10 h-10 object-contain rounded-xl ${loaded ? "block" : "hidden"}`}
-          onLoad={() => setLoaded(true)}
-          onError={() => setHasError(true)}
-        />
-      )}
-      {(!loaded || hasError) && (
-        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-xs transition-transform group-hover:-translate-y-0.5">
-          <Icon path={mdiBus} size={size} />
+    <div className={`inline-flex items-center gap-2.5 shrink-0 ${className}`}>
+      {variant === "onDark" ? (
+        <div
+          className="relative flex items-center justify-center shrink-0 bg-white rounded-xl p-1.5 shadow-sm transition-transform duration-200 group-hover:scale-105"
+          style={{ width: `${pxSize + 8}px`, height: `${pxSize + 8}px` }}
+        >
+          {logoImg}
         </div>
+      ) : (
+        <div
+          className="relative flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105"
+          style={{ width: `${pxSize}px`, height: `${pxSize}px` }}
+        >
+          {logoImg}
+        </div>
+      )}
+
+      {showText && (
+        <span
+          className={`font-extrabold tracking-tight ${
+            variant === "onDark" ? "text-white" : "text-gray-900"
+          }`}
+          style={{ fontSize: `${Math.max(16, Math.round(18 * size))}px` }}
+        >
+          InterlocApp
+        </span>
       )}
     </div>
   );

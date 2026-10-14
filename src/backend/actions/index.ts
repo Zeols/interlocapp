@@ -1,3 +1,4 @@
+export * from './auth';
 export * from './cooperativas';
 export * from './rutas';
 export * from './unidades';

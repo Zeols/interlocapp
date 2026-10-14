@@ -27,7 +27,7 @@ export default function ForgotPage() {
       {/* Lado izquierdo oscuro */}
       <div className="hidden lg:flex w-[45%] bg-gray-900 p-16 flex-col justify-between relative overflow-hidden">
         <Link href="/" className="flex items-center gap-2.5 cursor-pointer z-10">
-          <Logo size={1} />
+          <Logo size={1} variant="onDark" />
           <span className="font-extrabold text-white text-xl tracking-tight">InterlocApp</span>
         </Link>
 

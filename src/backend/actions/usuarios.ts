@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '../db';
+import { hashPassword } from '../lib/crypto';
 import { revalidatePath } from 'next/cache';
 
 export interface UsuarioInput {
@@ -63,6 +64,8 @@ export async function createUsuario(data: UsuarioInput) {
       };
     }
 
+    const hashedPassword = await hashPassword(data.passwd || 'PasswordTemp123!');
+
     const nuevoUsuario = await prisma.usuario.create({
       data: {
         idCooperativa: data.idCooperativa || null,
@@ -70,7 +73,7 @@ export async function createUsuario(data: UsuarioInput) {
         nombre: data.nombre.trim(),
         apellido: data.apellido.trim(),
         usuario: data.usuario.trim(),
-        passwd: data.passwd || 'PasswordTemp123!', // En la fase de auth usaremos bcrypt
+        passwd: hashedPassword,
         telefono: data.telefono?.trim() || null,
         correo: data.correo.trim().toLowerCase(),
         direccion: data.direccion?.trim() || null,

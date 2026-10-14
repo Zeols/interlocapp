@@ -4,8 +4,9 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@mdi/react";
-import { mdiChevronDown, mdiAccountOutline, mdiCogOutline, mdiLogout } from "@mdi/js";
+import { mdiChevronDown, mdiAccountOutline, mdiCogOutline, mdiLogout, mdiTicketConfirmationOutline } from "@mdi/js";
 import { motion, AnimatePresence } from "framer-motion";
+import { logoutAction } from "@/backend/actions/auth";
 
 export function UserChip({ name, email }: { name: string; email: string }) {
   const router = useRouter();
@@ -23,9 +24,11 @@ export function UserChip({ name, email }: { name: string; email: string }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsOpen(false);
-    router.push("/login");
+    const res = await logoutAction();
+    router.push(res.data?.redirectUrl || "/login");
+    router.refresh();
   };
 
   return (
@@ -63,6 +66,14 @@ export function UserChip({ name, email }: { name: string; email: string }) {
               <p className="text-gray-500 text-xs mt-0.5 truncate">{email}</p>
             </div>
             <div className="h-px bg-gray-100 my-1.5" />
+            <Link 
+              href="/tickets"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-2.5 w-full px-3.5 py-2 bg-transparent border-none rounded-xl cursor-pointer text-xs sm:text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
+            >
+              <Icon path={mdiTicketConfirmationOutline} size={0.7} className="text-primary" />
+              Mis Boletos
+            </Link>
             <Link 
               href="/profile"
               onClick={() => setIsOpen(false)}

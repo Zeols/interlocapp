@@ -1,25 +1,49 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Icon from "@mdi/react";
-import { mdiEmailOutline, mdiLockOutline, mdiArrowLeft } from "@mdi/js";
+import {
+  mdiEmailOutline,
+  mdiLockOutline,
+  mdiArrowLeft,
+  mdiAlertCircleOutline,
+  mdiLoading,
+} from "@mdi/js";
 import { Logo } from "@/frontend/components/ui/Logo";
+import { loginAction } from "@/backend/actions/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get("redirect");
+
+  const [identificador, setIdentificador] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  const goForgot = () => router.push("/forgot");
-  const goSignup = () => router.push("/signup");
-
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email) {
-      router.push("/home");
-    }
+    setErrorMessage(null);
+
+    startTransition(async () => {
+      const response = await loginAction({
+        identificador,
+        password,
+      });
+
+      if (!response.success) {
+        setErrorMessage(response.error || "No se pudo iniciar sesión.");
+        return;
+      }
+
+      // Redirigir a la URL de destino o a la URL por defecto según su rol
+      const targetUrl = redirectParam || response.data?.redirectUrl || "/home";
+      router.push(targetUrl);
+      router.refresh();
+    });
   };
 
   return (
@@ -27,7 +51,7 @@ export default function LoginPage() {
       {/* Lado izquierdo oscuro con Manrope */}
       <div className="hidden lg:flex w-[45%] bg-gray-900 p-16 flex-col justify-between relative overflow-hidden">
         <Link href="/" className="flex items-center gap-2.5 cursor-pointer z-10">
-          <Logo size={1} />
+          <Logo size={1} variant="onDark" />
           <span className="font-extrabold text-white text-xl tracking-tight">InterlocApp</span>
         </Link>
 
@@ -47,7 +71,7 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* Formulario unificado */}
+      {/* Formulario de Login */}
       <div className="flex-1 bg-white relative flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-16">
         <Link
           href="/"
@@ -69,22 +93,30 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {errorMessage && (
+            <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3 animate-in fade-in">
+              <Icon path={mdiAlertCircleOutline} size={0.9} className="shrink-0 mt-0.5 text-red-500" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
-                Correo electrónico
+                Correo o Usuario
               </label>
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
                   <Icon path={mdiEmailOutline} size={0.8} />
                 </div>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ejemplo@correo.com"
-                  className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all"
+                  type="text"
+                  value={identificador}
+                  onChange={(e) => setIdentificador(e.target.value)}
+                  placeholder="admin@cootranstel.com o admin_coop"
+                  className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
                   required
+                  disabled={isPending}
                 />
               </div>
             </div>
@@ -102,38 +134,46 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all"
+                  className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
                   required
+                  disabled={isPending}
                 />
               </div>
             </div>
 
             <div className="flex justify-end pt-1">
-              <button
-                type="button"
-                onClick={goForgot}
+              <Link
+                href="/forgot"
                 className="text-xs sm:text-sm font-semibold text-primary hover:text-primary-dark transition-colors cursor-pointer"
               >
                 ¿Olvidaste tu contraseña?
-              </button>
+              </Link>
             </div>
 
             <button
               type="submit"
-              className="w-full bg-primary hover:bg-primary-dark text-white font-bold text-sm sm:text-base py-3.5 rounded-2xl flex items-center justify-center transition-all mt-4 cursor-pointer shadow-md shadow-primary/20 hover:scale-[1.01] active:scale-[0.99]"
+              disabled={isPending}
+              className="w-full bg-primary hover:bg-primary-dark text-white font-bold text-sm sm:text-base py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all mt-4 cursor-pointer shadow-md shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              Entrar
+              {isPending ? (
+                <>
+                  <Icon path={mdiLoading} size={0.9} className="animate-spin" />
+                  <span>Verificando...</span>
+                </>
+              ) : (
+                <span>Entrar</span>
+              )}
             </button>
           </form>
 
           <div className="mt-8 text-center text-xs sm:text-sm text-gray-500 font-medium">
             ¿No tienes cuenta?{" "}
-            <button
-              onClick={goSignup}
+            <Link
+              href="/signup"
               className="text-primary hover:text-primary-dark font-bold transition-colors cursor-pointer"
             >
               Regístrate
-            </button>
+            </Link>
           </div>
         </div>
       </div>
