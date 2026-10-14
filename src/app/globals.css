@@ -6,8 +6,8 @@
   --color-secondary: #F93822;
   --color-accent: #FDBA4E;
   
-  --font-heading: Outfit, sans-serif;
-  --font-body: Inter, sans-serif;
+  --font-heading: var(--font-manrope), sans-serif;
+  --font-body: var(--font-inter), sans-serif;
 
   --animate-marquee: marquee var(--duration) linear infinite;
   --animate-marquee-vertical: marquee-vertical var(--duration) linear infinite;
@@ -23,6 +23,10 @@
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
   html, body {
     @apply min-h-screen font-body text-gray-900 bg-gray-50;
     -webkit-font-smoothing: antialiased;

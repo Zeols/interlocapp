@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Outfit, Inter } from "next/font/google";
+import { Manrope, Inter } from "next/font/google";
 import "./globals.css";
 import "./components.css";
 
-const outfit = Outfit({
+const manrope = Manrope({
   subsets: ["latin"],
-  variable: "--font-outfit",
+  variable: "--font-manrope",
 });
 
 const inter = Inter({
@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${outfit.variable} ${inter.variable}`}>
+    <html lang="es" className={`${manrope.variable} ${inter.variable}`}>
       <body>{children}</body>
     </html>
   );
