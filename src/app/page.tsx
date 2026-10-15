@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,10 +10,25 @@ import { BrowserCard } from "@/frontend/components/ui/BrowserCard";
 import { RoutesSlider } from "@/frontend/components/ui/RoutesSlider";
 import { Logo } from "@/frontend/components/ui/Logo";
 import { Footer } from "@/frontend/components/layout/Footer";
+import { UserChip } from "@/frontend/components/ui/UserChip";
+import { getCurrentUserAction } from "@/backend/actions/auth";
 
 export default function LandingPage() {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<{ nombre: string; correo: string; rolNombre: string } | null>(null);
+
+  useEffect(() => {
+    getCurrentUserAction().then((session) => {
+      if (session) {
+        setUser({
+          nombre: session.nombre || session.usuario || "Pasajero",
+          correo: session.correo,
+          rolNombre: session.rolNombre,
+        });
+      }
+    });
+  }, []);
 
   const goLogin = () => {
     router.push("/login");
@@ -50,10 +65,10 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900 flex flex-col relative overflow-x-clip">
-      {/* Barra de navegación perpetua (Fixed top) estilo Uber con micro-animaciones al tocar */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-xs">
-        <nav className="flex items-center justify-between px-4 sm:px-6 md:px-8 py-3.5 max-w-6xl mx-auto w-full">
-          {/* Bloque Izquierdo: Logo + Secciones con animación de tap */}
+      {/* Barra de navegación perpetua (Fixed top) unificada con el diseño de Home */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-xs w-full">
+        <nav className="flex items-center justify-between px-4 sm:px-6 md:px-8 py-3.5 max-w-7xl mx-auto w-full">
+          {/* Bloque Izquierdo: Logo + Secciones en pastillas idénticas */}
           <div className="flex items-center gap-3 sm:gap-6">
             <Link
               href="/"
@@ -67,65 +82,70 @@ export default function LandingPage() {
               </span>
             </Link>
 
-            {/* Enlaces de ancla con micro-animación al pulsar (Desktop) */}
+            {/* Enlaces en pastillas limpias unificadas (Desktop) */}
             <div className="hidden md:flex items-center gap-1 text-sm font-semibold text-gray-700">
-              <motion.button
+              <button
                 onClick={() => scrollToSection("rutas")}
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.94 }}
-                transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                className="px-3.5 py-1.5 rounded-full hover:bg-gray-100 hover:text-gray-900 transition-colors focus-visible:outline-2 focus-visible:outline-primary cursor-pointer select-none"
+                className="px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer select-none"
               >
                 Rutas
-              </motion.button>
-              <motion.button
+              </button>
+              <button
                 onClick={() => scrollToSection("como-funciona")}
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.94 }}
-                transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                className="px-3.5 py-1.5 rounded-full hover:bg-gray-100 hover:text-gray-900 transition-colors focus-visible:outline-2 focus-visible:outline-primary cursor-pointer select-none"
+                className="px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer select-none"
               >
                 Cómo funciona
-              </motion.button>
-              <motion.button
+              </button>
+              <button
                 onClick={() => scrollToSection("beneficios")}
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.94 }}
-                transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                className="px-3.5 py-1.5 rounded-full hover:bg-gray-100 hover:text-gray-900 transition-colors focus-visible:outline-2 focus-visible:outline-primary cursor-pointer select-none"
+                className="px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer select-none"
               >
                 Beneficios
-              </motion.button>
+              </button>
             </div>
           </div>
 
-          {/* Bloque Derecho: Botón Iniciar Sesión + Registrarte (Desktop) + Menú Hamburguesa (Móvil) */}
+          {/* Bloque Derecho: Perfil de Usuario o Botones de Autenticación */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <motion.button
-              onClick={goLogin}
-              whileTap={{ scale: 0.94 }}
-              className="hidden md:inline-flex px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-gray-900"
-            >
-              Iniciar sesión
-            </motion.button>
-            <motion.button
-              onClick={goSignup}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.94 }}
-              className="hidden md:inline-flex bg-gray-900 hover:bg-gray-800 text-white font-bold px-4 sm:px-5 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md focus-visible:outline-2 focus-visible:outline-gray-900"
-            >
-              Regístrate
-            </motion.button>
+            {user ? (
+              <div className="flex items-center gap-2">
+                <Link
+                  href={["SUPER_ADMIN", "ADMIN_COOP", "TAQUILLERO"].includes(user.rolNombre) ? "/dashboard" : "/home"}
+                  className="hidden sm:inline-flex items-center gap-1.5 bg-gray-900 hover:bg-gray-800 text-white font-bold px-4 py-2 rounded-full text-xs sm:text-sm shadow-xs transition-colors"
+                >
+                  Ir al portal
+                </Link>
+                <UserChip name={user.nombre} email={user.correo} />
+              </div>
+            ) : (
+              <>
+                <motion.button
+                  onClick={goLogin}
+                  whileTap={{ scale: 0.94 }}
+                  className="hidden md:inline-flex px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer"
+                >
+                  Iniciar sesión
+                </motion.button>
+                <motion.button
+                  onClick={goSignup}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.94 }}
+                  className="hidden md:inline-flex bg-gray-900 hover:bg-gray-800 text-white font-bold px-4 sm:px-5 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md"
+                >
+                  Regístrate
+                </motion.button>
+              </>
+            )}
 
-            {/* Botón de Menú Hamburguesa para Móvil (Siempre visible y cómodo) */}
+            {/* Botón de Menú Hamburguesa para Móvil */}
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="flex items-center justify-center w-10 h-10 rounded-2xl bg-gray-50 border border-gray-200/80 text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors md:hidden cursor-pointer"
+              className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-50 border border-gray-200/80 text-gray-700 hover:bg-gray-100 transition-colors md:hidden cursor-pointer"
               aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú de navegación"}
               aria-expanded={mobileMenuOpen}
             >
-              <Icon path={mobileMenuOpen ? mdiClose : mdiMenu} size={0.9} />
+              <Icon path={mobileMenuOpen ? mdiClose : mdiMenu} size={0.8} />
             </button>
           </div>
         </nav>
