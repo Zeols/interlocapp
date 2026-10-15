@@ -15,6 +15,7 @@ import {
   mdiClose
 } from "@mdi/js";
 import { Logo } from "@/frontend/components/ui/Logo";
+import { logoutAction } from "@/backend/actions/auth";
 
 export default function DashboardLayout({
   children,
@@ -33,8 +34,10 @@ export default function DashboardLayout({
     { name: "Ventas", path: "/dashboard/ventas", icon: mdiTicketConfirmationOutline },
   ];
 
-  const handleLogout = () => {
-    router.push("/login");
+  const handleLogout = async () => {
+    const res = await logoutAction();
+    router.push(res.data?.redirectUrl || "/login");
+    router.refresh();
   };
 
   return (
@@ -56,7 +59,10 @@ export default function DashboardLayout({
         <div className="p-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 group">
             <Logo size={0.9} />
-            <span className="font-extrabold text-gray-900 text-lg tracking-tight">AdminApp</span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-extrabold text-gray-900 text-lg tracking-tight group-hover:text-primary transition-colors">InterlocApp</span>
+              <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">Admin</span>
+            </div>
           </Link>
           <button
             onClick={() => setMobileMenuOpen(false)}
