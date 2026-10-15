@@ -44,7 +44,7 @@ const slides: RouteSlide[] = [
     destination: "Estelí",
     department: "Norte",
     description: "Viajes interurbanos hacia el diamante de las segovias, clima fresco y corredor norte.",
-    image: "/routes/esteli.jfif",
+    image: "/routes/esteli.jpg",
     fallbackBg: "#334155",
   },
 ];
