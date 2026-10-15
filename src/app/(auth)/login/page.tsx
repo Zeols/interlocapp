@@ -3,6 +3,7 @@
 import React, { useState, useTransition, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import Icon from "@mdi/react";
 import {
   mdiEmailOutline,
@@ -80,7 +81,12 @@ function LoginFormContent() {
           <Icon path={mdiArrowLeft} size={0.7} /> Volver al inicio
         </Link>
 
-        <div className="w-full max-w-md mx-auto pt-8 sm:pt-0">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          className="w-full max-w-md mx-auto pt-8 sm:pt-0"
+        >
           <div className="mb-8">
             <div className="mb-4 lg:hidden">
               <Logo size={1} />
@@ -113,7 +119,7 @@ function LoginFormContent() {
                   type="text"
                   value={identificador}
                   onChange={(e) => setIdentificador(e.target.value)}
-                  placeholder="admin@cootranstel.com o admin_coop"
+                  placeholder="ejemplo@correo.com"
                   className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
                   required
                   disabled={isPending}
@@ -175,7 +181,7 @@ function LoginFormContent() {
               Regístrate
             </Link>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

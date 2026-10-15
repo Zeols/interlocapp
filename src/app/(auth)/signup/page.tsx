@@ -3,6 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import Icon from "@mdi/react";
 import {
   mdiAccountOutline,
@@ -100,7 +101,12 @@ export default function SignUpPage() {
           <Icon path={mdiArrowLeft} size={0.7} /> Volver al inicio
         </Link>
 
-        <div className="w-full max-w-md mx-auto pt-8 sm:pt-0">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          className="w-full max-w-md mx-auto pt-8 sm:pt-0"
+        >
           <div className="mb-6">
             <div className="mb-4 lg:hidden">
               <Logo size={1} />
@@ -133,7 +139,7 @@ export default function SignUpPage() {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="María González Pérez"
+                  placeholder="Nombre y apellido"
                   className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
                   required
                   disabled={isPending}
@@ -153,7 +159,7 @@ export default function SignUpPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ejemplo@correo.com"
+                  placeholder="correo@ejemplo.com"
                   className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
                   required
                   disabled={isPending}
@@ -173,7 +179,7 @@ export default function SignUpPage() {
                   type="tel"
                   value={telefono}
                   onChange={(e) => setTelefono(e.target.value)}
-                  placeholder="+505 8888-8888"
+                  placeholder="Número de teléfono"
                   className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
                   disabled={isPending}
                 />
@@ -192,7 +198,7 @@ export default function SignUpPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="••••••••"
                   className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-2xl py-3 pl-11 pr-11 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
                   required
                   disabled={isPending}
@@ -219,7 +225,7 @@ export default function SignUpPage() {
                   type={showConfirm ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repite tu contraseña"
+                  placeholder="••••••••"
                   className={`w-full bg-gray-50/80 border text-gray-900 text-sm sm:text-base rounded-2xl py-3 pl-11 pr-11 focus:outline-none focus:ring-2 transition-all disabled:opacity-60 ${
                     passwordsMismatch
                       ? "border-red-300 focus:ring-red-500/20 focus:border-red-500"
@@ -265,7 +271,7 @@ export default function SignUpPage() {
               Inicia Sesión
             </Link>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );
