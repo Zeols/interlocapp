@@ -19,11 +19,11 @@ export const metadata: Metadata = {
   description: "Plataforma oficial para compra de boletos, selección de asientos y gestión de flotas interlocales.",
   icons: {
     icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/favicon.svg?v=20261015", type: "image/svg+xml" },
+      { url: "/favicon.ico?v=20261015", sizes: "32x32" },
     ],
-    shortcut: "/favicon.svg",
-    apple: "/favicon.svg",
+    shortcut: "/favicon.ico?v=20261015",
+    apple: "/apple-touch-icon.png?v=20261015",
   },
 };
 
@@ -35,8 +35,9 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${manrope.variable} ${inter.variable}`}>
       <head>
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/favicon.svg" />
+        <link rel="icon" href="/favicon.svg?v=20261015" type="image/svg+xml" />
+        <link rel="alternate icon" href="/favicon.ico?v=20261015" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=20261015" />
       </head>
       <body>
         <SmoothCursor />
