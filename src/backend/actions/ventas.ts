@@ -3,6 +3,7 @@
 import { prisma } from '../db';
 import { revalidatePath } from 'next/cache';
 import { getSession } from '../lib/session';
+import { sendTicketEmail } from '../lib/mail';
 
 // Interfaces
 export interface EquipajeInput {
@@ -198,6 +199,50 @@ export async function procesarVentaBoletos(data: VentaInput) {
 
       return nuevaVenta;
     });
+
+    // Enviar confirmación electrónica del boleto si el usuario tiene correo en sesión
+    if (session.correo) {
+      prisma.viaje.findUnique({
+        where: { idViaje: data.idViaje },
+        include: {
+          ruta: true,
+          despacho: {
+            include: {
+              asignacionUnidad: {
+                include: { unidad: true },
+              },
+            },
+          },
+        },
+      }).then(async (viajeInfo) => {
+        if (!viajeInfo) return;
+        const asientosNumeros = await prisma.asiento.findMany({
+          where: { idAsiento: { in: data.boletos.map((b) => b.idAsiento) } },
+          select: { numero: true },
+        });
+
+        const partesRuta = viajeInfo.ruta.nombre.split('-');
+        const origen = partesRuta[0]?.trim() || viajeInfo.ruta.nombre;
+        const destino = partesRuta[1]?.trim() || 'Destino';
+        const fechaStr = new Date(viajeInfo.fecha).toLocaleDateString('es-NI', { dateStyle: 'medium' });
+        const horaStr = new Date(viajeInfo.hrSalidaProgramada).toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' });
+
+        await sendTicketEmail({
+          to: session.correo,
+          passengerName: session.nombre || 'Pasajero',
+          ticketCode: `TK-${resultado.idVenta}`,
+          origin: origen,
+          destination: destino,
+          departureDate: fechaStr,
+          departureTime: horaStr,
+          seats: asientosNumeros.map((a) => a.numero),
+          unitPlate: viajeInfo.despacho?.asignacionUnidad?.unidad?.placa,
+          totalAmount: totalVenta,
+        });
+      }).catch((mailError) => {
+        console.warn('[Venta] No se pudo enviar el correo de confirmación de boletos:', mailError);
+      });
+    }
 
     revalidatePath('/admin/ventas');
     return { success: true, data: resultado };

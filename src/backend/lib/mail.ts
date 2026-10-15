@@ -1,0 +1,289 @@
+import nodemailer, { type Transporter } from 'nodemailer';
+
+// Tipos de datos para el servicio de correos
+export interface SendMailOptions {
+  to: string | string[];
+  subject: string;
+  html: string;
+  text?: string;
+}
+
+export interface TicketEmailData {
+  to: string;
+  passengerName: string;
+  ticketCode: string;
+  origin: string;
+  destination: string;
+  departureDate: string;
+  departureTime: string;
+  seats: string[] | number[];
+  unitPlate?: string;
+  totalAmount: number;
+}
+
+export interface WelcomeEmailData {
+  to: string;
+  name: string;
+}
+
+// Helper para obtener configuración SMTP actual
+export function getMailConfig() {
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = parseInt(process.env.SMTP_PORT || '465', 10);
+  const secure = process.env.SMTP_SECURE === 'false' ? false : true;
+  const user = process.env.SMTP_USER || process.env.EMAIL_USER || '';
+  const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS || '';
+  const from = process.env.SMTP_FROM || (user ? `InterlocApp <${user}>` : 'InterlocApp <notificaciones@interlocapp.com>');
+
+  return { host, port, secure, user, pass, from };
+}
+
+// Singleton del transporter de nodemailer
+let transporter: Transporter | null = null;
+let lastUsedUser = '';
+let lastUsedPass = '';
+
+export function getMailTransporter(): Transporter | null {
+  const config = getMailConfig();
+  if (!config.user || !config.pass) {
+    return null;
+  }
+
+  // Si cambiaron las credenciales o no existe, recrear el transporter
+  if (!transporter || lastUsedUser !== config.user || lastUsedPass !== config.pass) {
+    lastUsedUser = config.user;
+    lastUsedPass = config.pass;
+
+    transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: {
+        user: config.user,
+        pass: config.pass.replace(/\s+/g, ''), // Remueve espacios si el usuario pegó la clave de aplicación con espacios
+      },
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
+    });
+  }
+
+  return transporter;
+}
+
+/**
+ * Valida la conexión SMTP configurada
+ */
+export async function verifyEmailConnection(): Promise<{ success: boolean; message: string }> {
+  try {
+    const client = getMailTransporter();
+    if (!client) {
+      return {
+        success: false,
+        message: 'No se han configurado las credenciales de correo (SMTP_USER y SMTP_PASS en el archivo .env).',
+      };
+    }
+
+    await client.verify();
+    return {
+      success: true,
+      message: 'Conexión SMTP con Gmail verificada y lista para enviar correos.',
+    };
+  } catch (error: any) {
+    console.error('Error al verificar conexión SMTP con Gmail:', error);
+    return {
+      success: false,
+      message: error?.message || 'Error al autenticar contra el servidor SMTP de Gmail.',
+    };
+  }
+}
+
+/**
+ * Envío genérico de correos electrónicos
+ */
+export async function sendEmail({ to, subject, html, text }: SendMailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  try {
+    const client = getMailTransporter();
+    if (!client) {
+      console.warn('[MailService] Variables SMTP_USER y SMTP_PASS no definidas en .env. El correo no se envió.');
+      return {
+        success: false,
+        error: 'Servicio de correo no configurado en variables de entorno.',
+      };
+    }
+
+    const config = getMailConfig();
+    const info = await client.sendMail({
+      from: config.from,
+      to,
+      subject,
+      html,
+      text: text || html.replace(/<[^>]+>/g, ' '),
+    });
+
+    return {
+      success: true,
+      messageId: info.messageId,
+    };
+  } catch (error: any) {
+    console.error('[MailService] Error al enviar correo:', error);
+    return {
+      success: false,
+      error: error?.message || 'Fallo desconocido al enviar correo.',
+    };
+  }
+}
+
+/**
+ * Plantilla de Bienvenida a InterlocApp
+ */
+export async function sendWelcomeEmail({ to, name }: WelcomeEmailData) {
+  const subject = 'Bienvenido a InterlocApp';
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${subject}</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 24px 12px; color: #0F172A; }
+        .card { max-width: 540px; margin: 0 auto; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        .logo-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+        .logo-box { width: 36px; height: 36px; background: #0F172A; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; color: #FFFFFF; font-weight: 800; font-size: 16px; text-decoration: none; text-align: center; line-height: 36px; }
+        .brand { font-size: 18px; font-weight: 800; color: #0F172A; letter-spacing: -0.5px; margin-left: 8px; vertical-align: middle; }
+        h1 { font-size: 22px; font-weight: 800; margin: 0 0 12px 0; color: #0F172A; line-height: 1.25; }
+        p { font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 16px 0; }
+        .highlight-box { background: #F1F5F9; border-radius: 12px; padding: 16px; margin: 20px 0; font-size: 13px; color: #334155; }
+        .btn { display: inline-block; background: #0F172A; color: #FFFFFF !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 24px; border-radius: 10px; text-align: center; margin-top: 8px; }
+        .footer { text-align: center; font-size: 12px; color: #94A3B8; margin-top: 24px; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="logo-wrap">
+          <span class="logo-box">I</span>
+          <span class="brand">InterlocApp</span>
+        </div>
+        <h1>Hola ${name}, bienvenido a bordo</h1>
+        <p>Tu cuenta ha sido creada exitosamente. Ahora puedes explorar rutas interlocales, consultar horarios en tiempo real y reservar tus asientos de forma ágil y segura.</p>
+        
+        <div class="highlight-box">
+          <strong>¿Qué puedes hacer ahora?</strong><br>
+          • Buscar y reservar boletos de transporte.<br>
+          • Visualizar el mapa de asientos en tiempo real.<br>
+          • Gestionar tus viajes e historial desde tu perfil.
+        </div>
+
+        <div style="text-align: center; margin-top: 24px;">
+          <a href="http://localhost:3000/home" class="btn" target="_blank">Explorar Viajes Disponibles</a>
+        </div>
+      </div>
+      <div class="footer">
+        InterlocApp: Sistema de Gestión de Transporte Interlocal.<br>
+        Este es un mensaje automático, por favor no respondas a este correo.
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({ to, subject, html });
+}
+
+/**
+ * Plantilla de Boleto de Viaje Confirmado
+ */
+export async function sendTicketEmail(data: TicketEmailData) {
+  const subject = `Boleto Confirmado: ${data.origin} a ${data.destination} (${data.ticketCode})`;
+  const seatsList = Array.isArray(data.seats) ? data.seats.join(', ') : data.seats;
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${subject}</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 24px 12px; color: #0F172A; }
+        .card { max-width: 560px; margin: 0 auto; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.04); }
+        .header { background: #0F172A; color: #FFFFFF; padding: 24px 28px; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .badge { display: inline-block; background: #0284C7; color: #FFFFFF; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .ticket-code { font-family: monospace; font-size: 13px; color: #94A3B8; }
+        .route-title { font-size: 20px; font-weight: 800; margin: 4px 0 0 0; color: #FFFFFF; }
+        .content { padding: 28px; }
+        .section-label { font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .section-value { font-size: 15px; font-weight: 700; color: #0F172A; margin-bottom: 16px; }
+        .grid { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .grid td { padding: 8px 0; vertical-align: top; width: 50%; }
+        .ticket-box { background: #F8FAFC; border: 1.5px dashed #CBD5E1; border-radius: 12px; padding: 18px; margin: 18px 0; }
+        .total-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #E2E8F0; padding-top: 14px; margin-top: 14px; }
+        .total-label { font-size: 13px; font-weight: 700; color: #475569; }
+        .total-amount { font-size: 22px; font-weight: 900; color: #0F172A; }
+        .notice { font-size: 12px; line-height: 1.5; color: #64748B; background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 8px; padding: 12px; margin-top: 18px; }
+        .footer { text-align: center; font-size: 12px; color: #94A3B8; margin-top: 24px; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="header">
+          <div style="margin-bottom: 8px;">
+            <span class="badge">Boleto Digital Confirmado</span>
+            <span class="ticket-code" style="float: right;">#${data.ticketCode}</span>
+          </div>
+          <div class="route-title">${data.origin} → ${data.destination}</div>
+        </div>
+
+        <div class="content">
+          <p style="font-size: 14px; color: #475569; margin: 0 0 18px 0;">
+            Estimado/a <strong>${data.passengerName}</strong>, tu compra ha sido procesada exitosamente. Presenta este comprobante o tu código al abordar la unidad.
+          </p>
+
+          <table class="grid">
+            <tr>
+              <td>
+                <div class="section-label">Fecha del Viaje</div>
+                <div class="section-value">${data.departureDate}</div>
+              </td>
+              <td>
+                <div class="section-label">Hora de Salida</div>
+                <div class="section-value">${data.departureTime}</div>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <div class="section-label">Asientos Asignados</div>
+                <div class="section-value" style="color: #0284C7; font-size: 17px;">#${seatsList}</div>
+              </td>
+              <td>
+                <div class="section-label">Unidad / Autobús</div>
+                <div class="section-value">${data.unitPlate || 'Asignada en terminal'}</div>
+              </td>
+            </tr>
+          </table>
+
+          <div class="ticket-box">
+            <div style="display: flex; justify-content: space-between;">
+              <span class="total-label">Total Abonado</span>
+              <span class="total-amount">C$ ${data.totalAmount.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div class="notice">
+            <strong>Recomendación para el abordaje:</strong><br>
+            Te recomendamos presentarte en la terminal con al menos 15 minutos de anticipación al horario estipulado de salida.
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        InterlocApp: Red de Transporte Interlocal.<br>
+        Comprobante electrónico de abordaje generado automáticamente.
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({ to: data.to, subject, html });
+}

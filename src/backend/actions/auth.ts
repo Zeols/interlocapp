@@ -16,6 +16,7 @@ import {
   SignupInput,
   ActionResponse,
 } from '../lib/validations/auth';
+import { sendWelcomeEmail } from '../lib/mail';
 
 // ==========================================
 // ACCIONES DE AUTENTICACIÓN
@@ -207,6 +208,14 @@ export async function registerAction(input: SignupInput): Promise<ActionResponse
 
     const token = await createSessionToken(sessionPayload);
     await setSessionCookie(token);
+
+    // Enviar correo de bienvenida asíncrono
+    sendWelcomeEmail({
+      to: nuevoUsuario.correo,
+      name: nuevoUsuario.nombre,
+    }).catch((mailErr) => {
+      console.warn('[Register] No se pudo enviar el correo de bienvenida:', mailErr);
+    });
 
     return {
       success: true,
