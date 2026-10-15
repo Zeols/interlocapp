@@ -44,7 +44,7 @@ const slides: RouteSlide[] = [
     destination: "Estelí",
     department: "Norte",
     description: "Viajes interurbanos hacia el diamante de las segovias, clima fresco y corredor norte.",
-    image: "/routes/esteli.jpg",
+    image: "/routes/esteli.jfif",
     fallbackBg: "#334155",
   },
 ];
@@ -79,9 +79,8 @@ export function RoutesSlider() {
           return (
             <div
               key={slide.id}
-              className={`absolute inset-0 w-full h-full transition-opacity duration-700 ease-in-out ${
-                isActive ? "opacity-100 z-10" : "opacity-0 pointer-events-none z-0"
-              }`}
+              className={`absolute inset-0 w-full h-full transition-opacity duration-700 ease-in-out ${isActive ? "opacity-100 z-10" : "opacity-0 pointer-events-none z-0"
+                }`}
               style={{ backgroundColor: slide.fallbackBg }}
             >
               {/* Imagen a pantalla completa */}
@@ -153,8 +152,8 @@ export function RoutesSlider() {
               onClick={() => setCurrent(idx)}
               aria-current={idx === current}
               className={`pt-3 -mt-px border-t-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-white ${idx === current
-                  ? "border-primary text-white"
-                  : "border-transparent text-white/60 hover:text-white"
+                ? "border-primary text-white"
+                : "border-transparent text-white/60 hover:text-white"
                 }`}
             >
               {s.name}

@@ -287,3 +287,131 @@ export async function sendTicketEmail(data: TicketEmailData) {
 
   return sendEmail({ to: data.to, subject, html });
 }
+
+export interface VerificationCodeEmailData {
+  to: string;
+  name: string;
+  code: string;
+  expiresMinutes?: number;
+}
+
+/**
+ * Plantilla de Código de Verificación para Registro de Usuario
+ */
+export async function sendVerificationCodeEmail({ to, name, code, expiresMinutes = 15 }: VerificationCodeEmailData) {
+  const subject = `Tu código de verificación de InterlocApp: ${code}`;
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${subject}</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 24px 12px; color: #0F172A; }
+        .card { max-width: 520px; margin: 0 auto; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        .logo-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+        .logo-box { width: 36px; height: 36px; background: #0F172A; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; color: #FFFFFF; font-weight: 800; font-size: 16px; text-decoration: none; text-align: center; line-height: 36px; }
+        .brand { font-size: 18px; font-weight: 800; color: #0F172A; letter-spacing: -0.5px; margin-left: 8px; vertical-align: middle; }
+        h1 { font-size: 22px; font-weight: 800; margin: 0 0 12px 0; color: #0F172A; line-height: 1.25; }
+        p { font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 16px 0; }
+        .code-box { background: #0F172A; color: #FFFFFF; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0; }
+        .code-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; color: #94A3B8; font-weight: 700; margin-bottom: 8px; }
+        .code-digits { font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 900; letter-spacing: 8px; color: #38BDF8; }
+        .notice { font-size: 12px; color: #64748B; background: #F1F5F9; border-radius: 8px; padding: 12px; line-height: 1.5; margin-top: 20px; }
+        .footer { text-align: center; font-size: 12px; color: #94A3B8; margin-top: 24px; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="logo-wrap">
+          <span class="logo-box">I</span>
+          <span class="brand">InterlocApp</span>
+        </div>
+        <h1>Verifica tu cuenta</h1>
+        <p>Hola ${name}, gracias por registrarte en InterlocApp. Usa el siguiente código de 6 dígitos para completar la creación de tu cuenta:</p>
+        
+        <div class="code-box">
+          <div class="code-title">Código de verificación</div>
+          <div class="code-digits">${code}</div>
+        </div>
+
+        <p style="font-size: 13px; color: #64748B;">
+          Este código es válido durante <strong>${expiresMinutes} minutos</strong>. Por seguridad, no compartas este código con nadie.
+        </p>
+
+        <div class="notice">
+          Si tú no solicitaste crear una cuenta en InterlocApp, puedes desestimar este mensaje con total seguridad.
+        </div>
+      </div>
+      <div class="footer">
+        InterlocApp: Sistema de Transporte Interlocal.<br>
+        Mensaje de seguridad generado automáticamente.
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({ to, subject, html });
+}
+
+/**
+ * Plantilla de Código para Restablecer Contraseña
+ */
+export async function sendPasswordResetCodeEmail({ to, name, code, expiresMinutes = 15 }: VerificationCodeEmailData) {
+  const subject = `Código para restablecer tu contraseña: ${code}`;
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${subject}</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 24px 12px; color: #0F172A; }
+        .card { max-width: 520px; margin: 0 auto; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        .logo-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+        .logo-box { width: 36px; height: 36px; background: #0F172A; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; color: #FFFFFF; font-weight: 800; font-size: 16px; text-decoration: none; text-align: center; line-height: 36px; }
+        .brand { font-size: 18px; font-weight: 800; color: #0F172A; letter-spacing: -0.5px; margin-left: 8px; vertical-align: middle; }
+        h1 { font-size: 22px; font-weight: 800; margin: 0 0 12px 0; color: #0F172A; line-height: 1.25; }
+        p { font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 16px 0; }
+        .code-box { background: #0F172A; color: #FFFFFF; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0; }
+        .code-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; color: #94A3B8; font-weight: 700; margin-bottom: 8px; }
+        .code-digits { font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 900; letter-spacing: 8px; color: #38BDF8; }
+        .alert-box { background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 8px; padding: 12px; font-size: 12px; color: #92400E; line-height: 1.5; margin-top: 18px; }
+        .footer { text-align: center; font-size: 12px; color: #94A3B8; margin-top: 24px; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="logo-wrap">
+          <span class="logo-box">I</span>
+          <span class="brand">InterlocApp</span>
+        </div>
+        <h1>Recuperación de contraseña</h1>
+        <p>Hola ${name}, recibimos una solicitud para restablecer la contraseña de tu cuenta en InterlocApp. Ingresa este código único en la aplicación para crear tu nueva contraseña:</p>
+        
+        <div class="code-box">
+          <div class="code-title">Código de recuperación</div>
+          <div class="code-digits">${code}</div>
+        </div>
+
+        <p style="font-size: 13px; color: #64748B;">
+          El código expirará en <strong>${expiresMinutes} minutos</strong>.
+        </p>
+
+        <div class="alert-box">
+          <strong>Aviso de seguridad:</strong> Si no solicitaste restablecer tu contraseña, desestima este correo. Tu cuenta continúa protegida y nadie puede acceder sin este código.
+        </div>
+      </div>
+      <div class="footer">
+        InterlocApp: Red de Transporte Interlocal.<br>
+        Notificación de seguridad enviada automáticamente.
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({ to, subject, html });
+}
+
