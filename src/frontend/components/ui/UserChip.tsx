@@ -40,20 +40,17 @@ export function UserChip({ name, email }: { name: string; email: string }) {
   return (
     <div className="relative inline-block" ref={dropdownRef}>
       <button 
-        className={`flex items-center gap-2.5 sm:gap-3 bg-transparent border-none cursor-pointer p-1.5 sm:p-2 rounded-full transition-colors duration-200 ${isOpen ? 'bg-gray-100' : 'hover:bg-gray-100'}`} 
+        className={`flex items-center gap-1.5 bg-transparent border-none cursor-pointer p-1 rounded-full transition-colors duration-200 ${isOpen ? 'bg-gray-100' : 'hover:bg-gray-100'}`} 
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
+        title={name || "Perfil de usuario"}
       >
-        <div className="text-right hidden sm:block">
-          {name && <p className="text-sm font-bold text-gray-900 leading-tight">{name}</p>}
-          <p className="text-xs text-gray-500">{email}</p>
-        </div>
-        <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center border border-primary/20">
-          <span className="text-sm font-extrabold text-primary">{displayChar}</span>
+        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 text-primary">
+          <Icon path={mdiAccountOutline} size={0.75} />
         </div>
         <Icon 
           path={mdiChevronDown} 
-          size={0.75} 
+          size={0.65} 
           className={`text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} 
         />
       </button>

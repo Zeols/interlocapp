@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, useMotionValue, useSpring, type SpringOptions } from "framer-motion";
 
 export interface SmoothCursorProps {
@@ -38,7 +39,7 @@ export function SmoothCursor({
   instant = true,
   springConfig = { damping: 50, stiffness: 1200, mass: 0.1, restDelta: 0.001 },
 }: SmoothCursorProps) {
-  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
   const cursorX = useMotionValue(-100);
@@ -53,24 +54,33 @@ export function SmoothCursor({
   const posY = instant ? cursorY : springY;
 
   useEffect(() => {
-    // Detectar dispositivos táctiles o coarse pointer
-    if (
-      typeof window !== "undefined" &&
-      (window.matchMedia("(pointer: coarse)").matches ||
-        "ontouchstart" in window ||
-        navigator.maxTouchPoints > 0)
-    ) {
-      setIsTouchDevice(true);
-      return;
-    }
+    setMounted(true);
 
-    // Activar clase para ocultar el cursor nativo de Windows en desktop
-    document.documentElement.classList.add("has-smooth-cursor");
+    const handlePointerMove = (e: PointerEvent) => {
+      // Si el evento proviene de toque táctil directo, ocultamos el cursor personalizado
+      if (e.pointerType === "touch") {
+        setIsVisible(false);
+        document.documentElement.classList.remove("has-smooth-cursor");
+        return;
+      }
 
-    const handleMouseMove = (e: MouseEvent) => {
+      // Si es mouse, trackpad o lápiz
       cursorX.set(e.clientX);
       cursorY.set(e.clientY);
-      if (!isVisible) setIsVisible(true);
+      setIsVisible(true);
+      document.documentElement.classList.add("has-smooth-cursor");
+    };
+
+    const handleMouseMoveFallback = (e: MouseEvent) => {
+      cursorX.set(e.clientX);
+      cursorY.set(e.clientY);
+      setIsVisible(true);
+      document.documentElement.classList.add("has-smooth-cursor");
+    };
+
+    const handleTouchStart = () => {
+      setIsVisible(false);
+      document.documentElement.classList.remove("has-smooth-cursor");
     };
 
     const handleMouseLeave = () => {
@@ -78,41 +88,48 @@ export function SmoothCursor({
       document.documentElement.classList.remove("has-smooth-cursor");
     };
 
-    const handleMouseEnter = () => {
-      setIsVisible(true);
-      document.documentElement.classList.add("has-smooth-cursor");
-    };
+    if (window.PointerEvent) {
+      window.addEventListener("pointermove", handlePointerMove, { passive: true });
+    } else {
+      window.addEventListener("mousemove", handleMouseMoveFallback, { passive: true });
+    }
 
-    window.addEventListener("mousemove", handleMouseMove, { passive: true });
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
     document.addEventListener("mouseleave", handleMouseLeave);
-    document.addEventListener("mouseenter", handleMouseEnter);
 
     return () => {
       document.documentElement.classList.remove("has-smooth-cursor");
-      window.removeEventListener("mousemove", handleMouseMove);
+      if (window.PointerEvent) {
+        window.removeEventListener("pointermove", handlePointerMove);
+      } else {
+        window.removeEventListener("mousemove", handleMouseMoveFallback);
+      }
+      window.removeEventListener("touchstart", handleTouchStart);
       document.removeEventListener("mouseleave", handleMouseLeave);
-      document.removeEventListener("mouseenter", handleMouseEnter);
     };
-  }, [cursorX, cursorY, isVisible]);
+  }, [cursorX, cursorY]);
 
-  if (isTouchDevice) {
+  if (!mounted) {
     return null;
   }
 
-  return (
+  // Renderizado a través de createPortal con el z-index máximo para permanecer siempre sobre modales
+  return createPortal(
     <motion.div
-      className="pointer-events-none fixed top-0 left-0 z-[9999] will-change-transform"
+      className="pointer-events-none fixed top-0 left-0 will-change-transform"
       style={{
         x: posX,
         y: posY,
         opacity: isVisible ? 1 : 0,
+        zIndex: 2147483647, // Z-index máximo de 32-bit en CSS para flotar sobre modales y backdrops
       }}
       initial={{ opacity: 0 }}
       animate={{ opacity: isVisible ? 1 : 0 }}
       transition={{ duration: 0.08 }}
     >
       {cursor}
-    </motion.div>
+    </motion.div>,
+    document.body
   );
 }
 

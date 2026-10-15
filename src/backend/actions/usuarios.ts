@@ -1,8 +1,9 @@
 'use server';
 
 import { prisma } from '../db';
-import { hashPassword } from '../lib/crypto';
+import { hashPassword, verifyPassword } from '../lib/crypto';
 import { revalidatePath } from 'next/cache';
+import { getSession } from '../lib/session';
 
 export interface UsuarioInput {
   idCooperativa?: number;
@@ -114,3 +115,148 @@ export async function getUsuariosByCooperativa(idCooperativa: number) {
     return { success: false, error: 'No se pudieron cargar los usuarios.' };
   }
 }
+
+// -------------------------------------------------------------
+// 3. GESTIÓN DEL PERFIL DE USUARIO EN SESIÓN ACTIVA
+// -------------------------------------------------------------
+
+export async function getUserProfileAction() {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: 'No has iniciado sesión.' };
+    }
+
+    const usuario = await prisma.usuario.findUnique({
+      where: { idUsuario: session.idUsuario },
+      select: {
+        idUsuario: true,
+        nombre: true,
+        apellido: true,
+        usuario: true,
+        correo: true,
+        telefono: true,
+        direccion: true,
+        estado: true,
+        rol: {
+          select: {
+            nombre: true,
+            descripcion: true,
+          },
+        },
+      },
+    });
+
+    if (!usuario) {
+      return { success: false, error: 'Usuario no encontrado.' };
+    }
+
+    return {
+      success: true,
+      data: {
+        idUsuario: usuario.idUsuario,
+        nombre: usuario.nombre || '',
+        apellido: usuario.apellido || '',
+        nombreCompleto: `${usuario.nombre || ''} ${usuario.apellido || ''}`.trim(),
+        usuario: usuario.usuario || '',
+        correo: usuario.correo || '',
+        telefono: usuario.telefono || '',
+        direccion: usuario.direccion || '',
+        rolNombre: usuario.rol?.nombre || 'PASAJERO',
+      },
+    };
+  } catch (error) {
+    console.error('Error al consultar perfil de usuario:', error);
+    return { success: false, error: 'Error al consultar datos del perfil.' };
+  }
+}
+
+export async function updateUserProfileAction(data: {
+  nombre: string;
+  apellido?: string;
+  telefono?: string;
+  direccion?: string;
+}) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: 'No has iniciado sesión.' };
+    }
+
+    if (!data.nombre || data.nombre.trim().length === 0) {
+      return { success: false, error: 'El nombre es obligatorio.' };
+    }
+
+    const updated = await prisma.usuario.update({
+      where: { idUsuario: session.idUsuario },
+      data: {
+        nombre: data.nombre.trim(),
+        apellido: data.apellido?.trim() || '',
+        telefono: data.telefono?.trim() || null,
+        direccion: data.direccion?.trim() || null,
+      },
+    });
+
+    revalidatePath('/profile');
+    revalidatePath('/home');
+
+    return {
+      success: true,
+      data: {
+        nombre: updated.nombre,
+        apellido: updated.apellido,
+        telefono: updated.telefono || '',
+      },
+    };
+  } catch (error) {
+    console.error('Error al actualizar datos del perfil:', error);
+    return { success: false, error: 'No se pudieron guardar los cambios del perfil.' };
+  }
+}
+
+export async function changePasswordAction(data: {
+  currentPassword: string;
+  newPassword: string;
+}) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: 'No has iniciado sesión.' };
+    }
+
+    if (!data.currentPassword || !data.newPassword) {
+      return { success: false, error: 'Todos los campos de contraseña son requeridos.' };
+    }
+
+    if (data.newPassword.length < 8) {
+      return { success: false, error: 'La nueva contraseña debe tener al menos 8 caracteres.' };
+    }
+
+    const usuario = await prisma.usuario.findUnique({
+      where: { idUsuario: session.idUsuario },
+      select: { passwd: true },
+    });
+
+    if (!usuario) {
+      return { success: false, error: 'Usuario no encontrado.' };
+    }
+
+    const isMatch = await verifyPassword(data.currentPassword, usuario.passwd);
+    if (!isMatch) {
+      return { success: false, error: 'La contraseña actual ingresada es incorrecta.' };
+    }
+
+    const newHashedPassword = await hashPassword(data.newPassword);
+
+    await prisma.usuario.update({
+      where: { idUsuario: session.idUsuario },
+      data: { passwd: newHashedPassword },
+    });
+
+    return { success: true, message: 'Contraseña actualizada con éxito.' };
+  } catch (error) {
+    console.error('Error al cambiar contraseña:', error);
+    return { success: false, error: 'Error al actualizar la contraseña.' };
+  }
+}
+
