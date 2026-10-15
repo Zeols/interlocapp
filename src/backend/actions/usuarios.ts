@@ -203,6 +203,7 @@ export async function updateUserProfileAction(data: {
 
     revalidatePath('/profile');
     revalidatePath('/home');
+    revalidatePath('/', 'layout');
 
     return {
       success: true,

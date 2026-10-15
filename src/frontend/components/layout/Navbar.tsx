@@ -25,7 +25,7 @@ export function Navbar() {
 
   const showBackButton = pathname === "/compra";
 
-  useEffect(() => {
+  const loadProfile = () => {
     getUserProfileAction().then((res) => {
       if (res.success && res.data) {
         setUser({
@@ -35,6 +35,31 @@ export function Navbar() {
         });
       }
     });
+  };
+
+  useEffect(() => {
+    loadProfile();
+
+    const handleProfileUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        foto?: string | null;
+        name?: string;
+        email?: string;
+      }>;
+      if (customEvent.detail) {
+        setUser((prev) => ({
+          ...prev,
+          ...(customEvent.detail.foto !== undefined ? { avatarUrl: customEvent.detail.foto } : {}),
+          ...(customEvent.detail.name ? { name: customEvent.detail.name } : {}),
+        }));
+      }
+      loadProfile();
+    };
+
+    window.addEventListener("profile-updated", handleProfileUpdate);
+    return () => {
+      window.removeEventListener("profile-updated", handleProfileUpdate);
+    };
   }, []);
 
   const navLinks = [

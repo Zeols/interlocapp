@@ -21,6 +21,7 @@ import {
   mdiClose,
 } from "@mdi/js";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 import {
   getUserProfileAction,
   updateUserProfileAction,
@@ -29,6 +30,7 @@ import {
 import { processAvatarImage } from "@/frontend/lib/image-utils";
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"personal" | "password">("personal");
   const [loading, setLoading] = useState(true);
   const [savingPersonal, setSavingPersonal] = useState(false);
@@ -177,6 +179,15 @@ export default function ProfilePage() {
           foto: webpDataUrl,
         });
         if (res.success) {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("profile-updated", {
+                detail: { foto: webpDataUrl },
+              })
+            );
+          }
+          router.refresh();
+
           setPersonalFeedback({
             type: "success",
             message: "Foto de perfil actualizada exitosamente.",
@@ -238,6 +249,15 @@ export default function ProfilePage() {
           foto: "",
         });
         if (res.success) {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("profile-updated", {
+                detail: { foto: null },
+              })
+            );
+          }
+          router.refresh();
+
           setPersonalFeedback({
             type: "success",
             message: "Foto de perfil eliminada.",
@@ -277,6 +297,19 @@ export default function ProfilePage() {
         telefono,
         direccion,
       });
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("profile-updated", {
+            detail: {
+              foto,
+              name: `${nombre} ${apellido}`.trim(),
+            },
+          })
+        );
+      }
+      router.refresh();
+
       setPersonalFeedback({
         type: "success",
         message: "Tus datos personales se actualizaron correctamente.",
@@ -382,6 +415,7 @@ export default function ProfilePage() {
                 >
                   {foto && foto.trim() !== "" && !fotoError ? (
                     <img
+                      key={foto}
                       src={foto}
                       alt={fullName}
                       onError={() => setFotoError(true)}

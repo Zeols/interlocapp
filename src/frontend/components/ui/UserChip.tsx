@@ -27,6 +27,10 @@ export function UserChip({
   const hasValidPhoto = Boolean(avatarUrl && avatarUrl.trim() !== "" && !imgFailed);
 
   useEffect(() => {
+    setImgFailed(false);
+  }, [avatarUrl]);
+
+  useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
@@ -57,6 +61,7 @@ export function UserChip({
       >
         {hasValidPhoto ? (
           <img
+            key={avatarUrl!}
             src={avatarUrl!}
             alt={name || "Usuario"}
             onError={() => setImgFailed(true)}
@@ -86,6 +91,7 @@ export function UserChip({
             <div className="flex items-center gap-3 px-3 py-2.5">
               {hasValidPhoto ? (
                 <img
+                  key={avatarUrl!}
                   src={avatarUrl!}
                   alt={name || "Usuario"}
                   className="w-10 h-10 rounded-full object-cover border border-primary/20 shrink-0"

@@ -24,7 +24,7 @@ export default function LandingPage() {
     avatarUrl?: string | null;
   } | null>(null);
 
-  useEffect(() => {
+  const loadProfile = () => {
     getUserProfileAction().then((res) => {
       if (res.success && res.data) {
         setUser({
@@ -35,6 +35,34 @@ export default function LandingPage() {
         });
       }
     });
+  };
+
+  useEffect(() => {
+    loadProfile();
+
+    const handleProfileUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        foto?: string | null;
+        name?: string;
+      }>;
+      if (customEvent.detail) {
+        setUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                ...(customEvent.detail.foto !== undefined ? { avatarUrl: customEvent.detail.foto } : {}),
+                ...(customEvent.detail.name ? { nombre: customEvent.detail.name } : {}),
+              }
+            : null
+        );
+      }
+      loadProfile();
+    };
+
+    window.addEventListener("profile-updated", handleProfileUpdate);
+    return () => {
+      window.removeEventListener("profile-updated", handleProfileUpdate);
+    };
   }, []);
 
   const goLogin = () => {
