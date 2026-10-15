@@ -17,7 +17,6 @@ import {
   mdiLockOutline,
   mdiEyeOutline,
   mdiEyeOffOutline,
-  mdiCloudUploadOutline,
 } from "@mdi/js";
 import {
   getUserProfileAction,
@@ -92,6 +91,24 @@ export default function ProfilePage() {
       });
       setFoto(webpDataUrl);
       setFotoError(false);
+
+      // Auto-guardar la foto de inmediato en la base de datos
+      if (nombre) {
+        const res = await updateUserProfileAction({
+          nombre,
+          apellido,
+          telefono,
+          direccion,
+          foto: webpDataUrl,
+        });
+        if (res.success) {
+          setPersonalFeedback({
+            type: "success",
+            message: "Foto de perfil actualizada exitosamente.",
+          });
+          setTimeout(() => setPersonalFeedback(null), 4000);
+        }
+      }
     } catch (err: any) {
       setPersonalFeedback({
         type: "error",
@@ -129,9 +146,38 @@ export default function ProfilePage() {
     setIsDragOver(false);
   };
 
-  const handleRemovePhoto = () => {
-    setFoto("");
-    setFotoError(false);
+  const handleRemovePhoto = async () => {
+    try {
+      setPersonalFeedback(null);
+      setProcessingImage(true);
+      setFoto("");
+      setFotoError(false);
+
+      // Auto-guardar eliminación en la base de datos
+      if (nombre) {
+        const res = await updateUserProfileAction({
+          nombre,
+          apellido,
+          telefono,
+          direccion,
+          foto: "",
+        });
+        if (res.success) {
+          setPersonalFeedback({
+            type: "success",
+            message: "Foto de perfil eliminada.",
+          });
+          setTimeout(() => setPersonalFeedback(null), 4000);
+        }
+      }
+    } catch {
+      setPersonalFeedback({
+        type: "error",
+        message: "No se pudo eliminar la foto de perfil.",
+      });
+    } finally {
+      setProcessingImage(false);
+    }
   };
 
   const handleSavePersonal = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -229,15 +275,35 @@ export default function ProfilePage() {
           {/* Información del usuario y Avatar superpuesto */}
           <div className="px-6 sm:px-8 pb-6 pt-0 relative">
             <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-4 -mt-14 sm:-mt-16 mb-4">
-              {/* Avatar circular con badge de cámara */}
+              {/* Avatar circular interactivo con acciones directas */}
               <div className="relative group">
-                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-white ring-4 ring-white shadow-md border-2 border-gray-100 shrink-0 flex items-center justify-center">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/jpg"
+                  onChange={handleFileInputChange}
+                  className="hidden"
+                  id="avatar-file-upload"
+                />
+
+                <div
+                  onClick={() => !processingImage && fileInputRef.current?.click()}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-white ring-4 shadow-md border-2 shrink-0 flex items-center justify-center relative cursor-pointer transition-all duration-200 ${
+                    isDragOver
+                      ? "ring-primary border-primary scale-105"
+                      : "ring-white border-gray-100 group-hover:ring-primary/20"
+                  }`}
+                  title="Haz clic o arrastra una imagen para cambiar tu foto"
+                >
                   {foto && foto.trim() !== "" && !fotoError ? (
                     <img
                       src={foto}
                       alt={fullName}
                       onError={() => setFotoError(true)}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   ) : (
                     <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary font-black text-3xl sm:text-4xl select-none">
@@ -245,23 +311,51 @@ export default function ProfilePage() {
                     </div>
                   )}
 
+                  {/* Overlay interactivo en hover */}
+                  {!processingImage && (
+                    <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center text-white select-none">
+                      <Icon path={mdiCameraOutline} size={0.9} />
+                      <span className="text-[10px] font-bold mt-0.5">Cambiar</span>
+                    </div>
+                  )}
+
+                  {/* Estado de carga */}
                   {processingImage && (
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center text-white">
-                      <Icon path={mdiLoading} size={1} className="animate-spin" />
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center text-white z-20">
+                      <Icon path={mdiLoading} size={1} className="animate-spin text-primary" />
+                      <span className="text-[9px] font-bold mt-1">Guardando...</span>
                     </div>
                   )}
                 </div>
 
-                {/* Botón flotante para cambiar foto al hacer clic en el avatar */}
+                {/* Botón flotante: Cambiar fotografía (Cámara) */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={processingImage}
-                  className="absolute bottom-1 right-1 w-8 h-8 rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-md border-2 border-white flex items-center justify-center transition-transform hover:scale-110 active:scale-95 cursor-pointer"
-                  title="Cambiar foto de perfil"
+                  className="absolute bottom-0 right-0 w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-md border-2 border-white flex items-center justify-center transition-transform hover:scale-110 active:scale-95 cursor-pointer z-10"
+                  title="Cambiar fotografía"
+                  aria-label="Cambiar fotografía"
                 >
                   <Icon path={mdiCameraOutline} size={0.65} />
                 </button>
+
+                {/* Botón flotante: Eliminar foto (visible solo si tiene foto) */}
+                {foto && foto.trim() !== "" && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemovePhoto();
+                    }}
+                    disabled={processingImage}
+                    className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-white hover:bg-red-50 text-red-600 shadow-md border border-red-200 flex items-center justify-center transition-transform hover:scale-110 active:scale-95 cursor-pointer z-10"
+                    title="Quitar foto de perfil"
+                    aria-label="Quitar foto de perfil"
+                  >
+                    <Icon path={mdiDeleteOutline} size={0.6} />
+                  </button>
+                )}
               </div>
 
               {/* Botón de acceso rápido a boletos */}
@@ -331,85 +425,7 @@ export default function ProfilePage() {
         ) : activeTab === "personal" ? (
           <form onSubmit={handleSavePersonal} className="space-y-6">
             
-            {/* SECCIÓN 1: FOTO DE PERFIL CON DROPZONE */}
-            <div className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-7 shadow-xs">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
-                <div>
-                  <h2 className="text-base sm:text-lg font-extrabold text-gray-900 tracking-tight">
-                    Foto de Perfil
-                  </h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Esta imagen se mostrará en tu cuenta y en tus pases de abordar
-                  </p>
-                </div>
-              </div>
-
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={`p-5 rounded-2xl border-2 transition-all ${
-                  isDragOver
-                    ? "border-primary bg-primary/5 border-dashed scale-[1.005]"
-                    : "border-gray-150 bg-gray-50/50 hover:bg-gray-50 hover:border-gray-300"
-                }`}
-              >
-                <div className="flex flex-col sm:flex-row items-center gap-5">
-                  <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-white border border-gray-200 shrink-0 shadow-xs flex items-center justify-center">
-                    {foto && foto.trim() !== "" && !fotoError ? (
-                      <img src={foto} alt={fullName} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary font-black text-2xl">
-                        {displayChar}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1 text-center sm:text-left">
-                    <p className="text-xs font-bold text-gray-800">
-                      Sube una fotografía de tu rostro
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5 mb-3 leading-relaxed">
-                      Arrastra tu archivo aquí o examina desde tu dispositivo (PNG, JPG o WebP hasta 5 MB). Se recortará automáticamente en formato cuadrado.
-                    </p>
-
-                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp,image/jpg"
-                        onChange={handleFileInputChange}
-                        className="hidden"
-                        id="avatar-file-upload"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={processingImage || savingPersonal}
-                        className="px-4 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-98 disabled:opacity-60"
-                      >
-                        <Icon path={mdiCloudUploadOutline} size={0.7} />
-                        <span>{foto ? "Cambiar fotografía" : "Subir fotografía"}</span>
-                      </button>
-
-                      {foto && foto.trim() !== "" && (
-                        <button
-                          type="button"
-                          onClick={handleRemovePhoto}
-                          disabled={processingImage || savingPersonal}
-                          className="px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-red-600 hover:bg-red-50 hover:border-red-200 font-bold text-xs flex items-center gap-1 transition-all cursor-pointer active:scale-98 disabled:opacity-60"
-                        >
-                          <Icon path={mdiDeleteOutline} size={0.7} />
-                          <span>Quitar foto</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* SECCIÓN 2: INFORMACIÓN BÁSICA */}
+            {/* SECCIÓN 1: INFORMACIÓN BÁSICA */}
             <div className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-7 shadow-xs">
               <div className="mb-5 pb-3 border-b border-gray-100">
                 <h2 className="text-base sm:text-lg font-extrabold text-gray-900 tracking-tight">
