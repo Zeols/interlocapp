@@ -10,6 +10,9 @@ export interface AnimatedCircularProgressBarProps {
   gaugePrimaryColor?: string;
   gaugeSecondaryColor?: string;
   className?: string;
+  textClassName?: string;
+  strokeWidth?: number;
+  showPercentSymbol?: boolean;
 }
 
 export function AnimatedCircularProgressBar({
@@ -17,10 +20,14 @@ export function AnimatedCircularProgressBar({
   min = 0,
   value = 0,
   gaugePrimaryColor = "rgb(79 70 229)",
-  gaugeSecondaryColor = "rgba(0, 0, 0, 0.1)",
+  gaugeSecondaryColor = "rgba(0, 0, 0, 0.08)",
   className,
+  textClassName,
+  strokeWidth = 8,
+  showPercentSymbol = true,
 }: AnimatedCircularProgressBarProps) {
-  const circumference = 2 * Math.PI * 45;
+  const radius = 45;
+  const circumference = 2 * Math.PI * radius;
   const normalizedValue = Math.min(Math.max(value, min), max);
   const currentPercent = Math.round(
     ((normalizedValue - min) / (max - min)) * 100
@@ -30,7 +37,7 @@ export function AnimatedCircularProgressBar({
   return (
     <div
       className={cn(
-        "relative flex items-center justify-center size-36 text-2xl font-semibold",
+        "relative flex items-center justify-center size-24 font-bold select-none",
         className
       )}
     >
@@ -42,8 +49,8 @@ export function AnimatedCircularProgressBar({
         <circle
           cx="50"
           cy="50"
-          r="45"
-          strokeWidth="9"
+          r={radius}
+          strokeWidth={strokeWidth}
           className="transition-all duration-300 ease-linear"
           style={{
             stroke: gaugeSecondaryColor,
@@ -52,23 +59,27 @@ export function AnimatedCircularProgressBar({
         <circle
           cx="50"
           cy="50"
-          r="45"
-          strokeWidth="9"
+          r={radius}
+          strokeWidth={strokeWidth}
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
-          className="transition-all duration-700 ease-in-out"
+          className="transition-all duration-500 ease-in-out"
           style={{
             stroke: gaugePrimaryColor,
           }}
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center select-none pointer-events-none">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <span
           data-current-value={currentPercent}
-          className="font-bold text-gray-900 transition-all duration-500 text-2xl tracking-tight"
+          className={cn(
+            "font-extrabold text-gray-900 tracking-tight leading-none text-sm transition-all duration-300",
+            textClassName
+          )}
         >
-          {currentPercent}%
+          {currentPercent}
+          {showPercentSymbol && <span className="text-[75%] font-bold ml-0.5">%</span>}
         </span>
       </div>
     </div>

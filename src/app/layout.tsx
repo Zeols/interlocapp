@@ -19,11 +19,11 @@ export const metadata: Metadata = {
   description: "Plataforma oficial para compra de boletos, selección de asientos y gestión de flotas interlocales.",
   icons: {
     icon: [
-      { url: "/logo.svg", type: "image/svg+xml" },
       { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/logo.svg", type: "image/svg+xml" },
     ],
-    shortcut: "/logo.svg",
-    apple: "/logo.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
   },
 };
 
@@ -35,9 +35,8 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${manrope.variable} ${inter.variable}`}>
       <head>
-        <link rel="icon" href="/logo.svg" type="image/svg+xml" />
-        <link rel="alternate icon" href="/favicon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/logo.svg" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/favicon.svg" />
       </head>
       <body>
         <SmoothCursor />

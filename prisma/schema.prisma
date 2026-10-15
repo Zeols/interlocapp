@@ -152,6 +152,7 @@ model Usuario {
   telefono      String?
   correo        String        @unique
   direccion     String?
+  foto          String?
   estado        EstadoUsuario @default(ACTIVO)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt

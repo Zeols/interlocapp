@@ -137,6 +137,7 @@ export async function getUserProfileAction() {
         correo: true,
         telefono: true,
         direccion: true,
+        foto: true,
         estado: true,
         rol: {
           select: {
@@ -162,6 +163,7 @@ export async function getUserProfileAction() {
         correo: usuario.correo || '',
         telefono: usuario.telefono || '',
         direccion: usuario.direccion || '',
+        foto: usuario.foto || null,
         rolNombre: usuario.rol?.nombre || 'PASAJERO',
       },
     };
@@ -176,6 +178,7 @@ export async function updateUserProfileAction(data: {
   apellido?: string;
   telefono?: string;
   direccion?: string;
+  foto?: string | null;
 }) {
   try {
     const session = await getSession();
@@ -194,6 +197,7 @@ export async function updateUserProfileAction(data: {
         apellido: data.apellido?.trim() || '',
         telefono: data.telefono?.trim() || null,
         direccion: data.direccion?.trim() || null,
+        ...(data.foto !== undefined ? { foto: data.foto?.trim() || null } : {}),
       },
     });
 
@@ -206,6 +210,7 @@ export async function updateUserProfileAction(data: {
         nombre: updated.nombre,
         apellido: updated.apellido,
         telefono: updated.telefono || '',
+        foto: updated.foto || null,
       },
     };
   } catch (error) {

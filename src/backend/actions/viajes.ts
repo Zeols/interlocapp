@@ -357,3 +357,130 @@ export async function createAyudante(data: { idCooperativa: number; nombre: stri
     return { success: false, error: 'No se pudo crear el ayudante.' };
   }
 }
+
+// -------------------------------------------------------------
+// 5. CONSULTA PÚBLICA DE VIAJES DISPONIBLES (PARA PASAJEROS)
+// -------------------------------------------------------------
+
+export interface ViajeDisponibleItem {
+  id: number;
+  origin: string;
+  destination: string;
+  departure: string;
+  arrival: string;
+  duration: string;
+  cooperative: string;
+  price: number;
+  schedule: "mañana" | "tarde" | "noche";
+  type: string;
+  occupancy: number;
+}
+
+export async function getViajesDisponiblesAction(filters?: {
+  origin?: string;
+  destination?: string;
+  date?: string;
+}): Promise<{ success: boolean; data: ViajeDisponibleItem[]; error?: string }> {
+  try {
+    const whereClause: any = {
+      estado: { in: ['PROGRAMADO', 'EN_CURSO'] },
+    };
+
+    if (filters?.date) {
+      const parsedDate = new Date(filters.date);
+      if (!isNaN(parsedDate.getTime())) {
+        whereClause.fecha = parsedDate;
+      }
+    }
+
+    const viajes = await prisma.viaje.findMany({
+      where: whereClause,
+      include: {
+        ruta: {
+          include: {
+            cooperativa: true,
+            puntosRuta: {
+              include: { punto: true },
+              orderBy: { orden: 'asc' },
+            },
+            tarifas: {
+              where: { estado: 'ACTIVO' },
+              orderBy: { monto: 'asc' },
+            },
+          },
+        },
+        despacho: {
+          include: {
+            asignacionUnidad: {
+              include: {
+                unidad: {
+                  include: {
+                    asientos: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        boletos: {
+          where: { estado: { not: 'CANCELADO' } },
+        },
+      },
+      orderBy: { hrSalidaProgramada: 'asc' },
+    });
+
+    const items: ViajeDisponibleItem[] = viajes.map((v) => {
+      const puntos = v.ruta.puntosRuta.map((pr) => pr.punto.nombre);
+      const origin = puntos[0] || v.ruta.nombre.split('-')[0]?.trim() || 'Origen';
+      const destination = puntos[puntos.length - 1] || v.ruta.nombre.split('-')[1]?.trim() || 'Destino';
+
+      const salidaDate = new Date(v.hrSalidaProgramada);
+      const departure = !isNaN(salidaDate.getTime())
+        ? salidaDate.toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit', hour12: true })
+        : '06:00 AM';
+
+      const arrivalDate = new Date(salidaDate.getTime() + 2 * 60 * 60 * 1000);
+      const arrival = !isNaN(arrivalDate.getTime())
+        ? arrivalDate.toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit', hour12: true })
+        : '08:00 AM';
+
+      const hour = salidaDate.getHours();
+      const schedule: 'mañana' | 'tarde' | 'noche' = hour < 12 ? 'mañana' : hour < 18 ? 'tarde' : 'noche';
+
+      const price = v.ruta.tarifas[0]?.monto ? Number(v.ruta.tarifas[0].monto) : 80;
+
+      const totalSeats = v.despacho?.asignacionUnidad?.unidad?.asientos?.length || 15;
+      const occupiedSeats = v.boletos.length;
+      const occupancy = totalSeats > 0 ? Math.min(100, Math.round((occupiedSeats / totalSeats) * 100)) : 0;
+
+      return {
+        id: v.idViaje,
+        origin,
+        destination,
+        departure,
+        arrival,
+        duration: '2h 00min',
+        cooperative: v.ruta.cooperativa.nombre,
+        price,
+        schedule,
+        type: 'Directo',
+        occupancy,
+      };
+    });
+
+    const filtered = items.filter((item) => {
+      if (filters?.origin && !item.origin.toLowerCase().includes(filters.origin.toLowerCase())) {
+        return false;
+      }
+      if (filters?.destination && !item.destination.toLowerCase().includes(filters.destination.toLowerCase())) {
+        return false;
+      }
+      return true;
+    });
+
+    return { success: true, data: filtered };
+  } catch (error) {
+    console.error('Error al consultar viajes disponibles:', error);
+    return { success: false, error: 'No se pudieron consultar los viajes disponibles.', data: [] };
+  }
+}

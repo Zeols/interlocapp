@@ -119,27 +119,27 @@ export function RoutesSlider() {
       </div>
 
       {/* Contenido centrado dentro de la pantalla completa */}
-      <div className="relative z-20 h-full max-w-6xl mx-auto px-12 sm:px-16 md:px-20 flex flex-col justify-between py-12 md:py-16">
+      <div className="relative z-20 h-full max-w-6xl mx-auto px-10 sm:px-14 md:px-16 flex flex-col justify-between py-10 md:py-14">
         {/* Espaciador superior limpio sin contador */}
-        <div className="h-6" />
+        <div className="h-4" />
 
         {/* Bloque central de información de la ruta */}
-        <div className="max-w-2xl">
-          <p className="text-sm text-white/80 mb-3">{activeSlide.department}</p>
+        <div className="max-w-xl">
+          <p className="text-xs sm:text-sm text-white/80 mb-2.5 font-medium">{activeSlide.department}</p>
 
-          <h2 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight leading-tight mb-4">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight mb-3.5">
             {activeSlide.origin}{" "}
             <span className="text-primary font-normal">→</span>{" "}
             {activeSlide.destination}
           </h2>
 
-          <p className="text-sm sm:text-base text-gray-200 mb-8 leading-relaxed max-w-xl">
+          <p className="text-sm sm:text-base text-gray-200 mb-7 leading-relaxed max-w-lg">
             {activeSlide.description}
           </p>
 
           <button
             onClick={handleBook}
-            className="text-white font-semibold text-base sm:text-lg underline underline-offset-8 decoration-2 decoration-primary hover:decoration-white transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
+            className="text-white font-semibold text-sm sm:text-base underline underline-offset-6 decoration-2 decoration-primary hover:decoration-white transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
           >
             Ver salidas disponibles
           </button>
@@ -152,7 +152,7 @@ export function RoutesSlider() {
               key={s.id}
               onClick={() => setCurrent(idx)}
               aria-current={idx === current}
-              className={`pt-3 -mt-px border-t-2 text-sm font-semibold transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-white ${idx === current
+              className={`pt-3 -mt-px border-t-2 text-xs sm:text-sm font-semibold transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-white ${idx === current
                   ? "border-primary text-white"
                   : "border-transparent text-white/60 hover:text-white"
                 }`}
@@ -167,7 +167,7 @@ export function RoutesSlider() {
       <button
         onClick={prevSlide}
         aria-label="Ruta anterior"
-        className="absolute left-1 sm:left-3 md:left-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-3 text-white/75 hover:text-white transition-all duration-200 cursor-pointer select-none text-3xl sm:text-4xl md:text-5xl font-light hover:scale-110 active:scale-95 focus-visible:outline-2 focus-visible:outline-white"
+        className="absolute left-1 sm:left-3 md:left-4 top-1/2 -translate-y-1/2 z-30 p-2 text-white/75 hover:text-white transition-all duration-200 cursor-pointer select-none text-2xl sm:text-3xl font-light hover:scale-110 active:scale-95 focus-visible:outline-2 focus-visible:outline-white"
       >
         &lt;
       </button>
@@ -175,7 +175,7 @@ export function RoutesSlider() {
       <button
         onClick={nextSlide}
         aria-label="Ruta siguiente"
-        className="absolute right-1 sm:right-3 md:right-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-3 text-white/75 hover:text-white transition-all duration-200 cursor-pointer select-none text-3xl sm:text-4xl md:text-5xl font-light hover:scale-110 active:scale-95 focus-visible:outline-2 focus-visible:outline-white"
+        className="absolute right-1 sm:right-3 md:right-4 top-1/2 -translate-y-1/2 z-30 p-2 text-white/75 hover:text-white transition-all duration-200 cursor-pointer select-none text-2xl sm:text-3xl font-light hover:scale-110 active:scale-95 focus-visible:outline-2 focus-visible:outline-white"
       >
         &gt;
       </button>

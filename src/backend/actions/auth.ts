@@ -28,20 +28,25 @@ export async function loginAction(input: LoginInput): Promise<ActionResponse<{ r
   try {
     const validated = loginSchema.safeParse(input);
     if (!validated.success) {
+      const firstError = Object.values(validated.error.flatten().fieldErrors)[0]?.[0];
       return {
         success: false,
-        error: 'Datos de inicio de sesión inválidos.',
+        error: firstError || 'Datos de inicio de sesión inválidos.',
         fieldErrors: validated.error.flatten().fieldErrors,
       };
     }
 
     const { identificador, password } = validated.data;
-    const cleanId = identificador.toLowerCase();
+    const cleanId = identificador.trim().toLowerCase();
+    const rawId = identificador.trim();
 
-    // Buscar por correo o nombre de usuario
+    // Buscar por correo o nombre de usuario de forma insensible a mayúsculas/minúsculas
     const user = await prisma.usuario.findFirst({
       where: {
-        OR: [{ correo: cleanId }, { usuario: cleanId }],
+        OR: [
+          { correo: { equals: cleanId, mode: 'insensitive' } },
+          { usuario: { equals: rawId, mode: 'insensitive' } },
+        ],
       },
       include: {
         rol: true,
