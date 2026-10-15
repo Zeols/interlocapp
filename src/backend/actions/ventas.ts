@@ -2,6 +2,7 @@
 
 import { prisma } from '../db';
 import { revalidatePath } from 'next/cache';
+import { getSession } from '../lib/session';
 
 // Interfaces
 export interface EquipajeInput {
@@ -122,6 +123,11 @@ export async function getMapaAsientosViaje(idViaje: number) {
 
 export async function procesarVentaBoletos(data: VentaInput) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: 'Debe iniciar sesión para realizar la compra de boletos.' };
+    }
+
     if (!data.boletos || data.boletos.length === 0) {
       return { success: false, error: 'Debe seleccionar al menos un asiento.' };
     }

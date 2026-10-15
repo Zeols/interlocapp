@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope, Inter } from "next/font/google";
 import "./globals.css";
 import "./components.css";
+import { SmoothCursor } from "@/registry/magicui/smooth-cursor";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -38,7 +39,10 @@ export default function RootLayout({
         <link rel="alternate icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/logo.svg" />
       </head>
-      <body>{children}</body>
+      <body>
+        <SmoothCursor />
+        {children}
+      </body>
     </html>
   );
 }

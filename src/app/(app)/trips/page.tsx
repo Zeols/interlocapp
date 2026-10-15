@@ -13,16 +13,17 @@ import {
   mdiChevronDown,
   mdiChevronUp,
 } from "@mdi/js";
+import { AnimatedCircularProgressBar } from "@/registry/magicui/animated-circular-progress-bar";
 
 const COOPERATIVES = ["TransNica", "El Expreso", "Tica Bus"];
 
 const ALL_TRIPS = [
-  { id: 1, origin: "Managua", destination: "León", departure: "06:00 AM", arrival: "08:30 AM", duration: "2h 30min", cooperative: "TransNica", price: 85, schedule: "mañana", type: "Directo" },
-  { id: 2, origin: "Managua", destination: "Granada", departure: "12:30 PM", arrival: "01:45 PM", duration: "1h 15min", cooperative: "El Expreso", price: 65, schedule: "tarde", type: "Escalas" },
-  { id: 3, origin: "Managua", destination: "Estelí", departure: "07:00 PM", arrival: "09:30 PM", duration: "2h 30min", cooperative: "Tica Bus", price: 90, schedule: "noche", type: "Directo" },
-  { id: 4, origin: "Managua", destination: "Masaya", departure: "08:00 AM", arrival: "08:45 AM", duration: "45min", cooperative: "TransNica", price: 40, schedule: "mañana", type: "Escalas" },
-  { id: 5, origin: "Managua", destination: "Chinandega", departure: "02:00 PM", arrival: "05:00 PM", duration: "3h", cooperative: "El Expreso", price: 100, schedule: "tarde", type: "Directo" },
-  { id: 6, origin: "Managua", destination: "Rivas", departure: "06:30 PM", arrival: "08:30 PM", duration: "2h", cooperative: "Tica Bus", price: 75, schedule: "noche", type: "Directo" },
+  { id: 1, origin: "Managua", destination: "León", departure: "06:00 AM", arrival: "08:30 AM", duration: "2h 30min", cooperative: "TransNica", price: 85, schedule: "mañana", type: "Directo", occupancy: 75 },
+  { id: 2, origin: "Managua", destination: "Granada", departure: "12:30 PM", arrival: "01:45 PM", duration: "1h 15min", cooperative: "El Expreso", price: 65, schedule: "tarde", type: "Escalas", occupancy: 40 },
+  { id: 3, origin: "Managua", destination: "Estelí", departure: "07:00 PM", arrival: "09:30 PM", duration: "2h 30min", cooperative: "Tica Bus", price: 90, schedule: "noche", type: "Directo", occupancy: 90 },
+  { id: 4, origin: "Managua", destination: "Masaya", departure: "08:00 AM", arrival: "08:45 AM", duration: "45min", cooperative: "TransNica", price: 40, schedule: "mañana", type: "Escalas", occupancy: 35 },
+  { id: 5, origin: "Managua", destination: "Chinandega", departure: "02:00 PM", arrival: "05:00 PM", duration: "3h", cooperative: "El Expreso", price: 100, schedule: "tarde", type: "Directo", occupancy: 60 },
+  { id: 6, origin: "Managua", destination: "Rivas", departure: "06:30 PM", arrival: "08:30 PM", duration: "2h", cooperative: "Tica Bus", price: 75, schedule: "noche", type: "Directo", occupancy: 85 },
 ];
 
 export default function TripsPage() {
@@ -211,6 +212,25 @@ export default function TripsPage() {
                     </div>
 
                     <div className="w-full md:w-px h-px md:h-16 bg-gray-100 mx-0 md:mx-6 shrink-0" />
+
+                    {/* Widget de Ocupación con AnimatedCircularProgressBar */}
+                    <div className="hidden sm:flex flex-col items-center justify-center shrink-0 px-2">
+                      <AnimatedCircularProgressBar
+                        value={trip.occupancy}
+                        gaugePrimaryColor={
+                          trip.occupancy >= 85
+                            ? "#ef4444"
+                            : trip.occupancy >= 60
+                            ? "#4f46e5"
+                            : "#10b981"
+                        }
+                        gaugeSecondaryColor="rgba(0, 0, 0, 0.06)"
+                        className="size-12 text-[11px] font-bold"
+                      />
+                      <span className="text-[10px] font-semibold text-gray-400 mt-1">Ocupación</span>
+                    </div>
+
+                    <div className="hidden sm:block w-px h-16 bg-gray-100 mx-4 shrink-0" />
 
                     <div className="w-full md:w-auto flex flex-row md:flex-col items-center justify-between shrink-0 gap-3">
                       <div className="text-left md:text-right">
