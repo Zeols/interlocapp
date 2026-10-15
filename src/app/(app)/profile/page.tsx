@@ -17,7 +17,11 @@ import {
   mdiLockOutline,
   mdiEyeOutline,
   mdiEyeOffOutline,
+  mdiCheck,
+  mdiClose,
 } from "@mdi/js";
+import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 import {
   getUserProfileAction,
   updateUserProfileAction,
@@ -26,6 +30,7 @@ import {
 import { processAvatarImage } from "@/frontend/lib/image-utils";
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"personal" | "password">("personal");
   const [loading, setLoading] = useState(true);
   const [savingPersonal, setSavingPersonal] = useState(false);
@@ -40,6 +45,24 @@ export default function ProfilePage() {
   const [foto, setFoto] = useState("");
   const [fotoError, setFotoError] = useState(false);
   const [rolNombre, setRolNombre] = useState("");
+
+  // Estado inicial para detección de cambios sin guardar (dirty state)
+  const [initialData, setInitialData] = useState<{
+    nombre: string;
+    apellido: string;
+    telefono: string;
+    direccion: string;
+  }>({
+    nombre: "",
+    apellido: "",
+    telefono: "",
+    direccion: "",
+  });
+
+  // Modales
+  const [showDeletePhotoModal, setShowDeletePhotoModal] = useState(false);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
 
   // Subida y procesamiento de foto
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -68,17 +91,71 @@ export default function ProfilePage() {
   useEffect(() => {
     getUserProfileAction().then((res) => {
       if (res.success && res.data) {
-        setNombre(res.data.nombre ?? "");
-        setApellido(res.data.apellido ?? "");
+        const loaded = {
+          nombre: res.data.nombre ?? "",
+          apellido: res.data.apellido ?? "",
+          telefono: res.data.telefono ?? "",
+          direccion: res.data.direccion ?? "",
+        };
+        setNombre(loaded.nombre);
+        setApellido(loaded.apellido);
         setCorreo(res.data.correo ?? "");
-        setTelefono(res.data.telefono ?? "");
-        setDireccion(res.data.direccion ?? "");
+        setTelefono(loaded.telefono);
+        setDireccion(loaded.direccion);
         setFoto(res.data.foto ?? "");
         setRolNombre(res.data.rolNombre ?? "PASAJERO");
+        setInitialData(loaded);
       }
       setLoading(false);
     });
   }, []);
+
+  // Comprobar si hay cambios sin guardar en los campos personales
+  const hasUnsavedChanges = Boolean(
+    !loading &&
+    activeTab === "personal" &&
+    (
+      (nombre ?? "").trim() !== (initialData.nombre ?? "").trim() ||
+      (apellido ?? "").trim() !== (initialData.apellido ?? "").trim() ||
+      (telefono ?? "").trim() !== (initialData.telefono ?? "").trim() ||
+      (direccion ?? "").trim() !== (initialData.direccion ?? "").trim()
+    )
+  );
+
+  // Prevenir que el usuario cierre la pestaña o recargue con cambios sin guardar
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // Descartar cambios realizados
+  const handleDiscardChanges = () => {
+    setNombre(initialData.nombre);
+    setApellido(initialData.apellido);
+    setTelefono(initialData.telefono);
+    setDireccion(initialData.direccion);
+    setPersonalFeedback(null);
+  };
+
+  // Cambio de pestaña con verificación de cambios sin guardar
+  const handleTabClick = (targetTab: "personal" | "password") => {
+    if (activeTab === targetTab) return;
+    if (activeTab === "personal" && hasUnsavedChanges) {
+      setPendingNavigation(() => () => {
+        handleDiscardChanges();
+        setActiveTab(targetTab);
+      });
+      setShowUnsavedModal(true);
+    } else {
+      setActiveTab(targetTab);
+    }
+  };
 
   const handleFileSelect = async (file: File) => {
     try {
@@ -102,6 +179,15 @@ export default function ProfilePage() {
           foto: webpDataUrl,
         });
         if (res.success) {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("profile-updated", {
+                detail: { foto: webpDataUrl },
+              })
+            );
+          }
+          router.refresh();
+
           setPersonalFeedback({
             type: "success",
             message: "Foto de perfil actualizada exitosamente.",
@@ -146,14 +232,14 @@ export default function ProfilePage() {
     setIsDragOver(false);
   };
 
-  const handleRemovePhoto = async () => {
+  // Confirmar y procesar la eliminación de foto
+  const confirmDeletePhoto = async () => {
     try {
       setPersonalFeedback(null);
       setProcessingImage(true);
       setFoto("");
       setFotoError(false);
 
-      // Auto-guardar eliminación en la base de datos
       if (nombre) {
         const res = await updateUserProfileAction({
           nombre,
@@ -163,6 +249,15 @@ export default function ProfilePage() {
           foto: "",
         });
         if (res.success) {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("profile-updated", {
+                detail: { foto: null },
+              })
+            );
+          }
+          router.refresh();
+
           setPersonalFeedback({
             type: "success",
             message: "Foto de perfil eliminada.",
@@ -177,11 +272,12 @@ export default function ProfilePage() {
       });
     } finally {
       setProcessingImage(false);
+      setShowDeletePhotoModal(false);
     }
   };
 
-  const handleSavePersonal = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleSavePersonal = async (e?: React.FormEvent<HTMLFormElement>) => {
+    if (e) e.preventDefault();
     setPersonalFeedback(null);
     setSavingPersonal(true);
 
@@ -195,9 +291,28 @@ export default function ProfilePage() {
 
     setSavingPersonal(false);
     if (res.success) {
+      setInitialData({
+        nombre,
+        apellido,
+        telefono,
+        direccion,
+      });
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("profile-updated", {
+            detail: {
+              foto,
+              name: `${nombre} ${apellido}`.trim(),
+            },
+          })
+        );
+      }
+      router.refresh();
+
       setPersonalFeedback({
         type: "success",
-        message: "Tus datos personales y foto se actualizaron correctamente.",
+        message: "Tus datos personales se actualizaron correctamente.",
       });
       setTimeout(() => setPersonalFeedback(null), 4000);
     } else {
@@ -256,7 +371,7 @@ export default function ProfilePage() {
   const displayChar = (nombre?.trim() || correo?.trim() || "?").charAt(0).toUpperCase();
 
   return (
-    <div className="w-full min-h-screen bg-gray-50/60 pb-16">
+    <div className="w-full min-h-screen bg-gray-50/60 pb-24">
       {/* Contenedor unificado alineado a max-w-6xl */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 pt-6 sm:pt-8">
         
@@ -300,6 +415,7 @@ export default function ProfilePage() {
                 >
                   {foto && foto.trim() !== "" && !fotoError ? (
                     <img
+                      key={foto}
                       src={foto}
                       alt={fullName}
                       onError={() => setFotoError(true)}
@@ -340,16 +456,16 @@ export default function ProfilePage() {
                   <Icon path={mdiCameraOutline} size={0.65} />
                 </button>
 
-                {/* Botón flotante: Eliminar foto (visible solo si tiene foto) */}
+                {/* Botón flotante: Eliminar foto (abre modal de confirmación) */}
                 {foto && foto.trim() !== "" && (
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleRemovePhoto();
+                      setShowDeletePhotoModal(true);
                     }}
                     disabled={processingImage}
-                    className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-white hover:bg-red-50 text-red-600 shadow-md border border-red-200 flex items-center justify-center transition-transform hover:scale-110 active:scale-95 cursor-pointer z-10"
+                    className="absolute -top-1 -right-1 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white hover:bg-red-50 text-red-600 shadow-md border border-red-200 flex items-center justify-center transition-transform hover:scale-110 active:scale-95 cursor-pointer z-10"
                     title="Quitar foto de perfil"
                     aria-label="Quitar foto de perfil"
                   >
@@ -386,33 +502,83 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* PESTAÑAS HORIZONTALES MODERNAS (Segmented Control) */}
-          <div className="border-t border-gray-100 bg-gray-50/60 px-6 sm:px-8 py-2.5 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveTab("personal")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                activeTab === "personal"
-                  ? "bg-white text-gray-900 shadow-xs border border-gray-200/80"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
-              }`}
-            >
-              <Icon path={mdiAccountOutline} size={0.75} className={activeTab === "personal" ? "text-primary" : "text-gray-400"} />
-              <span>Datos Personales</span>
-            </button>
+          {/* PESTAÑAS HORIZONTALES MODERNAS (Segmented Control) con botón de acción en PC */}
+          <div className="border-t border-gray-100 bg-gray-50/60 px-6 sm:px-8 py-2.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleTabClick("personal")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  activeTab === "personal"
+                    ? "bg-white text-gray-900 shadow-xs border border-gray-200/80"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+                }`}
+              >
+                <Icon path={mdiAccountOutline} size={0.75} className={activeTab === "personal" ? "text-primary" : "text-gray-400"} />
+                <span>Datos Personales</span>
+                {hasUnsavedChanges && (
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Cambios sin guardar" />
+                )}
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab("password")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                activeTab === "password"
-                  ? "bg-white text-gray-900 shadow-xs border border-gray-200/80"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
-              }`}
-            >
-              <Icon path={mdiKeyOutline} size={0.75} className={activeTab === "password" ? "text-primary" : "text-gray-400"} />
-              <span>Seguridad y Contraseña</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => handleTabClick("password")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  activeTab === "password"
+                    ? "bg-white text-gray-900 shadow-xs border border-gray-200/80"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+                }`}
+              >
+                <Icon path={mdiKeyOutline} size={0.75} className={activeTab === "password" ? "text-primary" : "text-gray-400"} />
+                <span>Seguridad y Contraseña</span>
+              </button>
+            </div>
+
+            {/* BOTÓN DE GUARDAR CAMBIOS VISIBLE EN PC (Barra superior) */}
+            {activeTab === "personal" && (
+              <div className="hidden sm:flex items-center gap-2.5">
+                {hasUnsavedChanges && (
+                  <button
+                    type="button"
+                    onClick={handleDiscardChanges}
+                    disabled={savingPersonal}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors cursor-pointer"
+                  >
+                    Descartar
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handleSavePersonal()}
+                  disabled={savingPersonal || !hasUnsavedChanges}
+                  className={`px-5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-xs ${
+                    hasUnsavedChanges
+                      ? "bg-primary hover:bg-primary-dark text-white shadow-primary/20 cursor-pointer active:scale-95"
+                      : "bg-gray-100 text-gray-400 cursor-not-allowed opacity-75"
+                  }`}
+                  title={hasUnsavedChanges ? "Guardar cambios realizados" : "No hay cambios pendientes"}
+                >
+                  {savingPersonal ? (
+                    <>
+                      <Icon path={mdiLoading} size={0.65} className="animate-spin text-white" />
+                      <span>Guardando...</span>
+                    </>
+                  ) : hasUnsavedChanges ? (
+                    <>
+                      <Icon path={mdiCheck} size={0.65} />
+                      <span>Guardar cambios</span>
+                    </>
+                  ) : (
+                    <>
+                      <Icon path={mdiCheckCircleOutline} size={0.65} className="text-emerald-500" />
+                      <span>Al día</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -488,7 +654,7 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* SECCIÓN 3: CANALES DE CONTACTO */}
+            {/* SECCIÓN 2: CANALES DE CONTACTO */}
             <div className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-7 shadow-xs">
               <div className="mb-5 pb-3 border-b border-gray-100">
                 <h2 className="text-base sm:text-lg font-extrabold text-gray-900 tracking-tight">
@@ -605,21 +771,50 @@ export default function ProfilePage() {
             )}
 
             {/* BARRA DE ACCIÓN INFERIOR */}
-            <div className="flex items-center justify-end pt-2">
-              <button
-                type="submit"
-                disabled={savingPersonal}
-                className="bg-primary hover:bg-primary-dark text-white font-bold text-sm px-8 py-3.5 rounded-2xl transition-all cursor-pointer shadow-md shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 flex items-center gap-2"
-              >
-                {savingPersonal ? (
-                  <>
-                    <Icon path={mdiLoading} size={0.75} className="animate-spin text-white" />
-                    <span>Guardando cambios...</span>
-                  </>
-                ) : (
-                  <span>Guardar Cambios</span>
+            <div className="flex items-center justify-between pt-2">
+              <div>
+                {hasUnsavedChanges && (
+                  <span className="text-xs text-amber-600 font-semibold flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    Tienes cambios pendientes por guardar
+                  </span>
                 )}
-              </button>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {hasUnsavedChanges && (
+                  <button
+                    type="button"
+                    onClick={handleDiscardChanges}
+                    disabled={savingPersonal}
+                    className="px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer"
+                  >
+                    Descartar cambios
+                  </button>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={savingPersonal || !hasUnsavedChanges}
+                  className={`text-white font-black text-sm px-8 py-3.5 rounded-2xl transition-all shadow-md flex items-center gap-2 ${
+                    hasUnsavedChanges
+                      ? "bg-primary hover:bg-primary-dark shadow-primary/25 hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                      : "bg-gray-300 text-gray-500 shadow-none cursor-not-allowed opacity-75"
+                  }`}
+                >
+                  {savingPersonal ? (
+                    <>
+                      <Icon path={mdiLoading} size={0.75} className="animate-spin text-white" />
+                      <span>Guardando cambios...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Icon path={mdiCheck} size={0.75} />
+                      <span>Guardar Cambios</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </form>
         ) : (
@@ -772,6 +967,187 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {/* BARRA FLOTANTE INFERIOR DE ACCIÓN (PC / DESKTOP STICKY DOCK) */}
+      <AnimatePresence>
+        {hasUnsavedChanges && (
+          <motion.div
+            initial={{ opacity: 0, y: 35, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 35, scale: 0.96 }}
+            transition={{ type: "spring", stiffness: 450, damping: 30 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-gray-900/95 text-white backdrop-blur-md px-5 sm:px-6 py-3 rounded-2xl shadow-2xl border border-white/10 flex items-center gap-4 sm:gap-6"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+              <span className="text-xs sm:text-sm font-bold text-gray-100">
+                Tienes cambios sin guardar
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleDiscardChanges}
+                disabled={savingPersonal}
+                className="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold text-gray-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                Descartar
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSavePersonal()}
+                disabled={savingPersonal}
+                className="px-4 sm:px-5 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs sm:text-sm transition-all shadow-md shadow-primary/20 flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-60"
+              >
+                {savingPersonal ? (
+                  <>
+                    <Icon path={mdiLoading} size={0.65} className="animate-spin text-white" />
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon path={mdiCheck} size={0.65} />
+                    <span>Guardar cambios</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL DE CONFIRMACIÓN: QUITAR FOTO */}
+      <AnimatePresence>
+        {showDeletePhotoModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop con desenfoque */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !processingImage && setShowDeletePhotoModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"
+            />
+
+            {/* Diálogo */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="relative w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 text-center z-10"
+            >
+              {/* Icono de advertencia */}
+              <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 border border-red-100 flex items-center justify-center mx-auto mb-4">
+                <Icon path={mdiDeleteOutline} size={1.2} />
+              </div>
+
+              <h3 className="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight mb-2">
+                ¿Quitar foto de perfil?
+              </h3>
+              
+              <p className="text-xs sm:text-sm text-gray-500 leading-relaxed mb-6">
+                Tu imagen actual será eliminada de tu cuenta y pases de abordar. Tu perfil volverá a mostrar tu inicial predeterminada.
+              </p>
+
+              {/* Vista previa en miniatura de la foto actual */}
+              {foto && (
+                <div className="w-16 h-16 rounded-full overflow-hidden mx-auto mb-6 ring-4 ring-gray-100 border border-gray-200">
+                  <img src={foto} alt={fullName} className="w-full h-full object-cover" />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowDeletePhotoModal(false)}
+                  disabled={processingImage}
+                  className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeletePhoto}
+                  disabled={processingImage}
+                  className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-red-600 hover:bg-red-700 active:scale-[0.98] transition-all shadow-sm shadow-red-500/20 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+                >
+                  {processingImage ? (
+                    <>
+                      <Icon path={mdiLoading} size={0.7} className="animate-spin text-white" />
+                      <span>Quitando...</span>
+                    </>
+                  ) : (
+                    <span>Sí, quitar foto</span>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL DE CONFIRMACIÓN: SALIR SIN GUARDAR */}
+      <AnimatePresence>
+        {showUnsavedModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowUnsavedModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"
+            />
+
+            {/* Diálogo */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 1, y: 0 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="relative w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 text-center z-10"
+            >
+              {/* Icono de advertencia */}
+              <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center mx-auto mb-4">
+                <Icon path={mdiAlertCircleOutline} size={1.2} />
+              </div>
+
+              <h3 className="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight mb-2">
+                ¿Deseas salir sin guardar?
+              </h3>
+              
+              <p className="text-xs sm:text-sm text-gray-500 leading-relaxed mb-6">
+                Tienes modificaciones sin guardar en tus datos personales. Si sales ahora, se perderán los cambios realizados.
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowUnsavedModal(false)}
+                  className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors cursor-pointer"
+                >
+                  Seguir editando
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUnsavedModal(false);
+                    if (pendingNavigation) {
+                      pendingNavigation();
+                      setPendingNavigation(null);
+                    }
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-gray-900 hover:bg-gray-800 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+                >
+                  Descartar y continuar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
