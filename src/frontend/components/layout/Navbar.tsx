@@ -45,7 +45,7 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 left-0 right-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-xs">
-      <nav className="flex items-center justify-between px-4 sm:px-6 py-3 max-w-7xl mx-auto w-full">
+      <nav className="flex items-center justify-between px-4 sm:px-6 md:px-8 py-3 max-w-6xl mx-auto w-full">
         {/* Lado izquierdo: Botón Atrás (si aplica) + Logo + Pastillas de navegación */}
         <div className="flex items-center gap-3 sm:gap-6">
           {showBackButton && (
