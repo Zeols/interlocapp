@@ -7,25 +7,31 @@ import Icon from "@mdi/react";
 import { mdiArrowLeft, mdiMenu, mdiClose } from "@mdi/js";
 import { UserChip } from "@/frontend/components/ui/UserChip";
 import { Logo } from "@/frontend/components/ui/Logo";
-import { getCurrentUserAction } from "@/backend/actions/auth";
+import { getUserProfileAction } from "@/backend/actions/usuarios";
 
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState<{ name: string; email: string }>({
+  const [user, setUser] = useState<{
+    name: string;
+    email: string;
+    avatarUrl?: string | null;
+  }>({
     name: "Pasajero",
     email: "pasajero@correo.com",
+    avatarUrl: null,
   });
 
   const showBackButton = pathname === "/compra";
 
   useEffect(() => {
-    getCurrentUserAction().then((session) => {
-      if (session) {
+    getUserProfileAction().then((res) => {
+      if (res.success && res.data) {
         setUser({
-          name: session.nombre || session.usuario || "Pasajero",
-          email: session.correo,
+          name: res.data.nombreCompleto || res.data.nombre || res.data.usuario || "Pasajero",
+          email: res.data.correo,
+          avatarUrl: res.data.foto,
         });
       }
     });
@@ -82,7 +88,7 @@ export function Navbar() {
 
         {/* Lado derecho: Perfil de usuario dinámico + Menú Móvil */}
         <div className="flex items-center gap-2">
-          <UserChip name={user.name} email={user.email} />
+          <UserChip name={user.name} email={user.email} avatarUrl={user.avatarUrl} />
 
           {/* Botón hamburguesa móvil */}
           <button

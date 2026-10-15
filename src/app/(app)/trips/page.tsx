@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@mdi/react";
 import {
@@ -12,59 +12,92 @@ import {
   mdiFilterVariant,
   mdiChevronDown,
   mdiChevronUp,
+  mdiLoading,
 } from "@mdi/js";
 import { AnimatedCircularProgressBar } from "@/registry/magicui/animated-circular-progress-bar";
-
-const COOPERATIVES = ["TransNica", "El Expreso", "Tica Bus"];
-
-const ALL_TRIPS = [
-  { id: 1, origin: "Managua", destination: "León", departure: "06:00 AM", arrival: "08:30 AM", duration: "2h 30min", cooperative: "TransNica", price: 85, schedule: "mañana", type: "Directo", occupancy: 75 },
-  { id: 2, origin: "Managua", destination: "Granada", departure: "12:30 PM", arrival: "01:45 PM", duration: "1h 15min", cooperative: "El Expreso", price: 65, schedule: "tarde", type: "Escalas", occupancy: 40 },
-  { id: 3, origin: "Managua", destination: "Estelí", departure: "07:00 PM", arrival: "09:30 PM", duration: "2h 30min", cooperative: "Tica Bus", price: 90, schedule: "noche", type: "Directo", occupancy: 90 },
-  { id: 4, origin: "Managua", destination: "Masaya", departure: "08:00 AM", arrival: "08:45 AM", duration: "45min", cooperative: "TransNica", price: 40, schedule: "mañana", type: "Escalas", occupancy: 35 },
-  { id: 5, origin: "Managua", destination: "Chinandega", departure: "02:00 PM", arrival: "05:00 PM", duration: "3h", cooperative: "El Expreso", price: 100, schedule: "tarde", type: "Directo", occupancy: 60 },
-  { id: 6, origin: "Managua", destination: "Rivas", departure: "06:30 PM", arrival: "08:30 PM", duration: "2h", cooperative: "Tica Bus", price: 75, schedule: "noche", type: "Directo", occupancy: 85 },
-];
+import {
+  getViajesDisponiblesAction,
+  type ViajeDisponibleItem,
+} from "@/backend/actions/viajes";
 
 export default function TripsPage() {
   const router = useRouter();
 
-  const [origin, setOrigin] = useState("Managua");
+  const [trips, setTrips] = useState<ViajeDisponibleItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
   const [date, setDate] = useState("");
   const [scheduleFilter, setScheduleFilter] = useState<Record<string, boolean>>({
-    mañana: false, tarde: false, noche: false
+    mañana: false,
+    tarde: false,
+    noche: false,
   });
-  const [coopFilter, setCoopFilter] = useState<Record<string, boolean>>(
-    Object.fromEntries(COOPERATIVES.map(c => [c, false]))
-  );
+  const [coopFilter, setCoopFilter] = useState<Record<string, boolean>>({});
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  const toggleSchedule = (k: string) => setScheduleFilter(p => ({ ...p, [k]: !p[k] }));
-  const toggleCoop = (k: string) => setCoopFilter(p => ({ ...p, [k]: !p[k] }));
+  useEffect(() => {
+    setLoading(true);
+    getViajesDisponiblesAction({
+      origin: origin.trim() || undefined,
+      destination: destination.trim() || undefined,
+      date: date || undefined,
+    }).then((res) => {
+      if (res.success && res.data) {
+        setTrips(res.data);
+      } else {
+        setTrips([]);
+      }
+      setLoading(false);
+    });
+  }, [origin, destination, date]);
+
+  // Obtener lista dinámica de cooperativas a partir de los viajes reales
+  const availableCooperatives = Array.from(
+    new Set(trips.map((t) => t.cooperative))
+  ).filter(Boolean);
+
+  const toggleSchedule = (k: string) =>
+    setScheduleFilter((p) => ({ ...p, [k]: !p[k] }));
+
+  const toggleCoop = (c: string) =>
+    setCoopFilter((p) => ({ ...p, [c]: !p[c] }));
+
   const clearFilters = () => {
     setScheduleFilter({ mañana: false, tarde: false, noche: false });
-    setCoopFilter(Object.fromEntries(COOPERATIVES.map(c => [c, false])));
+    setCoopFilter({});
   };
 
-  const activeSchedules = Object.entries(scheduleFilter).filter(([, v]) => v).map(([k]) => k);
-  const activeCoops = Object.entries(coopFilter).filter(([, v]) => v).map(([k]) => k);
+  const activeSchedules = Object.entries(scheduleFilter)
+    .filter(([, v]) => v)
+    .map(([k]) => k);
+
+  const activeCoops = Object.entries(coopFilter)
+    .filter(([, v]) => v)
+    .map(([k]) => k);
+
   const hasFilters = activeSchedules.length > 0 || activeCoops.length > 0;
 
-  const filtered = ALL_TRIPS.filter(t => {
+  const filtered = trips.filter((t) => {
     if (activeSchedules.length && !activeSchedules.includes(t.schedule)) return false;
     if (activeCoops.length && !activeCoops.includes(t.cooperative)) return false;
-    if (destination && !t.destination.toLowerCase().includes(destination.toLowerCase())) return false;
     return true;
   });
 
-  const goPurchase = (trip: { origin: string, destination: string, departure: string, cooperative: string, price: number }) => {
+  const goPurchase = (trip: {
+    origin: string;
+    destination: string;
+    departure: string;
+    cooperative: string;
+    price: number;
+  }) => {
     const params = new URLSearchParams({
       origin: trip.origin,
       destination: trip.destination,
       departure: trip.departure,
       cooperative: trip.cooperative,
-      price: trip.price.toString()
+      price: trip.price.toString(),
     });
     router.push(`/compra?${params.toString()}`);
   };
@@ -80,8 +113,8 @@ export default function TripsPage() {
               <input
                 className="w-full outline-none bg-transparent text-gray-900 font-semibold text-sm placeholder:text-gray-400"
                 value={origin}
-                onChange={e => setOrigin(e.target.value)}
-                placeholder="Origen"
+                onChange={(e) => setOrigin(e.target.value)}
+                placeholder="Origen (Ej. Managua)"
               />
             </div>
             <div className="flex-1 flex items-center px-4 py-3 gap-3 bg-white">
@@ -89,8 +122,8 @@ export default function TripsPage() {
               <input
                 className="w-full outline-none bg-transparent text-gray-900 font-semibold text-sm placeholder:text-gray-400"
                 value={destination}
-                onChange={e => setDestination(e.target.value)}
-                placeholder="Destino"
+                onChange={(e) => setDestination(e.target.value)}
+                placeholder="Destino (Ej. León, Granada)"
               />
             </div>
             <div className="flex-1 flex items-center px-4 py-3 gap-3 bg-white">
@@ -99,7 +132,7 @@ export default function TripsPage() {
                 type="date"
                 className="w-full outline-none bg-transparent text-gray-900 font-semibold text-xs sm:text-sm placeholder:text-gray-400 uppercase"
                 value={date}
-                onChange={e => setDate(e.target.value)}
+                onChange={(e) => setDate(e.target.value)}
               />
             </div>
           </div>
@@ -107,34 +140,65 @@ export default function TripsPage() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 mt-6 sm:mt-8 flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
-        {/* Sidebar */}
+        {/* Sidebar de Filtros */}
         <aside className="w-full lg:w-64 shrink-0 bg-white border border-gray-100 rounded-3xl p-5 sm:p-6 shadow-sm sticky top-[80px]">
-          <div className={`flex items-center justify-between ${showMobileFilters ? 'mb-5 pb-4 border-b border-gray-100' : 'lg:mb-5 lg:pb-4 lg:border-b lg:border-gray-100'}`}>
+          <div
+            className={`flex items-center justify-between ${
+              showMobileFilters
+                ? "mb-5 pb-4 border-b border-gray-100"
+                : "lg:mb-5 lg:pb-4 lg:border-b lg:border-gray-100"
+            }`}
+          >
             <button
               onClick={() => setShowMobileFilters(!showMobileFilters)}
               className="flex items-center gap-2 lg:pointer-events-none cursor-pointer"
             >
               <Icon path={mdiFilterVariant} size={0.8} className="text-gray-900 lg:hidden" />
               <h2 className="text-base sm:text-lg font-extrabold text-gray-900 tracking-tight">Filtros</h2>
-              <Icon path={showMobileFilters ? mdiChevronUp : mdiChevronDown} size={0.8} className="text-gray-500 lg:hidden ml-1" />
+              <Icon
+                path={showMobileFilters ? mdiChevronUp : mdiChevronDown}
+                size={0.8}
+                className="text-gray-500 lg:hidden ml-1"
+              />
             </button>
             {hasFilters && (
-              <button onClick={clearFilters} className="text-xs sm:text-sm font-bold text-primary hover:text-primary-dark cursor-pointer">
+              <button
+                onClick={clearFilters}
+                className="text-xs sm:text-sm font-bold text-primary hover:text-primary-dark cursor-pointer"
+              >
                 Limpiar
               </button>
             )}
           </div>
 
-          <div className={`${showMobileFilters ? 'block' : 'hidden'} lg:block`}>
+          <div className={`${showMobileFilters ? "block" : "hidden"} lg:block`}>
             <div className="mb-6">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Horario de salida</p>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">
+                Horario de salida
+              </p>
               <div className="space-y-2.5">
-                {["mañana", "tarde", "noche"].map(k => (
-                  <button key={k} onClick={() => toggleSchedule(k)} className="flex items-center gap-3 w-full group cursor-pointer">
-                    <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-colors ${scheduleFilter[k] ? 'bg-primary border-primary' : 'bg-gray-50 border border-gray-300 group-hover:border-primary/50'}`}>
+                {["mañana", "tarde", "noche"].map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => toggleSchedule(k)}
+                    className="flex items-center gap-3 w-full group cursor-pointer"
+                  >
+                    <div
+                      className={`w-4 h-4 rounded-md flex items-center justify-center transition-colors ${
+                        scheduleFilter[k]
+                          ? "bg-primary border-primary"
+                          : "bg-gray-50 border border-gray-300 group-hover:border-primary/50"
+                      }`}
+                    >
                       {scheduleFilter[k] && <Icon path={mdiCheck} size={0.5} className="text-white" />}
                     </div>
-                    <span className={`text-xs sm:text-sm font-medium ${scheduleFilter[k] ? 'text-gray-900 font-bold' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                    <span
+                      className={`text-xs sm:text-sm font-medium ${
+                        scheduleFilter[k]
+                          ? "text-gray-900 font-bold"
+                          : "text-gray-600 group-hover:text-gray-900"
+                      }`}
+                    >
                       {k.charAt(0).toUpperCase() + k.slice(1)}
                     </span>
                   </button>
@@ -142,21 +206,41 @@ export default function TripsPage() {
               </div>
             </div>
 
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Cooperativa</p>
-              <div className="space-y-2.5">
-                {COOPERATIVES.map(c => (
-                  <button key={c} onClick={() => toggleCoop(c)} className="flex items-center gap-3 w-full group cursor-pointer">
-                    <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-colors ${coopFilter[c] ? 'bg-primary border-primary' : 'bg-gray-50 border border-gray-300 group-hover:border-primary/50'}`}>
-                      {coopFilter[c] && <Icon path={mdiCheck} size={0.5} className="text-white" />}
-                    </div>
-                    <span className={`text-xs sm:text-sm font-medium ${coopFilter[c] ? 'text-gray-900 font-bold' : 'text-gray-600 group-hover:text-gray-900'}`}>
-                      {c}
-                    </span>
-                  </button>
-                ))}
+            {availableCooperatives.length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">
+                  Cooperativa
+                </p>
+                <div className="space-y-2.5">
+                  {availableCooperatives.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => toggleCoop(c)}
+                      className="flex items-center gap-3 w-full group cursor-pointer"
+                    >
+                      <div
+                        className={`w-4 h-4 rounded-md flex items-center justify-center transition-colors ${
+                          coopFilter[c]
+                            ? "bg-primary border-primary"
+                            : "bg-gray-50 border border-gray-300 group-hover:border-primary/50"
+                        }`}
+                      >
+                        {coopFilter[c] && <Icon path={mdiCheck} size={0.5} className="text-white" />}
+                      </div>
+                      <span
+                        className={`text-xs sm:text-sm font-medium ${
+                          coopFilter[c]
+                            ? "text-gray-900 font-bold"
+                            : "text-gray-600 group-hover:text-gray-900"
+                        }`}
+                      >
+                        {c}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </aside>
 
@@ -168,24 +252,42 @@ export default function TripsPage() {
             </p>
           </div>
 
-          {filtered.length === 0 ? (
-            <div className="bg-white border border-gray-100 rounded-3xl p-10 sm:p-12 text-center shadow-sm">
+          {loading ? (
+            <div className="bg-white border border-gray-100 rounded-3xl p-12 text-center shadow-xs">
+              <Icon path={mdiLoading} size={1.5} className="animate-spin text-primary mx-auto mb-3" />
+              <p className="text-sm font-bold text-gray-600">Consultando viajes disponibles...</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="bg-white border border-gray-100 rounded-3xl p-10 sm:p-14 text-center shadow-xs">
               <div className="w-14 h-14 bg-gray-50 rounded-2xl mx-auto mb-4 flex items-center justify-center text-gray-300">
                 <Icon path={mdiBus} size={1.2} />
               </div>
-              <p className="font-extrabold text-base sm:text-lg text-gray-900 mb-1">No hay viajes</p>
-              <p className="text-xs sm:text-sm text-gray-500">Intenta ajustar tus filtros de búsqueda.</p>
+              <p className="font-extrabold text-base sm:text-lg text-gray-900 mb-1">
+                No hay viajes disponibles
+              </p>
+              <p className="text-xs sm:text-sm text-gray-500 max-w-sm mx-auto">
+                No se encontraron salidas programadas en este momento. Vuelve a consultar más tarde.
+              </p>
             </div>
           ) : (
             <div className="space-y-3.5">
-              {filtered.map(trip => (
-                <div key={trip.id} className="bg-white border border-gray-100 rounded-3xl p-5 sm:p-6 shadow-sm hover:shadow-md hover:border-gray-200/80 transition-all">
+              {filtered.map((trip) => (
+                <div
+                  key={trip.id}
+                  className="bg-white border border-gray-100 rounded-3xl p-5 sm:p-6 shadow-sm hover:shadow-md hover:border-gray-200/80 transition-all"
+                >
                   <div className="flex flex-col md:flex-row items-center gap-4 md:gap-0">
                     <div className="flex-1 flex flex-row items-center w-full justify-between">
                       <div className="text-center w-16 md:w-24 shrink-0">
-                        <p className="text-lg md:text-2xl font-extrabold text-gray-900 leading-none">{trip.departure.split(" ")[0]}</p>
-                        <p className="text-[10px] md:text-xs font-semibold text-gray-400 mt-1">{trip.departure.split(" ")[1]}</p>
-                        <p className="text-xs md:text-sm font-semibold text-gray-700 mt-2 truncate">{trip.origin}</p>
+                        <p className="text-lg md:text-2xl font-extrabold text-gray-900 leading-none">
+                          {trip.departure.split(" ")[0]}
+                        </p>
+                        <p className="text-[10px] md:text-xs font-semibold text-gray-400 mt-1">
+                          {trip.departure.split(" ")[1]}
+                        </p>
+                        <p className="text-xs md:text-sm font-semibold text-gray-700 mt-2 truncate">
+                          {trip.origin}
+                        </p>
                       </div>
 
                       <div className="flex-1 flex flex-col items-center px-2 md:px-4 min-w-[60px] md:min-w-[120px]">
@@ -205,36 +307,46 @@ export default function TripsPage() {
                       </div>
 
                       <div className="text-center w-16 md:w-24 shrink-0">
-                        <p className="text-lg md:text-2xl font-extrabold text-gray-900 leading-none">{trip.arrival.split(" ")[0]}</p>
-                        <p className="text-[10px] md:text-xs font-semibold text-gray-400 mt-1">{trip.arrival.split(" ")[1]}</p>
-                        <p className="text-xs md:text-sm font-semibold text-gray-700 mt-2 truncate">{trip.destination}</p>
+                        <p className="text-lg md:text-2xl font-extrabold text-gray-900 leading-none">
+                          {trip.arrival.split(" ")[0]}
+                        </p>
+                        <p className="text-[10px] md:text-xs font-semibold text-gray-400 mt-1">
+                          {trip.arrival.split(" ")[1]}
+                        </p>
+                        <p className="text-xs md:text-sm font-semibold text-gray-700 mt-2 truncate">
+                          {trip.destination}
+                        </p>
                       </div>
                     </div>
 
                     <div className="w-full md:w-px h-px md:h-16 bg-gray-100 mx-0 md:mx-6 shrink-0" />
 
-                    {/* Widget de Ocupación con AnimatedCircularProgressBar */}
-                    <div className="hidden sm:flex flex-col items-center justify-center shrink-0 px-2">
+                    {/* Widget de Ocupación con AnimatedCircularProgressBar no saturado */}
+                    <div className="hidden sm:flex flex-col items-center justify-center shrink-0 px-3">
                       <AnimatedCircularProgressBar
                         value={trip.occupancy}
                         gaugePrimaryColor={
                           trip.occupancy >= 85
                             ? "#ef4444"
                             : trip.occupancy >= 60
-                            ? "#4f46e5"
+                            ? "#FE7D22"
                             : "#10b981"
                         }
                         gaugeSecondaryColor="rgba(0, 0, 0, 0.06)"
-                        className="size-12 text-[11px] font-bold"
+                        strokeWidth={7}
+                        className="size-11"
+                        textClassName="text-[11px] font-extrabold text-gray-800"
                       />
-                      <span className="text-[10px] font-semibold text-gray-400 mt-1">Ocupación</span>
+                      <span className="text-[10px] font-medium text-gray-400 mt-1">Ocupación</span>
                     </div>
 
                     <div className="hidden sm:block w-px h-16 bg-gray-100 mx-4 shrink-0" />
 
                     <div className="w-full md:w-auto flex flex-row md:flex-col items-center justify-between shrink-0 gap-3">
                       <div className="text-left md:text-right">
-                        <p className="text-xl sm:text-2xl font-black text-gray-900">C$ {trip.price}.00</p>
+                        <p className="text-xl sm:text-2xl font-black text-gray-900">
+                          C$ {trip.price}.00
+                        </p>
                         <p className="text-[10px] font-medium text-gray-400">por boleto</p>
                       </div>
                       <button

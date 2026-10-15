@@ -12,19 +12,26 @@ import { Logo } from "@/frontend/components/ui/Logo";
 import { Footer } from "@/frontend/components/layout/Footer";
 import { UserChip } from "@/frontend/components/ui/UserChip";
 import { getCurrentUserAction } from "@/backend/actions/auth";
+import { getUserProfileAction } from "@/backend/actions/usuarios";
 
 export default function LandingPage() {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState<{ nombre: string; correo: string; rolNombre: string } | null>(null);
+  const [user, setUser] = useState<{
+    nombre: string;
+    correo: string;
+    rolNombre: string;
+    avatarUrl?: string | null;
+  } | null>(null);
 
   useEffect(() => {
-    getCurrentUserAction().then((session) => {
-      if (session) {
+    getUserProfileAction().then((res) => {
+      if (res.success && res.data) {
         setUser({
-          nombre: session.nombre || session.usuario || "Pasajero",
-          correo: session.correo,
-          rolNombre: session.rolNombre,
+          nombre: res.data.nombreCompleto || res.data.nombre || res.data.usuario || "Pasajero",
+          correo: res.data.correo,
+          rolNombre: res.data.rolNombre,
+          avatarUrl: res.data.foto,
         });
       }
     });
@@ -117,7 +124,7 @@ export default function LandingPage() {
                 >
                   <Icon path={mdiTicketConfirmationOutline} size={0.75} />
                 </Link>
-                <UserChip name={user.nombre} email={user.correo} />
+                <UserChip name={user.nombre} email={user.correo} avatarUrl={user.avatarUrl} />
               </div>
             ) : (
               <>

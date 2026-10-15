@@ -148,3 +148,45 @@ export async function createRutaConPuntosYTarifas(data: RutaInput) {
     return { success: false, error: 'Error al registrar la ruta, sus puntos y tarifas.' };
   }
 }
+
+export async function getRutasActivas() {
+  try {
+    const rutas = await prisma.ruta.findMany({
+      where: { estado: 'ACTIVO' },
+      include: {
+        cooperativa: true,
+        puntosRuta: {
+          include: { punto: true },
+          orderBy: { orden: 'asc' },
+        },
+        tarifas: {
+          where: { estado: 'ACTIVO' },
+          orderBy: { monto: 'asc' },
+        },
+      },
+      orderBy: { nombre: 'asc' },
+    });
+
+    const formatted = rutas.map((r) => {
+      const puntos = r.puntosRuta.map((pr) => pr.punto.nombre);
+      const origin = puntos[0] || r.nombre.split('-')[0]?.trim() || 'Origen';
+      const destination = puntos[puntos.length - 1] || r.nombre.split('-')[1]?.trim() || 'Destino';
+      const price = r.tarifas[0]?.monto ? Number(r.tarifas[0].monto) : 80;
+
+      return {
+        id: r.idRuta,
+        name: r.nombre,
+        origin,
+        destination,
+        duration: '2h 30min',
+        price,
+        cooperative: r.cooperativa.nombre,
+      };
+    });
+
+    return { success: true, data: formatted };
+  } catch (error) {
+    console.error('Error al consultar rutas activas:', error);
+    return { success: false, error: 'No se pudieron consultar las rutas.', data: [] };
+  }
+}

@@ -9,12 +9,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import { logoutAction } from "@/backend/actions/auth";
 import { LogoutModal } from "@/frontend/components/ui/LogoutModal";
 
-export function UserChip({ name, email }: { name: string; email: string }) {
+export function UserChip({
+  name,
+  email,
+  avatarUrl,
+}: {
+  name: string;
+  email: string;
+  avatarUrl?: string | null;
+}) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const displayChar = (name || email || "?").charAt(0).toUpperCase();
+  const displayChar = (name?.trim() || email?.trim() || "?").charAt(0).toUpperCase();
+  const hasValidPhoto = Boolean(avatarUrl && avatarUrl.trim() !== "" && !imgFailed);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -45,9 +55,18 @@ export function UserChip({ name, email }: { name: string; email: string }) {
         aria-expanded={isOpen}
         title={name || "Perfil de usuario"}
       >
-        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 text-primary">
-          <Icon path={mdiAccountOutline} size={0.75} />
-        </div>
+        {hasValidPhoto ? (
+          <img
+            src={avatarUrl!}
+            alt={name || "Usuario"}
+            onError={() => setImgFailed(true)}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-primary/20 shadow-2xs"
+          />
+        ) : (
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 text-primary">
+            <span className="text-xs sm:text-sm font-extrabold text-primary select-none">{displayChar}</span>
+          </div>
+        )}
         <Icon 
           path={mdiChevronDown} 
           size={0.65} 
@@ -62,11 +81,24 @@ export function UserChip({ name, email }: { name: string; email: string }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.95 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute top-[calc(100%+0.5rem)] right-0 w-60 bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-2 z-[100] origin-top-right"
+            className="absolute top-[calc(100%+0.5rem)] right-0 w-64 bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-2 z-[100] origin-top-right"
           >
-            <div className="px-3.5 py-2.5">
-              <p className="font-extrabold text-gray-900 text-sm tracking-tight">{name}</p>
-              <p className="text-gray-500 text-xs mt-0.5 truncate">{email}</p>
+            <div className="flex items-center gap-3 px-3 py-2.5">
+              {hasValidPhoto ? (
+                <img
+                  src={avatarUrl!}
+                  alt={name || "Usuario"}
+                  className="w-10 h-10 rounded-full object-cover border border-primary/20 shrink-0"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 text-primary font-black text-sm shrink-0">
+                  {displayChar}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="font-extrabold text-gray-900 text-sm tracking-tight truncate">{name}</p>
+                <p className="text-gray-500 text-xs truncate">{email}</p>
+              </div>
             </div>
             <div className="h-px bg-gray-100 my-1.5" />
             <Link 

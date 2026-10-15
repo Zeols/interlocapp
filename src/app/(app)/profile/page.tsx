@@ -27,6 +27,8 @@ export default function ProfilePage() {
   const [correo, setCorreo] = useState("");
   const [telefono, setTelefono] = useState("");
   const [direccion, setDireccion] = useState("");
+  const [foto, setFoto] = useState("");
+  const [fotoError, setFotoError] = useState(false);
   const [rolNombre, setRolNombre] = useState("");
 
   // Datos de cambio de contraseña
@@ -53,6 +55,7 @@ export default function ProfilePage() {
         setCorreo(res.data.correo ?? "");
         setTelefono(res.data.telefono ?? "");
         setDireccion(res.data.direccion ?? "");
+        setFoto(res.data.foto ?? "");
         setRolNombre(res.data.rolNombre ?? "PASAJERO");
       }
       setLoading(false);
@@ -69,6 +72,7 @@ export default function ProfilePage() {
       apellido,
       telefono,
       direccion,
+      foto,
     });
 
     setSavingPersonal(false);
@@ -203,7 +207,57 @@ export default function ProfilePage() {
                 </p>
               </div>
 
+              <div className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50/80 border border-gray-100 mb-6">
+                {foto && foto.trim() !== "" && !fotoError ? (
+                  <img
+                    src={foto}
+                    alt="Foto de perfil"
+                    onError={() => setFotoError(true)}
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-primary/30 shadow-xs shrink-0"
+                  />
+                ) : (
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-primary font-black text-xl sm:text-2xl select-none shrink-0">
+                    {(nombre?.trim() || correo?.trim() || "?").charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-0.5">
+                    Foto de Perfil
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {foto && foto.trim() !== "" && !fotoError
+                      ? "Foto personalizada activa. Si la retiras, se mostrará la inicial de tu nombre."
+                      : "Sin foto personalizada. Se muestra automáticamente la inicial de tu nombre."}
+                  </p>
+                </div>
+              </div>
+
               <form onSubmit={handleSavePersonal} className="space-y-4 sm:space-y-5">
+                <div>
+                  <label
+                    htmlFor="profile-foto"
+                    className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2"
+                  >
+                    URL de Foto de Perfil (Opcional)
+                  </label>
+                  <input
+                    id="profile-foto"
+                    name="foto"
+                    type="url"
+                    autoComplete="photo"
+                    value={foto ?? ""}
+                    onChange={(e) => {
+                      setFoto(e.target.value);
+                      setFotoError(false);
+                    }}
+                    placeholder="https://ejemplo.com/tu-foto.jpg"
+                    className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-2xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all font-medium placeholder:text-gray-400"
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Puedes ingresar un enlace público a tu imagen. Si lo dejas vacío, se usará la inicial.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label

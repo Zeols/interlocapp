@@ -11,24 +11,33 @@ import {
   mdiClockOutline,
 } from "@mdi/js";
 import { getCurrentUserAction } from "@/backend/actions/auth";
-
-const POPULAR_ROUTES = [
-  { origin: "Managua", destination: "León", duration: "2h 30min", price: 85 },
-  { origin: "Managua", destination: "Granada", duration: "1h 15min", price: 65 },
-  { origin: "Managua", destination: "Estelí", duration: "2h 30min", price: 90 },
-  { origin: "Managua", destination: "Masaya", duration: "45min", price: 40 },
-  { origin: "Managua", destination: "Chinandega", duration: "3h", price: 100 },
-  { origin: "Managua", destination: "Rivas", duration: "2h", price: 75 },
-];
+import { getRutasActivas } from "@/backend/actions/rutas";
 
 export default function HomePage() {
   const router = useRouter();
   const [userName, setUserName] = useState("Pasajero");
+  const [routes, setRoutes] = useState<
+    {
+      id: number;
+      name: string;
+      origin: string;
+      destination: string;
+      duration: string;
+      price: number;
+      cooperative: string;
+    }[]
+  >([]);
 
   useEffect(() => {
     getCurrentUserAction().then((session) => {
       if (session?.nombre) {
         setUserName(session.nombre);
+      }
+    });
+
+    getRutasActivas().then((res) => {
+      if (res.success && res.data) {
+        setRoutes(res.data);
       }
     });
   }, []);
@@ -104,48 +113,50 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Rutas Populares Unificadas */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-12 md:py-16">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-              Rutas populares
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">Salidas diarias y frecuencias garantizadas</p>
-          </div>
-          <button
-            onClick={goTrips}
-            className="inline-flex items-center text-sm font-bold text-primary hover:text-primary-dark transition-colors cursor-pointer"
-          >
-            Ver todos los viajes
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {POPULAR_ROUTES.map((r) => (
+      {/* Rutas Disponibles */}
+      {routes.length > 0 && (
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-12 md:py-16">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+                Rutas disponibles
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">Salidas programadas y frecuencias garantizadas</p>
+            </div>
             <button
-              key={r.destination}
               onClick={goTrips}
-              className="bg-white border border-gray-100 p-6 rounded-3xl text-left hover:border-primary/40 hover:shadow-lg hover:shadow-orange-950/5 transition-all group cursor-pointer"
+              className="inline-flex items-center text-sm font-bold text-primary hover:text-primary-dark transition-colors cursor-pointer"
             >
-              <div className="flex items-center justify-between mb-6">
-                <div className="w-10 h-10 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                  <Icon path={mdiBus} size={0.8} />
-                </div>
-                <span className="text-base sm:text-lg font-black text-gray-900">C$ {r.price}.00</span>
-              </div>
-              <p className="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight mb-0.5">
-                {r.destination}
-              </p>
-              <p className="text-xs text-gray-400 mb-4 font-medium">desde {r.origin}</p>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
-                <Icon path={mdiClockOutline} size={0.6} />
-                {r.duration}
-              </div>
+              Ver todos los viajes
             </button>
-          ))}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {routes.map((r) => (
+              <button
+                key={r.id}
+                onClick={goTrips}
+                className="bg-white border border-gray-100 p-6 rounded-3xl text-left hover:border-primary/40 hover:shadow-lg hover:shadow-orange-950/5 transition-all group cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <div className="w-10 h-10 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                    <Icon path={mdiBus} size={0.8} />
+                  </div>
+                  <span className="text-base sm:text-lg font-black text-gray-900">C$ {r.price}.00</span>
+                </div>
+                <p className="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight mb-0.5">
+                  {r.destination}
+                </p>
+                <p className="text-xs text-gray-400 mb-4 font-medium">desde {r.origin}</p>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+                  <Icon path={mdiClockOutline} size={0.6} />
+                  {r.duration}
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
