@@ -7,11 +7,25 @@ const globalForPrisma = globalThis as unknown as {
   pool?: Pool;
 };
 
+const connectionString =
+  process.env.DATABASE_URL ||
+  process.env.interlocapp_DATABASE_URL ||
+  process.env.POSTGRES_PRISMA_URL ||
+  process.env.interlocapp_POSTGRES_PRISMA_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.interlocapp_POSTGRES_URL;
+
+if (!connectionString && process.env.NODE_ENV === 'production') {
+  console.error(
+    'CRÍTICO: No se encontró DATABASE_URL ni interlocapp_DATABASE_URL en las variables de entorno.'
+  );
+}
+
 // Singleton para el Pool de conexiones PostgreSQL
 const pool =
   globalForPrisma.pool ??
   new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString,
     ssl: {
       rejectUnauthorized: false,
     },

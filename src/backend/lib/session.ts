@@ -1,7 +1,10 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'interlocapp-super-secret-jwt-key-2026-production-grade';
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  process.env.interlocapp_JWT_SECRET ||
+  'interlocapp-super-secret-jwt-key-2026-production-grade';
 const key = new TextEncoder().encode(JWT_SECRET);
 
 export const COOKIE_NAME = 'session_token';

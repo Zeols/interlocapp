@@ -2,7 +2,10 @@ import bcrypt from 'bcryptjs';
 import { createHmac, timingSafeEqual } from 'crypto';
 
 const SALT_ROUNDS = 12;
-const TICKET_SECRET = process.env.TICKET_SIGNING_SECRET || 'interlocapp-super-secret-ticket-key-2026';
+const TICKET_SECRET =
+  process.env.TICKET_SIGNING_SECRET ||
+  process.env.interlocapp_TICKET_SIGNING_SECRET ||
+  'interlocapp-super-secret-ticket-key-2026';
 
 /**
  * Genera un hash seguro para la contraseña del usuario utilizando bcrypt con coste 12.
