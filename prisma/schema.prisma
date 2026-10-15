@@ -490,3 +490,27 @@ model Equipaje {
 
   @@map("equipajes")
 }
+
+// ==========================================
+// 8. CÓDIGOS DE VERIFICACIÓN Y SEGURIDAD
+// ==========================================
+
+enum TipoCodigoVerificacion {
+  REGISTRO
+  RECUPERACION_PASSWORD
+}
+
+model CodigoVerificacion {
+  id        Int                    @id @default(autoincrement())
+  correo    String
+  codigo    String
+  tipo      TipoCodigoVerificacion
+  usado     Boolean                @default(false)
+  expiraEn  DateTime
+  datosTemp String?
+  createdAt DateTime               @default(now())
+
+  @@index([correo, tipo])
+  @@map("codigos_verificacion")
+}
+

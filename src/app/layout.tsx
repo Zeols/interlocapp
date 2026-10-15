@@ -19,10 +19,10 @@ const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://interlocapp.vercel.ap
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
   title: {
-    default: "InterlocApp: Transporte Interlocal Moderno",
+    default: "InterlocApp: Nicaragua",
     template: "%s | InterlocApp",
   },
-  description: "Plataforma oficial para compra de boletos, selección de asientos en tiempo real y gestión de flotas interlocales.",
+  description: "Plataforma para compra de boletos, selección de asientos en tiempo real y gestión de flotas interlocales.",
   applicationName: "InterlocApp",
   keywords: ["transporte interlocal", "boletos", "nicaragua", "viajes", "interlocapp", "cooperativas"],
   authors: [{ name: "InterlocApp" }],

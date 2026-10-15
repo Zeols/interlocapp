@@ -28,8 +28,38 @@ export const signupSchema = z
     path: ['confirmPassword'],
   });
 
+export const verifyCodeSchema = z.object({
+  correo: z.string().email('Correo electrónico no válido.').trim().toLowerCase(),
+  codigo: z
+    .string()
+    .length(6, 'El código debe contener exactamente 6 dígitos.')
+    .regex(/^[0-9A-Za-z]{6}$/, 'El código solo puede contener números y letras.'),
+});
+
+export const requestPasswordResetSchema = z.object({
+  email: z.string().email('Por favor ingresa un correo electrónico válido.').trim().toLowerCase(),
+});
+
+export const resetPasswordSchema = z
+  .object({
+    email: z.string().email('Correo electrónico no válido.').trim().toLowerCase(),
+    codigo: z
+      .string()
+      .length(6, 'El código debe contener exactamente 6 dígitos.')
+      .regex(/^[0-9A-Za-z]{6}$/, 'El código solo puede contener números y letras.'),
+    password: z.string().min(6, 'La nueva contraseña debe contener al menos 6 caracteres.'),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Las contraseñas no coinciden.',
+    path: ['confirmPassword'],
+  });
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type SignupInput = z.infer<typeof signupSchema>;
+export type VerifyCodeInput = z.infer<typeof verifyCodeSchema>;
+export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
 export interface ActionResponse<T = unknown> {
   success: boolean;
@@ -37,3 +67,4 @@ export interface ActionResponse<T = unknown> {
   error?: string;
   fieldErrors?: Record<string, string[]>;
 }
+
