@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@mdi/react";
 import {
@@ -10,6 +10,7 @@ import {
   mdiMagnify,
   mdiClockOutline,
 } from "@mdi/js";
+import { getCurrentUserAction } from "@/backend/actions/auth";
 
 const POPULAR_ROUTES = [
   { origin: "Managua", destination: "León", duration: "2h 30min", price: 85 },
@@ -22,10 +23,17 @@ const POPULAR_ROUTES = [
 
 export default function HomePage() {
   const router = useRouter();
+  const [userName, setUserName] = useState("Pasajero");
+
+  useEffect(() => {
+    getCurrentUserAction().then((session) => {
+      if (session?.nombre) {
+        setUserName(session.nombre);
+      }
+    });
+  }, []);
 
   const goTrips = () => router.push("/trips");
-
-  const userName = "User";
   const firstName = userName.split(" ")[0];
 
   return (
