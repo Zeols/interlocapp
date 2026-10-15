@@ -124,9 +124,19 @@ export default function LandingPage() {
           </div>
 
           {/* Bloque Derecho: Perfil de Usuario o Botones de Autenticación */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-3">
             {user ? (
-              <UserChip name={user.nombre} email={user.correo} avatarUrl={user.avatarUrl} />
+              <div className="flex items-center gap-2">
+                <Link
+                  href={["SUPER_ADMIN", "ADMIN_COOP", "TAQUILLERO"].includes(user.rolNombre) ? "/dashboard" : "/home"}
+                  className="flex items-center justify-center w-8.5 h-8.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-xs transition-colors cursor-pointer"
+                  title="Ir al portal"
+                  aria-label="Ir al portal"
+                >
+                  <Icon path={mdiTicketConfirmationOutline} size={0.7} />
+                </Link>
+                <UserChip name={user.nombre} email={user.correo} avatarUrl={user.avatarUrl} />
+              </div>
             ) : (
               <>
                 <motion.button
