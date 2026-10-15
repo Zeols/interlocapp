@@ -7,10 +7,12 @@ import Icon from "@mdi/react";
 import { mdiChevronDown, mdiAccountOutline, mdiCogOutline, mdiLogout, mdiTicketConfirmationOutline } from "@mdi/js";
 import { motion, AnimatePresence } from "framer-motion";
 import { logoutAction } from "@/backend/actions/auth";
+import { LogoutModal } from "@/frontend/components/ui/LogoutModal";
 
 export function UserChip({ name, email }: { name: string; email: string }) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const displayChar = (name || email || "?").charAt(0).toUpperCase();
 
@@ -24,8 +26,12 @@ export function UserChip({ name, email }: { name: string; email: string }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = async () => {
+  const handleOpenLogout = () => {
     setIsOpen(false);
+    setShowLogoutModal(true);
+  };
+
+  const handleConfirmLogout = async () => {
     const res = await logoutAction();
     router.push(res.data?.redirectUrl || "/login");
     router.refresh();
@@ -92,7 +98,7 @@ export function UserChip({ name, email }: { name: string; email: string }) {
             </Link>
             <div className="h-px bg-gray-100 my-1.5" />
             <button 
-              onClick={handleLogout}
+              onClick={handleOpenLogout}
               className="flex items-center gap-2.5 w-full px-3.5 py-2 bg-transparent border-none rounded-xl cursor-pointer text-xs sm:text-sm font-bold text-red-500 transition-colors hover:bg-red-50 hover:text-red-600"
             >
               <Icon path={mdiLogout} size={0.7} className="text-red-400" />
@@ -101,6 +107,14 @@ export function UserChip({ name, email }: { name: string; email: string }) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Modal de confirmación para cerrar sesión */}
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleConfirmLogout}
+        userName={name}
+      />
     </div>
   );
 }

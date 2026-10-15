@@ -16,6 +16,7 @@ import {
 } from "@mdi/js";
 import { Logo } from "@/frontend/components/ui/Logo";
 import { logoutAction } from "@/backend/actions/auth";
+import { LogoutModal } from "@/frontend/components/ui/LogoutModal";
 
 export default function DashboardLayout({
   children,
@@ -25,6 +26,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const menuItems = [
     { name: "Resumen", path: "/dashboard", icon: mdiViewDashboard },
@@ -34,7 +36,12 @@ export default function DashboardLayout({
     { name: "Ventas", path: "/dashboard/ventas", icon: mdiTicketConfirmationOutline },
   ];
 
-  const handleLogout = async () => {
+  const handleOpenLogout = () => {
+    setMobileMenuOpen(false);
+    setShowLogoutModal(true);
+  };
+
+  const handleConfirmLogout = async () => {
     const res = await logoutAction();
     router.push(res.data?.redirectUrl || "/login");
     router.refresh();
@@ -95,7 +102,7 @@ export default function DashboardLayout({
 
         <div className="p-4 border-t border-gray-100">
           <button
-            onClick={handleLogout}
+            onClick={handleOpenLogout}
             className="flex items-center gap-3 w-full px-4 py-2.5 text-red-500 hover:bg-red-50 hover:text-red-600 rounded-2xl transition-colors text-sm font-bold group cursor-pointer"
           >
             <Icon path={mdiLogout} size={0.8} className="text-red-400 group-hover:text-red-500 transition-colors" />
@@ -136,6 +143,14 @@ export default function DashboardLayout({
           {children}
         </div>
       </main>
+
+      {/* Modal de confirmación para cerrar sesión en Dashboard */}
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleConfirmLogout}
+        userName="Administrador"
+      />
     </div>
   );
 }

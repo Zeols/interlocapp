@@ -2,6 +2,7 @@ import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/frontend/components/ui/card";
 import Icon from "@mdi/react";
 import { mdiTicketConfirmationOutline, mdiBusDoubleDecker, mdiCurrencyUsd, mdiAccountGroup } from "@mdi/js";
+import { AnimatedCircularProgressBar } from "@/registry/magicui/animated-circular-progress-bar";
 
 export default function DashboardHome() {
   const stats = [
@@ -76,23 +77,13 @@ export default function DashboardHome() {
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center py-6 z-10">
               
-              {/* Radial Progress Widget */}
-              <div className="relative w-40 h-40 flex items-center justify-center">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="40" className="fill-none stroke-gray-100" strokeWidth="8" />
-                  <circle 
-                    cx="50" cy="50" r="40" 
-                    className="fill-none stroke-emerald-500 drop-shadow-sm transition-all duration-1000 ease-out" 
-                    strokeWidth="8" 
-                    strokeDasharray="251.2" 
-                    strokeDashoffset="55.26" // (1 - 0.78) * 251.2
-                    strokeLinecap="round" 
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">78%</span>
-                </div>
-              </div>
+              {/* Radial Progress Widget con Magic UI */}
+              <AnimatedCircularProgressBar
+                value={78}
+                gaugePrimaryColor="#10b981"
+                gaugeSecondaryColor="rgba(16, 185, 129, 0.12)"
+                className="size-40 text-3xl font-extrabold"
+              />
 
               <div className="mt-8 text-center bg-gray-50 rounded-2xl p-4 border border-gray-100">
                 <p className="text-emerald-600 font-bold text-sm">Excelente rendimiento</p>

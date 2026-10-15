@@ -8,8 +8,16 @@ const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO'];
 // Roles operativos autorizados para el escáner de boletos
 const OPERATIONAL_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO', 'CHOFER', 'AYUDANTE'];
 
+// Rutas públicas que no requieren autenticación
+const PUBLIC_ROUTES = ['/', '/login', '/signup', '/forgot'];
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Permitir endpoints de API webhooks o recursos internos
+  if (pathname.startsWith('/api/webhooks')) {
+    return NextResponse.next();
+  }
 
   const token = request.cookies.get(COOKIE_NAME)?.value;
   const session = token ? await verifySessionToken(token) : null;
@@ -18,7 +26,7 @@ export async function middleware(request: NextRequest) {
   // -------------------------------------------------------------
   // 1. CONTROL DE ACCESO A PÁGINAS DE AUTENTICACIÓN (/login, /signup)
   // -------------------------------------------------------------
-  if (pathname.startsWith('/login') || pathname.startsWith('/signup')) {
+  if (pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/forgot')) {
     if (isAuthenticated) {
       if (ADMIN_ROLES.includes(session.rolNombre)) {
         return NextResponse.redirect(new URL('/dashboard', request.url));
@@ -31,50 +39,39 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // -------------------------------------------------------------
-  // 2. PROTECCIÓN DEL DASHBOARD ADMINISTRATIVO (/dashboard/*)
-  // -------------------------------------------------------------
-  if (pathname.startsWith('/dashboard')) {
-    if (!isAuthenticated) {
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-
-    if (!ADMIN_ROLES.includes(session.rolNombre)) {
-      // Pasajeros o roles no autorizados son redirigidos al portal de pasajero
-      return NextResponse.redirect(new URL('/home', request.url));
-    }
-
+  // Rutas públicas de libre acceso sin sesión
+  if (PUBLIC_ROUTES.includes(pathname)) {
     return NextResponse.next();
   }
 
   // -------------------------------------------------------------
-  // 3. PROTECCIÓN DEL ESCÁNER DE ABORDAJE (/validar-boleto/*)
+  // 2. TODAS LAS DEMÁS RUTAS REQUIEREN AUTENTICACIÓN
   // -------------------------------------------------------------
-  if (pathname.startsWith('/validar-boleto')) {
-    if (!isAuthenticated) {
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(loginUrl);
+  if (!isAuthenticated) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
     }
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
 
+  // -------------------------------------------------------------
+  // 3. RESTRICCIONES DE ROL (RBAC) PARA USUARIOS AUTENTICADOS
+  // -------------------------------------------------------------
+
+  // Protección de /dashboard/* (Solo administradores y taquilleros)
+  if (pathname.startsWith('/dashboard')) {
+    if (!ADMIN_ROLES.includes(session.rolNombre)) {
+      return NextResponse.redirect(new URL('/home', request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // Protección de /validar-boleto/* (Solo tripulación y administradores)
+  if (pathname.startsWith('/validar-boleto')) {
     if (!OPERATIONAL_ROLES.includes(session.rolNombre)) {
       return NextResponse.redirect(new URL('/home', request.url));
-    }
-
-    return NextResponse.next();
-  }
-
-  // -------------------------------------------------------------
-  // 4. RUTAS PRIVADAS DEL PASAJERO (/tickets, /profile, /settings)
-  // -------------------------------------------------------------
-  const privatePassengerRoutes = ['/tickets', '/profile', '/settings'];
-  if (privatePassengerRoutes.some((route) => pathname.startsWith(route))) {
-    if (!isAuthenticated) {
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(loginUrl);
     }
     return NextResponse.next();
   }
@@ -84,12 +81,12 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/validar-boleto/:path*',
-    '/tickets/:path*',
-    '/profile/:path*',
-    '/settings/:path*',
-    '/login',
-    '/signup',
+    /*
+     * Aplica a todas las rutas excepto:
+     * - _next/static (archivos estáticos compilados)
+     * - _next/image (optimización de imágenes)
+     * - favicon.ico, icon.svg, logo.svg y extensiones multimedia
+     */
+    '/((?!_next/static|_next/image|favicon.ico|icon.svg|logo.svg|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
