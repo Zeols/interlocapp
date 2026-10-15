@@ -64,7 +64,7 @@ export function LogoutModal({
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 select-none">
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4 select-none">
           {/* Backdrop con desenfoque suave a pantalla completa */}
           <motion.div
             initial={{ opacity: 0 }}

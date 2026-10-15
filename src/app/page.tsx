@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import Icon from "@mdi/react";
-import { mdiMenu, mdiClose } from "@mdi/js";
+import { mdiMenu, mdiClose, mdiTicketConfirmationOutline, mdiAccountOutline } from "@mdi/js";
 import { BrowserCard } from "@/frontend/components/ui/BrowserCard";
 import { RoutesSlider } from "@/frontend/components/ui/RoutesSlider";
 import { Logo } from "@/frontend/components/ui/Logo";
@@ -105,15 +105,17 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Bloque Derecho: Perfil de Usuario o Botones de Autenticación */}
+            {/* Bloque Derecho: Perfil de Usuario o Botones de Autenticación */}
           <div className="flex items-center gap-2 sm:gap-3">
             {user ? (
               <div className="flex items-center gap-2">
                 <Link
                   href={["SUPER_ADMIN", "ADMIN_COOP", "TAQUILLERO"].includes(user.rolNombre) ? "/dashboard" : "/home"}
-                  className="hidden sm:inline-flex items-center gap-1.5 bg-gray-900 hover:bg-gray-800 text-white font-bold px-4 py-2 rounded-full text-xs sm:text-sm shadow-xs transition-colors"
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-xs transition-colors cursor-pointer"
+                  title="Ir al portal"
+                  aria-label="Ir al portal"
                 >
-                  Ir al portal
+                  <Icon path={mdiTicketConfirmationOutline} size={0.75} />
                 </Link>
                 <UserChip name={user.nombre} email={user.correo} />
               </div>
@@ -185,28 +187,49 @@ export default function LandingPage() {
 
                 <div className="h-px bg-gray-100 my-2" />
 
-                <div className="pt-1 pb-2 flex flex-col gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      goLogin();
-                    }}
-                    className="w-full py-3 rounded-2xl text-sm font-bold text-gray-800 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors text-center cursor-pointer"
-                  >
-                    Iniciar sesión
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      goSignup();
-                    }}
-                    className="w-full py-3 rounded-2xl text-sm font-bold text-white bg-primary hover:bg-primary-dark active:scale-[0.99] transition-all text-center shadow-md shadow-primary/20 cursor-pointer"
-                  >
-                    Regístrate
-                  </button>
-                </div>
+                {user ? (
+                  <div className="pt-1 pb-2 flex flex-col gap-2">
+                    <Link
+                      href={["SUPER_ADMIN", "ADMIN_COOP", "TAQUILLERO"].includes(user.rolNombre) ? "/dashboard" : "/home"}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-full py-3 px-4 rounded-2xl text-sm font-bold text-white bg-gray-900 hover:bg-gray-800 active:scale-[0.99] transition-all flex items-center justify-center gap-2.5 shadow-xs cursor-pointer"
+                    >
+                      <Icon path={mdiTicketConfirmationOutline} size={0.8} />
+                      <span>Ir al portal</span>
+                    </Link>
+                    <Link
+                      href="/profile"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-full py-3 px-4 rounded-2xl text-sm font-bold text-gray-800 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors flex items-center justify-center gap-2.5 cursor-pointer"
+                    >
+                      <Icon path={mdiAccountOutline} size={0.8} />
+                      <span>Mi Perfil</span>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="pt-1 pb-2 flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        goLogin();
+                      }}
+                      className="w-full py-3 rounded-2xl text-sm font-bold text-gray-800 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors text-center cursor-pointer"
+                    >
+                      Iniciar sesión
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        goSignup();
+                      }}
+                      className="w-full py-3 rounded-2xl text-sm font-bold text-white bg-primary hover:bg-primary-dark active:scale-[0.99] transition-all text-center shadow-md shadow-primary/20 cursor-pointer"
+                    >
+                      Regístrate
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}

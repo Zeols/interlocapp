@@ -49,16 +49,14 @@
 }
 
 /* Ocultar el cursor nativo de Windows cuando el Smooth Cursor está activo */
-@media (pointer: fine) {
-  html.has-smooth-cursor,
-  html.has-smooth-cursor *,
-  html.has-smooth-cursor button,
-  html.has-smooth-cursor a {
-    cursor: none !important;
-  }
+html.has-smooth-cursor,
+html.has-smooth-cursor *,
+html.has-smooth-cursor button,
+html.has-smooth-cursor a {
+  cursor: none !important;
+}
 
-  html.has-smooth-cursor input,
-  html.has-smooth-cursor textarea {
-    cursor: text !important;
-  }
+html.has-smooth-cursor input,
+html.has-smooth-cursor textarea {
+  cursor: text !important;
 }
