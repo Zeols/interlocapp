@@ -81,7 +81,6 @@ export default function DashboardLayout({
     { name: "Flota", path: "/dashboard/flota", icon: mdiBusDoubleDecker },
     { name: "Personal", path: "/dashboard/choferes", icon: mdiAccountGroup },
     { name: "Rutas", path: "/dashboard/rutas", icon: mdiMapMarkerPath },
-    { name: "Mi Perfil", path: "/dashboard/perfil", icon: mdiAccountCircleOutline },
   ];
 
   const handleToggleSidebar = () => {

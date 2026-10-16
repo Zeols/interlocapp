@@ -208,7 +208,7 @@ export default function AdminProfilePage() {
         <div className="flex flex-col sm:flex-row items-center gap-6">
           {/* Avatar con botón de cambio */}
           <div className="relative group shrink-0">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-primary/10 border-2 border-primary/20 text-primary flex items-center justify-center font-bold text-2xl">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center font-bold text-2xl shadow-2xs">
               {foto ? (
                 <img src={foto} alt={nombre} className="w-full h-full object-cover" />
               ) : (
@@ -217,9 +217,10 @@ export default function AdminProfilePage() {
             </div>
 
             <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={processingImage}
-              className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center hover:bg-primary transition-colors shadow-sm cursor-pointer"
+              className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center transition-colors shadow-2xs cursor-pointer border-2 border-white"
               title="Cambiar foto de perfil"
             >
               <Icon path={mdiCameraOutline} size={0.65} />
@@ -227,7 +228,7 @@ export default function AdminProfilePage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept="image/*"
               onChange={handlePhotoSelect}
               className="hidden"
             />
@@ -239,7 +240,7 @@ export default function AdminProfilePage() {
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
                 {nombre ? `${nombre} ${apellido}` : "Cargando..."}
               </h1>
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
                 {rolNombre}
               </span>
             </div>
@@ -261,14 +262,14 @@ export default function AdminProfilePage() {
         </div>
       </div>
 
-      {/* Selector de Pestañas */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-px">
+      {/* Selector de Pestañas estilo Segmented Control */}
+      <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl max-w-fit border border-slate-200/60">
         <button
           onClick={() => setActiveTab("datos")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
             activeTab === "datos"
-              ? "border-primary text-primary"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "bg-white text-slate-900 shadow-2xs font-bold"
+              : "text-slate-600 hover:text-slate-900"
           }`}
         >
           <Icon path={mdiAccount} size={0.7} />
@@ -277,10 +278,10 @@ export default function AdminProfilePage() {
 
         <button
           onClick={() => setActiveTab("password")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
             activeTab === "password"
-              ? "border-primary text-primary"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "bg-white text-slate-900 shadow-2xs font-bold"
+              : "text-slate-600 hover:text-slate-900"
           }`}
         >
           <Icon path={mdiKeyOutline} size={0.7} />
@@ -302,7 +303,7 @@ export default function AdminProfilePage() {
                 required
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
-                className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-primary text-slate-800"
+                className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20 text-slate-800"
               />
             </div>
 
@@ -312,7 +313,7 @@ export default function AdminProfilePage() {
                 type="text"
                 value={apellido}
                 onChange={(e) => setApellido(e.target.value)}
-                className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-primary text-slate-800"
+                className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20 text-slate-800"
               />
             </div>
 
@@ -467,7 +468,7 @@ export default function AdminProfilePage() {
             <button
               type="submit"
               disabled={savingPassword}
-              className="px-4 py-2 bg-primary hover:bg-primary/95 text-white rounded-lg text-xs sm:text-sm font-semibold shadow-xs transition-all cursor-pointer"
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs sm:text-sm font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-50"
             >
               {savingPassword ? "Actualizando..." : "Actualizar Contraseña"}
             </button>
