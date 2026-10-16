@@ -11,15 +11,19 @@ export interface UnidadInput {
   capacidadAsientos: number; // Ej: 15 o 30
 }
 
-// 1. Obtener unidades por cooperativa
+// 1. Obtener unidades (con soporte para cooperativa específica o todas)
 export async function getUnidadesByCooperativa(idCooperativa: number) {
   try {
     const unidades = await prisma.unidad.findMany({
       where: { idCooperativa },
       include: {
         tipoUnidad: true,
+        cooperativa: true,
         asientos: {
           orderBy: { idAsiento: 'asc' },
+        },
+        _count: {
+          select: { asientos: true },
         },
       },
       orderBy: { numeroUnidad: 'asc' },
@@ -27,7 +31,29 @@ export async function getUnidadesByCooperativa(idCooperativa: number) {
     return { success: true, data: unidades };
   } catch (error) {
     console.error('Error al obtener unidades:', error);
-    return { success: false, error: 'No se pudieron cargar las unidades.' };
+    return { success: false, error: 'No se pudieron cargar las unidades.', data: [] };
+  }
+}
+
+export async function getAllUnidadesAction() {
+  try {
+    const unidades = await prisma.unidad.findMany({
+      include: {
+        tipoUnidad: true,
+        cooperativa: true,
+        asientos: {
+          orderBy: { idAsiento: 'asc' },
+        },
+        _count: {
+          select: { asientos: true },
+        },
+      },
+      orderBy: { numeroUnidad: 'asc' },
+    });
+    return { success: true, data: unidades };
+  } catch (error) {
+    console.error('Error al obtener todas las unidades:', error);
+    return { success: false, error: 'No se pudieron cargar las unidades.', data: [] };
   }
 }
 
@@ -74,6 +100,7 @@ export async function createUnidadWithAsientos(data: UnidadInput) {
       return nuevaUnidad;
     });
 
+    revalidatePath('/dashboard/flota');
     revalidatePath('/admin/unidades');
     return { success: true, data: resultado };
   } catch (error) {
@@ -95,5 +122,69 @@ export async function createTipoUnidad(nombre: string, descripcion?: string) {
   } catch (error) {
     console.error('Error al crear tipo de unidad:', error);
     return { success: false, error: 'No se pudo crear el tipo de unidad.' };
+  }
+}
+
+// 4. Obtener tipos de unidad existentes (o inicializar catálogo por defecto)
+export async function getTiposUnidadAction() {
+  try {
+    let tipos = await prisma.tipoUnidad.findMany({
+      where: { estado: 'ACTIVO' },
+      orderBy: { idTipoUnidad: 'asc' },
+    });
+
+    if (tipos.length === 0) {
+      // Si la base de datos no tiene tipos, inicializamos los 3 estándares nicaragüenses
+      await prisma.tipoUnidad.createMany({
+        data: [
+          { nombre: 'Microbús (15 Asientos)', descripcion: 'Microbús compacto para rutas intermedias (configuración 1x2)' },
+          { nombre: 'Interlocal Estándar (20 Asientos)', descripcion: 'Interlocal interurbano estándar (configuración 2x2)' },
+          { nombre: 'Pullman (40 Asientos)', descripcion: 'Autobús de larga distancia con aire acondicionado' },
+        ],
+      });
+      tipos = await prisma.tipoUnidad.findMany({
+        where: { estado: 'ACTIVO' },
+        orderBy: { idTipoUnidad: 'asc' },
+      });
+    }
+
+    return { success: true, data: tipos };
+  } catch (error) {
+    console.error('Error al obtener tipos de unidad:', error);
+    return { success: false, error: 'No se pudieron consultar los tipos de unidad.', data: [] };
+  }
+}
+
+// 5. Actualizar estado operativo de una unidad
+export async function updateEstadoUnidadAction(
+  idUnidad: number,
+  estado: 'DISPONIBLE' | 'EN_RUTA' | 'MANTENIMIENTO' | 'INOPERATIVA'
+) {
+  try {
+    const unidad = await prisma.unidad.update({
+      where: { idUnidad },
+      data: { estado },
+    });
+
+    revalidatePath('/dashboard/flota');
+    return { success: true, data: unidad };
+  } catch (error) {
+    console.error('Error al actualizar estado de unidad:', error);
+    return { success: false, error: 'No se pudo actualizar el estado de la unidad.' };
+  }
+}
+
+// 6. Dar de baja / eliminar unidad
+export async function deleteUnidadAction(idUnidad: number) {
+  try {
+    await prisma.unidad.delete({
+      where: { idUnidad },
+    });
+
+    revalidatePath('/dashboard/flota');
+    return { success: true };
+  } catch (error) {
+    console.error('Error al eliminar unidad:', error);
+    return { success: false, error: 'No se pudo eliminar la unidad. Podría tener viajes asociados.' };
   }
 }

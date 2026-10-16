@@ -141,11 +141,68 @@ export async function createRutaConPuntosYTarifas(data: RutaInput) {
       return ruta;
     });
 
+    revalidatePath('/dashboard/rutas');
     revalidatePath('/admin/rutas');
     return { success: true, data: nuevaRuta };
   } catch (error) {
     console.error('Error al crear ruta:', error);
     return { success: false, error: 'Error al registrar la ruta, sus puntos y tarifas.' };
+  }
+}
+
+export async function getAllRutasAction() {
+  try {
+    const rutas = await prisma.ruta.findMany({
+      include: {
+        cooperativa: true,
+        puntosRuta: {
+          include: { punto: true },
+          orderBy: { orden: 'asc' },
+        },
+        tarifas: {
+          include: {
+            puntoOrigen: true,
+            puntoDestino: true,
+          },
+          orderBy: { monto: 'asc' },
+        },
+        _count: {
+          select: { viajes: true },
+        },
+      },
+      orderBy: { nombre: 'asc' },
+    });
+    return { success: true, data: rutas };
+  } catch (error) {
+    console.error('Error al consultar todas las rutas:', error);
+    return { success: false, error: 'No se pudieron consultar las rutas.', data: [] };
+  }
+}
+
+export async function updateEstadoRutaAction(idRuta: number, estado: 'ACTIVO' | 'INACTIVO') {
+  try {
+    const ruta = await prisma.ruta.update({
+      where: { idRuta },
+      data: { estado },
+    });
+    revalidatePath('/dashboard/rutas');
+    return { success: true, data: ruta };
+  } catch (error) {
+    console.error('Error al actualizar estado de la ruta:', error);
+    return { success: false, error: 'No se pudo actualizar el estado de la ruta.' };
+  }
+}
+
+export async function deleteRutaAction(idRuta: number) {
+  try {
+    await prisma.ruta.delete({
+      where: { idRuta },
+    });
+    revalidatePath('/dashboard/rutas');
+    return { success: true };
+  } catch (error) {
+    console.error('Error al eliminar la ruta:', error);
+    return { success: false, error: 'No se pudo eliminar la ruta. Asegúrese de que no tenga viajes asignados.' };
   }
 }
 
@@ -190,3 +247,4 @@ export async function getRutasActivas() {
     return { success: false, error: 'No se pudieron consultar las rutas.', data: [] };
   }
 }
+
