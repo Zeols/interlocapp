@@ -150,7 +150,16 @@ export async function getRutasByCooperativa(idCooperativa: number) {
       },
       orderBy: { nombre: 'asc' },
     });
-    return { success: true, data: rutas };
+
+    const serializedRutas = rutas.map((r) => ({
+      ...r,
+      tarifas: r.tarifas.map((t) => ({
+        ...t,
+        monto: Number(t.monto),
+      })),
+    }));
+
+    return { success: true, data: serializedRutas };
   } catch (error) {
     console.error('Error al obtener rutas:', error);
     return { success: false, error: 'No se pudieron cargar las rutas.' };
@@ -239,7 +248,15 @@ export async function getAllRutasAction() {
       },
       orderBy: { nombre: 'asc' },
     });
-    return { success: true, data: rutas };
+    const serializedRutas = rutas.map((r) => ({
+      ...r,
+      tarifas: r.tarifas.map((t) => ({
+        ...t,
+        monto: Number(t.monto),
+      })),
+    }));
+
+    return { success: true, data: serializedRutas };
   } catch (error) {
     console.error('Error al consultar todas las rutas:', error);
     return { success: false, error: 'No se pudieron consultar las rutas.', data: [] };

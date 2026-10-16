@@ -60,7 +60,7 @@ export async function createTarifaEquipaje(data: TarifaEquipajeInput) {
         estado: 'ACTIVO',
       },
     });
-    return { success: true, data: tarifa };
+    return { success: true, data: { ...tarifa, monto: Number(tarifa.monto) } };
   } catch (error) {
     console.error('Error al crear tarifa de equipaje:', error);
     return { success: false, error: 'No se pudo crear la tarifa de equipaje.' };
@@ -245,7 +245,13 @@ export async function procesarVentaBoletos(data: VentaInput) {
     }
 
     revalidatePath('/admin/ventas');
-    return { success: true, data: resultado };
+    return {
+      success: true,
+      data: {
+        ...resultado,
+        total: Number(resultado.total),
+      },
+    };
   } catch (error: any) {
     console.error('Error al procesar la venta:', error);
     return {
