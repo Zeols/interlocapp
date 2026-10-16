@@ -18,8 +18,8 @@ import {
 } from "@mdi/js";
 import { Logo } from "@/frontend/components/ui/Logo";
 import { getCurrentUserAction, logoutAction } from "@/backend/actions/auth";
-import { getCooperativasActivasAction } from "@/backend/actions/cooperativas";
 import { LogoutModal } from "@/frontend/components/ui/LogoutModal";
+import { TenantProvider, useTenant } from "@/frontend/context/TenantContext";
 
 interface SessionData {
   idUsuario: number;
@@ -31,25 +31,22 @@ interface SessionData {
   usuario: string;
 }
 
-interface CooperativaOption {
-  idCooperativa: number;
-  nombre: string;
-}
-
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [session, setSession] = useState<SessionData | null>(null);
-  const [cooperativas, setCooperativas] = useState<CooperativaOption[]>([]);
-  const [selectedCoopId, setSelectedCoopId] = useState<string>("ALL");
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+
+  const {
+    selectedCoopId,
+    setSelectedCoopId,
+    cooperativas,
+    isSuperAdmin,
+    selectedCoop,
+  } = useTenant();
 
   useEffect(() => {
     async function initLayout() {
@@ -57,12 +54,6 @@ export default function DashboardLayout({
         const user = await getCurrentUserAction();
         if (user) {
           setSession(user);
-          if (user.rolNombre === "SUPER_ADMIN") {
-            const coopsRes = await getCooperativasActivasAction();
-            if (coopsRes.success && coopsRes.data) {
-              setCooperativas(coopsRes.data as any);
-            }
-          }
         }
       } catch (err) {
         console.error("Error al cargar sesión en layout:", err);
@@ -70,8 +61,6 @@ export default function DashboardLayout({
     }
     initLayout();
   }, []);
-
-  const isSuperAdmin = session?.rolNombre === "SUPER_ADMIN";
 
   const menuItems = [
     { name: "Resumen", path: "/dashboard", icon: mdiViewDashboard },
@@ -149,6 +138,28 @@ export default function DashboardLayout({
           </div>
         </div>
 
+        {/* Selector de cooperativa en móvil si es Super Admin */}
+        {isSuperAdmin && cooperativas.length > 0 && (
+          <div className="p-3 border-b border-slate-100 lg:hidden bg-slate-50/60">
+            <label className="text-[11px] font-medium text-slate-500 mb-1 flex items-center gap-1.5">
+              <Icon path={mdiDomain} size={0.55} className="text-slate-400" />
+              Filtrar por Cooperativa:
+            </label>
+            <select
+              value={selectedCoopId}
+              onChange={(e) => setSelectedCoopId(e.target.value)}
+              className="w-full bg-white border border-slate-200 text-slate-800 text-xs font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none"
+            >
+              <option value="ALL">Todas (Vista Global)</option>
+              {cooperativas.map((c) => (
+                <option key={c.idCooperativa} value={c.idCooperativa.toString()}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <nav className="flex-1 px-3 py-4 space-y-1">
           {menuItems.map((item) => {
             const isActive = pathname === item.path;
@@ -197,11 +208,19 @@ export default function DashboardLayout({
             >
               <Icon path={mdiMenu} size={0.8} />
             </button>
-            <h2 className="font-semibold text-slate-900 text-sm sm:text-base tracking-tight">Panel Administrativo</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold text-slate-900 text-sm sm:text-base tracking-tight">Panel Administrativo</h2>
+              {selectedCoop && (
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20 max-w-[180px] truncate">
+                  <Icon path={mdiDomain} size={0.5} />
+                  {selectedCoop.nombre}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Si es Super Admin, selector de Cooperativa */}
+            {/* Si es Super Admin, selector de Cooperativa global en Header */}
             {isSuperAdmin && cooperativas.length > 0 && (
               <div className="hidden md:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs">
                 <Icon path={mdiDomain} size={0.65} className="text-slate-400" />
@@ -283,5 +302,17 @@ export default function DashboardLayout({
         userName={userName}
       />
     </div>
+  );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <TenantProvider>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </TenantProvider>
   );
 }

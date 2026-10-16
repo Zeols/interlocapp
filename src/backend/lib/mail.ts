@@ -33,7 +33,7 @@ export interface WelcomeEmailData {
 export function getMailConfig() {
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = parseInt(process.env.SMTP_PORT || '465', 10);
-  const secure = process.env.SMTP_SECURE === 'false' ? false : true;
+  const secure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : (port === 465);
   const user = process.env.SMTP_USER || process.env.EMAIL_USER || '';
   const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS || '';
   const from = process.env.SMTP_FROM || (user ? `InterlocApp <${user}>` : 'InterlocApp <notificaciones@interlocapp.com>');
@@ -65,9 +65,13 @@ export function getMailTransporter(): Transporter | null {
         user: config.user,
         pass: config.pass.replace(/\s+/g, ''), // Remueve espacios si el usuario pegó la clave de aplicación con espacios
       },
-      connectionTimeout: 10000, // 10 segundos timeout de conexión
-      greetingTimeout: 8000,
-      socketTimeout: 15000,
+      tls: {
+        rejectUnauthorized: false, // Compatibilidad con redes serverless
+      },
+      requireTLS: config.port === 587,
+      connectionTimeout: 15000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
       // Desactivar pool en entornos serverless (Vercel) para evitar sockets congelados
       pool: false,
     });
@@ -110,10 +114,10 @@ export async function sendEmail({ to, subject, html, text, attachments = [] }: S
   try {
     const client = getMailTransporter();
     if (!client) {
-      console.warn('[MailService] Variables SMTP_USER y SMTP_PASS no definidas en .env. El correo no se envió.');
+      console.warn('[MailService Warning] Variables SMTP no detectadas (SMTP_USER y SMTP_PASS). En Vercel, agrégalas en Project Settings > Environment Variables.');
       return {
         success: false,
-        error: 'Servicio de correo no configurado en variables de entorno.',
+        error: 'Servicio de correo no configurado en variables de entorno (SMTP_USER/SMTP_PASS).',
       };
     }
 
@@ -146,7 +150,13 @@ export async function sendEmail({ to, subject, html, text, attachments = [] }: S
       messageId: info.messageId,
     };
   } catch (error: any) {
-    console.error('[MailService] Error al enviar correo:', error);
+    console.error('[MailService Error]:', {
+      message: error?.message,
+      code: error?.code,
+      command: error?.command,
+      response: error?.response,
+      responseCode: error?.responseCode,
+    });
     return {
       success: false,
       error: error?.message || 'Fallo desconocido al enviar correo.',

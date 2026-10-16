@@ -53,8 +53,16 @@ export default function AdminProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [processingImage, setProcessingImage] = useState(false);
 
-  // Feedback
+  // Feedback con auto-descarte tras 6 segundos
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = setTimeout(() => {
+      setFeedback(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [feedback]);
 
   useEffect(() => {
     async function loadProfile() {

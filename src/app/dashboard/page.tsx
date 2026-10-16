@@ -13,6 +13,7 @@ import {
 import { AnimatedCircularProgressBar } from "@/registry/magicui/animated-circular-progress-bar";
 import { getDashboardStatsAction } from "@/backend/actions/ventas";
 import { useCurrency } from "@/frontend/context/CurrencyContext";
+import { useTenant } from "@/frontend/context/TenantContext";
 
 interface VentaResumenItem {
   idVenta: number;
@@ -39,13 +40,15 @@ interface DashboardMetrics {
 
 export default function DashboardHome() {
   const { formatPrice } = useCurrency();
+  const { selectedCoopId, selectedCoop } = useTenant();
   const [data, setData] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchMetrics = async () => {
     setLoading(true);
     try {
-      const res = await getDashboardStatsAction();
+      const coopIdNumber = selectedCoopId === "ALL" ? undefined : Number(selectedCoopId);
+      const res = await getDashboardStatsAction(coopIdNumber);
       if (res.success && res.data) {
         setData(res.data);
       }
@@ -58,7 +61,7 @@ export default function DashboardHome() {
 
   useEffect(() => {
     fetchMetrics();
-  }, []);
+  }, [selectedCoopId]);
 
   const stats = [
     {
@@ -92,9 +95,13 @@ export default function DashboardHome() {
       {/* Cabecera */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Resumen de Operaciones</h1>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+            Resumen de Operaciones {selectedCoop ? `(${selectedCoop.nombre})` : ""}
+          </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Métricas auditadas y transacciones en tiempo real de la cooperativa.
+            {selectedCoop
+              ? `Métricas auditadas y transacciones en tiempo real de ${selectedCoop.nombre}.`
+              : "Métricas consolidadas y transacciones en tiempo real de todas las cooperativas."}
           </p>
         </div>
 
