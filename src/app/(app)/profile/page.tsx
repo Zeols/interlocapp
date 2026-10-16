@@ -395,23 +395,25 @@ export default function ProfilePage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp,image/jpg"
                   onChange={handleFileInputChange}
-                  className="hidden"
+                  className="sr-only"
                   id="avatar-file-upload"
                 />
 
-                <div
-                  onClick={() => !processingImage && fileInputRef.current?.click()}
+                <label
+                  htmlFor="avatar-file-upload"
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-white ring-4 shadow-md border-2 shrink-0 flex items-center justify-center relative cursor-pointer transition-all duration-200 ${
+                  className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-white ring-4 shadow-md border-2 shrink-0 flex items-center justify-center relative cursor-pointer transition-all duration-200 select-none touch-manipulation ${
+                    processingImage ? "pointer-events-none opacity-80" : ""
+                  } ${
                     isDragOver
                       ? "ring-primary border-primary scale-105"
                       : "ring-white border-gray-100 group-hover:ring-primary/20"
                   }`}
-                  title="Haz clic o arrastra una imagen para cambiar tu foto"
+                  title="Toca para cambiar tu foto de perfil"
                 >
                   {foto && foto.trim() !== "" && !fotoError ? (
                     <img
@@ -429,7 +431,7 @@ export default function ProfilePage() {
 
                   {/* Overlay interactivo en hover */}
                   {!processingImage && (
-                    <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center text-white select-none">
+                    <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center text-white select-none pointer-events-none">
                       <Icon path={mdiCameraOutline} size={0.9} />
                       <span className="text-[10px] font-bold mt-0.5">Cambiar</span>
                     </div>
@@ -442,34 +444,35 @@ export default function ProfilePage() {
                       <span className="text-[9px] font-bold mt-1">Guardando...</span>
                     </div>
                   )}
-                </div>
+                </label>
 
-                {/* Botón flotante: Cambiar fotografía (Cámara) */}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={processingImage}
-                  className="absolute bottom-0 right-0 w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-md border-2 border-white flex items-center justify-center transition-transform hover:scale-110 active:scale-95 cursor-pointer z-10"
+                {/* Botón flotante: Cambiar fotografía (Cámara) con hitbox táctil ampliado */}
+                <label
+                  htmlFor="avatar-file-upload"
+                  className={`absolute bottom-0 right-0 w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-md border-2 border-white flex items-center justify-center transition-transform hover:scale-110 active:scale-95 cursor-pointer z-10 touch-manipulation ${
+                    processingImage ? "pointer-events-none opacity-70" : ""
+                  }`}
                   title="Cambiar fotografía"
                   aria-label="Cambiar fotografía"
                 >
-                  <Icon path={mdiCameraOutline} size={0.65} />
-                </button>
+                  <Icon path={mdiCameraOutline} size={0.7} />
+                </label>
 
                 {/* Botón flotante: Eliminar foto (abre modal de confirmación) */}
                 {foto && foto.trim() !== "" && (
                   <button
                     type="button"
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
                       setShowDeletePhotoModal(true);
                     }}
                     disabled={processingImage}
-                    className="absolute -top-1 -right-1 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white hover:bg-red-50 text-red-600 shadow-md border border-red-200 flex items-center justify-center transition-transform hover:scale-110 active:scale-95 cursor-pointer z-10"
+                    className="absolute -top-1 -right-1 w-8 h-8 rounded-full bg-white hover:bg-red-50 text-red-600 shadow-md border border-red-200 flex items-center justify-center transition-transform hover:scale-110 active:scale-95 cursor-pointer z-20 touch-manipulation"
                     title="Quitar foto de perfil"
                     aria-label="Quitar foto de perfil"
                   >
-                    <Icon path={mdiDeleteOutline} size={0.6} />
+                    <Icon path={mdiDeleteOutline} size={0.65} />
                   </button>
                 )}
               </div>

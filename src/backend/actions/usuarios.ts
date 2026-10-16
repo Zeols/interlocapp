@@ -131,6 +131,7 @@ export async function getUserProfileAction() {
       where: { idUsuario: session.idUsuario },
       select: {
         idUsuario: true,
+        idCooperativa: true,
         nombre: true,
         apellido: true,
         usuario: true,
@@ -139,6 +140,11 @@ export async function getUserProfileAction() {
         direccion: true,
         foto: true,
         estado: true,
+        cooperativa: {
+          select: {
+            nombre: true,
+          },
+        },
         rol: {
           select: {
             nombre: true,
@@ -156,6 +162,8 @@ export async function getUserProfileAction() {
       success: true,
       data: {
         idUsuario: usuario.idUsuario,
+        idCooperativa: usuario.idCooperativa || null,
+        cooperativaNombre: usuario.cooperativa?.nombre || null,
         nombre: usuario.nombre || '',
         apellido: usuario.apellido || '',
         nombreCompleto: `${usuario.nombre || ''} ${usuario.apellido || ''}`.trim(),

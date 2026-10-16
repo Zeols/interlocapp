@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Icon from "@mdi/react";
-import { mdiArrowLeft, mdiMenu, mdiClose } from "@mdi/js";
+import { mdiArrowLeft, mdiMenu, mdiClose, mdiTicketConfirmationOutline, mdiBus } from "@mdi/js";
 import { UserChip } from "@/frontend/components/ui/UserChip";
 import { Logo } from "@/frontend/components/ui/Logo";
 import { getUserProfileAction } from "@/backend/actions/usuarios";
@@ -17,6 +17,8 @@ export function Navbar() {
     name: string;
     email: string;
     avatarUrl?: string | null;
+    rolNombre?: string;
+    idCooperativa?: number | null;
   }>({
     name: "Pasajero",
     email: "pasajero@correo.com",
@@ -32,6 +34,8 @@ export function Navbar() {
           name: res.data.nombreCompleto || res.data.nombre || res.data.usuario || "Pasajero",
           email: res.data.correo,
           avatarUrl: res.data.foto,
+          rolNombre: res.data.rolNombre,
+          idCooperativa: res.data.idCooperativa,
         });
       }
     });
@@ -111,9 +115,33 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Lado derecho: Perfil de usuario dinámico + Menú Móvil */}
+        {/* Lado derecho: Perfil de usuario dinámico + Acceso rápido + Menú Móvil */}
         <div className="flex items-center gap-2">
-          <UserChip name={user.name} email={user.email} avatarUrl={user.avatarUrl} />
+          {(() => {
+            const isCoopUser = Boolean(
+              user.idCooperativa ||
+              (user.rolNombre && ["SUPER_ADMIN", "ADMIN_COOP", "CHOFER", "AYUDANTE", "TAQUILLERO"].includes(user.rolNombre))
+            );
+            return (
+              <>
+                <Link
+                  href={isCoopUser ? "/dashboard" : "/tickets"}
+                  className="flex items-center justify-center w-8.5 h-8.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-xs transition-colors cursor-pointer"
+                  title={isCoopUser ? "Panel de Cooperativa" : "Mis Boletos"}
+                  aria-label={isCoopUser ? "Panel de Cooperativa" : "Mis Boletos"}
+                >
+                  <Icon path={isCoopUser ? mdiBus : mdiTicketConfirmationOutline} size={0.7} />
+                </Link>
+
+                <UserChip
+                  name={user.name}
+                  email={user.email}
+                  avatarUrl={user.avatarUrl}
+                  isCoopUser={isCoopUser}
+                />
+              </>
+            );
+          })()}
 
           {/* Botón hamburguesa móvil */}
           <button

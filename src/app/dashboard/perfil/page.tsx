@@ -214,32 +214,40 @@ export default function AdminProfilePage() {
       {/* Cabecera del Perfil */}
       <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row items-center gap-6">
-          {/* Avatar con botón de cambio */}
+          {/* Avatar con botón de cambio interactivo */}
           <div className="relative group shrink-0">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center font-bold text-2xl shadow-2xs">
-              {foto ? (
-                <img src={foto} alt={nombre} className="w-full h-full object-cover" />
-              ) : (
-                <span>{initials}</span>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={processingImage}
-              className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center transition-colors shadow-2xs cursor-pointer border-2 border-white"
-              title="Cambiar foto de perfil"
-            >
-              <Icon path={mdiCameraOutline} size={0.65} />
-            </button>
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              id="admin-avatar-upload"
+              accept="image/jpeg,image/png,image/webp,image/jpg"
               onChange={handlePhotoSelect}
-              className="hidden"
+              className="sr-only"
             />
+            <label
+              htmlFor="admin-avatar-upload"
+              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center font-bold text-2xl shadow-2xs cursor-pointer select-none touch-manipulation block ${
+                processingImage ? "pointer-events-none opacity-80" : ""
+              }`}
+              title="Toca para cambiar foto de perfil"
+            >
+              {foto ? (
+                <img src={foto} alt={nombre} className="w-full h-full object-cover" />
+              ) : (
+                <span className="flex items-center justify-center w-full h-full">{initials}</span>
+              )}
+            </label>
+
+            <label
+              htmlFor="admin-avatar-upload"
+              className={`absolute bottom-0 right-0 w-8.5 h-8.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center transition-transform hover:scale-110 active:scale-95 shadow-2xs cursor-pointer border-2 border-white touch-manipulation ${
+                processingImage ? "pointer-events-none opacity-70" : ""
+              }`}
+              title="Cambiar foto de perfil"
+              aria-label="Cambiar foto de perfil"
+            >
+              <Icon path={mdiCameraOutline} size={0.7} />
+            </label>
           </div>
 
           {/* Información principal */}

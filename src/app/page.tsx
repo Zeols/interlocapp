@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import Icon from "@mdi/react";
-import { mdiMenu, mdiClose, mdiTicketConfirmationOutline, mdiAccountOutline } from "@mdi/js";
+import { mdiMenu, mdiClose, mdiTicketConfirmationOutline, mdiAccountOutline, mdiBus } from "@mdi/js";
 import { BrowserCard } from "@/frontend/components/ui/BrowserCard";
 import { RoutesSlider } from "@/frontend/components/ui/RoutesSlider";
 import { Logo } from "@/frontend/components/ui/Logo";
@@ -21,6 +21,7 @@ export default function LandingPage() {
     nombre: string;
     correo: string;
     rolNombre: string;
+    idCooperativa?: number | null;
     avatarUrl?: string | null;
   } | null>(null);
 
@@ -31,6 +32,7 @@ export default function LandingPage() {
           nombre: res.data.nombreCompleto || res.data.nombre || res.data.usuario || "Pasajero",
           correo: res.data.correo,
           rolNombre: res.data.rolNombre,
+          idCooperativa: res.data.idCooperativa,
           avatarUrl: res.data.foto,
         });
       }
@@ -154,17 +156,30 @@ export default function LandingPage() {
           {/* Bloque Derecho: Perfil de Usuario o Botones de Autenticación */}
           <div className="flex items-center gap-2 sm:gap-3">
             {user ? (
-              <div className="flex items-center gap-2">
-                <Link
-                  href={["SUPER_ADMIN", "ADMIN_COOP", "TAQUILLERO"].includes(user.rolNombre) ? "/dashboard" : "/home"}
-                  className="flex items-center justify-center w-8.5 h-8.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-xs transition-colors cursor-pointer"
-                  title="Ir al portal"
-                  aria-label="Ir al portal"
-                >
-                  <Icon path={mdiTicketConfirmationOutline} size={0.7} />
-                </Link>
-                <UserChip name={user.nombre} email={user.correo} avatarUrl={user.avatarUrl} />
-              </div>
+              (() => {
+                const isCoopUser = Boolean(
+                  user.idCooperativa ||
+                  ["SUPER_ADMIN", "ADMIN_COOP", "CHOFER", "AYUDANTE", "TAQUILLERO"].includes(user.rolNombre)
+                );
+                return (
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={isCoopUser ? "/dashboard" : "/home"}
+                      className="flex items-center justify-center w-8.5 h-8.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-xs transition-colors cursor-pointer"
+                      title={isCoopUser ? "Panel de Cooperativa" : "Mis Boletos"}
+                      aria-label={isCoopUser ? "Panel de Cooperativa" : "Mis Boletos"}
+                    >
+                      <Icon path={isCoopUser ? mdiBus : mdiTicketConfirmationOutline} size={0.7} />
+                    </Link>
+                    <UserChip
+                      name={user.nombre}
+                      email={user.correo}
+                      avatarUrl={user.avatarUrl}
+                      isCoopUser={isCoopUser}
+                    />
+                  </div>
+                );
+              })()
             ) : (
               <>
                 <motion.button

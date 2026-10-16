@@ -201,47 +201,55 @@ export async function procesarVentaBoletos(data: VentaInput) {
     });
 
     // Enviar confirmación electrónica del boleto si el usuario tiene correo en sesión
-    if (session.correo) {
-      prisma.viaje.findUnique({
-        where: { idViaje: data.idViaje },
-        include: {
-          ruta: true,
-          despacho: {
-            include: {
-              asignacionUnidad: {
-                include: { unidad: true },
+    if (session.correo && process.env.DISABLE_TICKET_EMAIL !== 'true' && process.env.DISABLE_EMAIL_SENDING !== 'true') {
+      try {
+        const viajeInfo = await prisma.viaje.findUnique({
+          where: { idViaje: data.idViaje },
+          include: {
+            ruta: true,
+            despacho: {
+              include: {
+                asignacionUnidad: {
+                  include: { unidad: true },
+                },
               },
             },
           },
-        },
-      }).then(async (viajeInfo) => {
-        if (!viajeInfo) return;
-        const asientosNumeros = await prisma.asiento.findMany({
-          where: { idAsiento: { in: data.boletos.map((b) => b.idAsiento) } },
-          select: { numero: true },
         });
 
-        const partesRuta = viajeInfo.ruta.nombre.split('-');
-        const origen = partesRuta[0]?.trim() || viajeInfo.ruta.nombre;
-        const destino = partesRuta[1]?.trim() || 'Destino';
-        const fechaStr = new Date(viajeInfo.fecha).toLocaleDateString('es-NI', { dateStyle: 'medium' });
-        const horaStr = new Date(viajeInfo.hrSalidaProgramada).toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' });
+        if (viajeInfo) {
+          const asientosNumeros = await prisma.asiento.findMany({
+            where: { idAsiento: { in: data.boletos.map((b) => b.idAsiento) } },
+            select: { numero: true },
+          });
 
-        await sendTicketEmail({
-          to: session.correo,
-          passengerName: session.nombre || 'Pasajero',
-          ticketCode: `TK-${resultado.idVenta}`,
-          origin: origen,
-          destination: destino,
-          departureDate: fechaStr,
-          departureTime: horaStr,
-          seats: asientosNumeros.map((a) => a.numero),
-          unitPlate: viajeInfo.despacho?.asignacionUnidad?.unidad?.placa,
-          totalAmount: totalVenta,
-        });
-      }).catch((mailError) => {
+          const partesRuta = viajeInfo.ruta.nombre.split('-');
+          const origen = partesRuta[0]?.trim() || viajeInfo.ruta.nombre;
+          const destino = partesRuta[1]?.trim() || 'Destino';
+          const fechaStr = new Date(viajeInfo.fecha).toLocaleDateString('es-NI', { dateStyle: 'medium' });
+          const horaStr = new Date(viajeInfo.hrSalidaProgramada).toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' });
+
+          await Promise.race([
+            sendTicketEmail({
+              to: session.correo,
+              passengerName: session.nombre || 'Pasajero',
+              ticketCode: `TK-${resultado.idVenta}`,
+              origin: origen,
+              destination: destino,
+              departureDate: fechaStr,
+              departureTime: horaStr,
+              seats: asientosNumeros.map((a) => a.numero),
+              unitPlate: viajeInfo.despacho?.asignacionUnidad?.unidad?.placa,
+              totalAmount: totalVenta,
+            }),
+            new Promise<{ success: boolean; error: string }>((resolve) =>
+              setTimeout(() => resolve({ success: false, error: 'Tiempo de espera agotado al enviar boleto' }), 5000)
+            ),
+          ]);
+        }
+      } catch (mailError) {
         console.warn('[Venta] No se pudo enviar el correo de confirmación de boletos:', mailError);
-      });
+      }
     }
 
     revalidatePath('/admin/ventas');
