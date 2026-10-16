@@ -20,12 +20,14 @@ datasource db {
 enum EstadoCatalogo {
   ACTIVO
   INACTIVO
+  PENDIENTE_APROBACION
 }
 
 enum EstadoUsuario {
   ACTIVO
   INACTIVO
   BLOQUEADO
+  PENDIENTE_APROBACION
 }
 
 enum EstadoUnidad {

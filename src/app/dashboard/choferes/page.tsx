@@ -26,6 +26,9 @@ import {
   deleteOperarioAction,
 } from "@/backend/actions/usuarios";
 import { getCooperativas } from "@/backend/actions/cooperativas";
+import { getCurrentUserAction } from "@/backend/actions/auth";
+import { TableSkeleton } from "@/frontend/components/ui/Skeleton";
+import { Pagination } from "@/frontend/components/ui/Pagination";
 
 type EstadoUsuario = "ACTIVO" | "INACTIVO" | "BLOQUEADO";
 
@@ -73,12 +76,15 @@ interface CooperativaItem {
 }
 
 export default function ChoferesDashboardPage() {
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [personal, setPersonal] = useState<OperarioItem[]>([]);
   const [roles, setRoles] = useState<RolItem[]>([]);
   const [cooperativas, setCooperativas] = useState<CooperativaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [rolFilter, setRolFilter] = useState<string>("TODOS");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Modales
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -104,25 +110,49 @@ export default function ChoferesDashboardPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [resPersonal, resRoles, resCoops] = await Promise.all([
+      const [resPersonal, resRoles, resCoops, session] = await Promise.all([
         getPersonalOperativoAction(),
         getRolesOperativosAction(),
         getCooperativas(),
+        getCurrentUserAction(),
       ]);
 
-      if (resPersonal.success && resPersonal.data) {
-        setPersonal(resPersonal.data as any);
+      if (session) {
+        setCurrentUser(session);
+        if (session.idCooperativa) {
+          setFormIdCoop(session.idCooperativa);
+        }
       }
+
+      if (resPersonal.success && resPersonal.data) {
+        const rawPersonal = resPersonal.data as any[];
+        if (session && session.rolNombre !== "SUPER_ADMIN" && session.idCooperativa) {
+          setPersonal(rawPersonal.filter((p) => p.cooperativa?.idCooperativa === session.idCooperativa));
+        } else {
+          setPersonal(rawPersonal);
+        }
+      }
+
       if (resRoles.success && resRoles.data) {
-        setRoles(resRoles.data);
-        if (resRoles.data.length > 0 && formIdRol === 0) {
-          const defaultChofer = resRoles.data.find((r) => r.nombre === "CHOFER") || resRoles.data[0];
+        let availableRoles = resRoles.data;
+        // Si el usuario es ADMIN_COOP, solo puede asignar roles inferiores (CHOFER, AYUDANTE, TAQUILLERO)
+        if (session && session.rolNombre === "ADMIN_COOP") {
+          availableRoles = resRoles.data.filter(
+            (r) => r.nombre !== "SUPER_ADMIN" && r.nombre !== "ADMIN_COOP"
+          );
+        }
+        setRoles(availableRoles);
+        if (availableRoles.length > 0 && formIdRol === 0) {
+          const defaultChofer = availableRoles.find((r) => r.nombre === "CHOFER") || availableRoles[0];
           setFormIdRol(defaultChofer.idRol);
         }
       }
+
       if (resCoops.success && resCoops.data) {
         setCooperativas(resCoops.data as any);
-        if (resCoops.data.length > 0 && formIdCoop === 0) {
+        if (session && session.idCooperativa) {
+          setFormIdCoop(session.idCooperativa);
+        } else if (resCoops.data.length > 0 && formIdCoop === 0) {
           setFormIdCoop(resCoops.data[0].idCooperativa);
         }
       }
@@ -151,6 +181,17 @@ export default function ChoferesDashboardPage() {
       return matchSearch && matchRol;
     });
   }, [personal, searchTerm, rolFilter]);
+
+  // Reset de página al filtrar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, rolFilter]);
+
+  const totalPages = Math.ceil(filteredPersonal.length / pageSize) || 1;
+  const paginatedPersonal = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredPersonal.slice(start, start + pageSize);
+  }, [filteredPersonal, currentPage, pageSize]);
 
   // Contadores
   const stats = useMemo(() => {
@@ -284,26 +325,26 @@ export default function ChoferesDashboardPage() {
   const getRolBadgeStyle = (rolNombre: string) => {
     switch (rolNombre) {
       case "CHOFER":
-        return "bg-blue-50 text-blue-700 border-blue-200";
+        return "bg-slate-100 text-slate-800 border-slate-200";
       case "AYUDANTE":
-        return "bg-amber-50 text-amber-700 border-amber-200";
+        return "bg-slate-100 text-slate-700 border-slate-200";
       case "ADMIN_COOP":
-        return "bg-purple-50 text-purple-700 border-purple-200";
+        return "bg-slate-900 text-white border-slate-900";
       default:
-        return "bg-gray-50 text-gray-700 border-gray-200";
+        return "bg-slate-50 text-slate-600 border-slate-200";
     }
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-200">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2.5">
-            <Icon path={mdiAccountGroup} size={1} className="text-primary" />
-            Directorio de Personal Operativo
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Icon path={mdiAccountGroup} size={0.9} className="text-primary" />
+            Directorio de Personal
           </h1>
-          <p className="text-sm text-gray-500 font-medium mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Gestión de choferes y ayudantes de la cooperativa, teléfonos y asignaciones de viaje.
           </p>
         </div>
@@ -313,9 +354,9 @@ export default function ChoferesDashboardPage() {
             setFormError(null);
             setShowCreateModal(true);
           }}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-2xl font-bold text-sm shadow-sm transition-all hover:shadow-md cursor-pointer active:scale-95"
+          className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
         >
-          <Icon path={mdiPlus} size={0.8} />
+          <Icon path={mdiPlus} size={0.7} />
           Registrar Personal
         </button>
       </div>
@@ -323,7 +364,7 @@ export default function ChoferesDashboardPage() {
       {/* Banner de feedback */}
       {feedbackMsg && (
         <div
-          className={`p-4 rounded-2xl border text-sm font-semibold flex items-center justify-between animate-in fade-in duration-200 ${
+          className={`p-3.5 rounded-lg border text-xs sm:text-sm font-medium flex items-center justify-between animate-in fade-in duration-150 ${
             feedbackMsg.type === "success"
               ? "bg-emerald-50 border-emerald-200 text-emerald-800"
               : "bg-red-50 border-red-200 text-red-800"
@@ -332,122 +373,136 @@ export default function ChoferesDashboardPage() {
           <div className="flex items-center gap-2">
             <Icon
               path={feedbackMsg.type === "success" ? mdiCheckCircle : mdiAlertCircle}
-              size={0.8}
+              size={0.7}
               className={feedbackMsg.type === "success" ? "text-emerald-600" : "text-red-600"}
             />
             <span>{feedbackMsg.text}</span>
           </div>
           <button
             onClick={() => setFeedbackMsg(null)}
-            className="text-gray-400 hover:text-gray-600 p-1"
+            className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
           >
-            <Icon path={mdiClose} size={0.7} />
+            <Icon path={mdiClose} size={0.6} />
           </button>
         </div>
       )}
 
-      {/* Métricas */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center justify-between">
+      {/* Métricas con diseño neutral y acentos del sistema */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Colaboradores</p>
-            <p className="text-2xl sm:text-3xl font-black text-gray-900 mt-1">{stats.total}</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Colaboradores</p>
+            <p className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5 tabular-nums">{stats.total}</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-gray-100 text-gray-600 flex items-center justify-center">
-            <Icon path={mdiAccountGroup} size={0.9} />
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <Icon path={mdiAccountGroup} size={0.8} />
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">Choferes Registrados</p>
-            <p className="text-2xl sm:text-3xl font-black text-blue-600 mt-1">{stats.choferes}</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Choferes</p>
+            <p className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5 tabular-nums">{stats.choferes}</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <Icon path={mdiSteering} size={0.9} />
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <Icon path={mdiSteering} size={0.8} />
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-amber-600 uppercase tracking-wider">Ayudantes de Ruta</p>
-            <p className="text-2xl sm:text-3xl font-black text-amber-600 mt-1">{stats.ayudantes}</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Ayudantes</p>
+            <p className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5 tabular-nums">{stats.ayudantes}</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
-            <Icon path={mdiAccount} size={0.9} />
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <Icon path={mdiAccount} size={0.8} />
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">En Turno Activo</p>
-            <p className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">{stats.enRuta}</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">En Turno Activo</p>
+            <p className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5 tabular-nums">{stats.enRuta}</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <Icon path={mdiBus} size={0.9} />
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <Icon path={mdiBus} size={0.8} />
           </div>
         </div>
       </div>
 
-      {/* Buscador y filtro por Rol */}
-      <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Buscador y filtro de Rol en Combo Box */}
+      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
           <Icon
             path={mdiMagnify}
-            size={0.8}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+            size={0.7}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
           />
           <input
             type="text"
-            placeholder="Buscar por nombre, usuario o teléfono..."
+            placeholder="Buscar colaborador por nombre, usuario o teléfono..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            className="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-200 bg-slate-50/50 text-xs sm:text-sm font-normal text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20 transition-colors"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
             >
-              <Icon path={mdiClose} size={0.6} />
+              <Icon path={mdiClose} size={0.5} />
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-          {["TODOS", "CHOFER", "AYUDANTE", "TAQUILLERO", "ADMIN_COOP"].map((r) => {
-            const active = rolFilter === r;
-            return (
-              <button
-                key={r}
-                onClick={() => setRolFilter(r)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                  active
-                    ? "bg-gray-900 text-white shadow-xs"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {r === "TODOS" ? "Todos" : r.replace("_", " ")}
-              </button>
-            );
-          })}
+        <div className="flex items-center gap-2.5">
+          <label className="text-xs font-medium text-slate-500 shrink-0 hidden sm:inline-block">
+            Filtrar por rol:
+          </label>
+          <div className="relative min-w-[170px]">
+            <select
+              value={rolFilter}
+              onChange={(e) => setRolFilter(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50/50 text-xs font-medium text-slate-700 appearance-none pr-8 focus:bg-white focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20 cursor-pointer transition-colors"
+            >
+              <option value="TODOS">Todos los roles</option>
+              <option value="CHOFER">Chofer</option>
+              <option value="AYUDANTE">Ayudante</option>
+              <option value="TAQUILLERO">Taquillero</option>
+              <option value="ADMIN_COOP">Admin Cooperativa</option>
+            </select>
+            <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">
+              ▼
+            </div>
+          </div>
+
+          {(searchTerm || rolFilter !== "TODOS") && (
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setRolFilter("TODOS");
+              }}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              Limpiar
+            </button>
+          )}
         </div>
       </div>
 
       {/* Tabla de Personal Operativo */}
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200/80 shadow-2xs overflow-hidden">
         {loading ? (
-          <div className="p-16 flex flex-col items-center justify-center text-gray-400">
-            <div className="w-10 h-10 border-3 border-primary/20 border-t-primary rounded-full animate-spin mb-3"></div>
-            <p className="text-sm font-semibold text-gray-600">Cargando directorio de colaboradores...</p>
+          <div className="p-4">
+            <TableSkeleton rows={5} cols={5} />
           </div>
         ) : filteredPersonal.length === 0 ? (
-          <div className="p-16 text-center">
-            <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3 text-gray-300">
-              <Icon path={mdiAccountGroup} size={1.4} />
+          <div className="p-12 text-center">
+            <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center mx-auto mb-2.5 text-slate-400">
+              <Icon path={mdiAccountGroup} size={1} />
             </div>
-            <h3 className="text-base font-bold text-gray-800">No se encontraron colaboradores</h3>
-            <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+            <h3 className="text-sm font-semibold text-slate-800">No se encontraron colaboradores</h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
               {searchTerm || rolFilter !== "TODOS"
                 ? "Prueba a cambiar tus filtros de búsqueda."
                 : "Registra a los choferes y cobradores de la cooperativa para gestionar la flota."}
@@ -455,46 +510,46 @@ export default function ChoferesDashboardPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse text-xs sm:text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/75 text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                  <th className="py-4 px-6">Personal</th>
-                  <th className="py-4 px-6">Rol Operativo</th>
-                  <th className="py-4 px-6">Contacto y Teléfono</th>
-                  <th className="py-4 px-6">Estado de Asignación</th>
-                  <th className="py-4 px-6">Estado Cuenta</th>
-                  <th className="py-4 px-6 text-right">Acciones</th>
+                <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  <th className="py-3 px-4">Personal</th>
+                  <th className="py-3 px-4">Rol Operativo</th>
+                  <th className="py-3 px-4">Contacto y Teléfono</th>
+                  <th className="py-3 px-4">Asignación</th>
+                  <th className="py-3 px-4">Estado Cuenta</th>
+                  <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-sm">
-                {filteredPersonal.map((operario) => {
+              <tbody className="divide-y divide-slate-100">
+                {paginatedPersonal.map((operario) => {
                   const asignacionActiva = operario.asignacionesAsignadas?.[0];
                   const isUpdating = updatingId === operario.idUsuario;
 
                   return (
                     <tr
                       key={operario.idUsuario}
-                      className="hover:bg-gray-50/60 transition-colors group"
+                      className="hover:bg-slate-50/60 transition-colors"
                     >
                       {/* Avatar y Nombre */}
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black text-sm shrink-0 border border-primary/20">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20">
                             {operario.foto ? (
                               <img
                                 src={operario.foto}
                                 alt={operario.nombre}
-                                className="w-full h-full object-cover rounded-2xl"
+                                className="w-full h-full object-cover rounded-lg"
                               />
                             ) : (
                               `${operario.nombre.charAt(0)}${operario.apellido.charAt(0)}`
                             )}
                           </div>
                           <div>
-                            <p className="font-extrabold text-gray-900 leading-tight">
+                            <p className="font-semibold text-slate-900 leading-tight">
                               {operario.nombre} {operario.apellido}
                             </p>
-                            <p className="text-[11px] font-mono font-medium text-gray-400 mt-0.5">
+                            <p className="text-[11px] font-mono text-slate-400 mt-0.5">
                               @{operario.usuario}
                             </p>
                           </div>
@@ -502,9 +557,9 @@ export default function ChoferesDashboardPage() {
                       </td>
 
                       {/* Rol con Badge */}
-                      <td className="py-4 px-6">
+                      <td className="py-3 px-4">
                         <span
-                          className={`inline-block px-2.5 py-1 rounded-xl text-xs font-extrabold border ${getRolBadgeStyle(
+                          className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${getRolBadgeStyle(
                             operario.rol.nombre
                           )}`}
                         >
@@ -513,39 +568,39 @@ export default function ChoferesDashboardPage() {
                       </td>
 
                       {/* Contacto */}
-                      <td className="py-4 px-6">
+                      <td className="py-3 px-4">
                         {operario.telefono ? (
                           <a
                             href={`tel:${operario.telefono}`}
-                            className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-700 hover:text-primary transition-colors"
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 transition-colors"
                           >
-                            <Icon path={mdiPhone} size={0.6} className="text-gray-400" />
+                            <Icon path={mdiPhone} size={0.5} className="text-slate-400" />
                             {operario.telefono}
                           </a>
                         ) : (
-                          <span className="text-xs text-gray-400 italic">Sin teléfono</span>
+                          <span className="text-xs text-slate-400 italic">Sin teléfono</span>
                         )}
-                        <p className="text-[11px] text-gray-400 font-medium truncate max-w-xs mt-0.5">
+                        <p className="text-[11px] text-slate-400 truncate max-w-xs mt-0.5">
                           {operario.correo}
                         </p>
                       </td>
 
                       {/* Asignación en ruta */}
-                      <td className="py-4 px-6">
+                      <td className="py-3 px-4">
                         {asignacionActiva?.unidad ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 text-xs font-extrabold">
-                            <Icon path={mdiBus} size={0.6} className="text-blue-600" />
-                            En Unidad #{asignacionActiva.unidad.numeroUnidad}
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 text-xs font-medium">
+                            <Icon path={mdiBus} size={0.5} className="text-slate-500" />
+                            Unidad #{asignacionActiva.unidad.numeroUnidad}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-gray-100 text-gray-600 text-xs font-bold">
-                            Disponible para Turno
+                          <span className="text-xs text-slate-400 font-normal">
+                            Sin turno asignado
                           </span>
                         )}
                       </td>
 
                       {/* Selector de Estado */}
-                      <td className="py-4 px-6">
+                      <td className="py-3 px-4">
                         <div className="relative inline-block">
                           <select
                             disabled={isUpdating}
@@ -556,35 +611,35 @@ export default function ChoferesDashboardPage() {
                                 e.target.value as EstadoUsuario
                               )
                             }
-                            className={`text-xs font-extrabold px-3 py-1.5 rounded-xl border appearance-none pr-8 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                            className={`text-xs font-medium px-2.5 py-1 rounded-md border appearance-none pr-6 cursor-pointer focus:outline-none focus:ring-1 focus:ring-slate-400/20 ${
                               operario.estado === "ACTIVO"
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                                 : operario.estado === "BLOQUEADO"
-                                ? "bg-red-50 text-red-700 border-red-200"
-                                : "bg-gray-100 text-gray-600 border-gray-200"
+                                ? "bg-red-50 text-red-800 border-red-200"
+                                : "bg-slate-100 text-slate-700 border-slate-200"
                             }`}
                           >
-                            <option value="ACTIVO">ACTIVO</option>
-                            <option value="INACTIVO">INACTIVO</option>
-                            <option value="BLOQUEADO">BLOQUEADO</option>
+                            <option value="ACTIVO">Activo</option>
+                            <option value="INACTIVO">Inactivo</option>
+                            <option value="BLOQUEADO">Bloqueado</option>
                           </select>
-                          <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-current opacity-70">
+                          <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-[9px]">
                             ▼
                           </div>
                         </div>
                       </td>
 
                       {/* Acciones */}
-                      <td className="py-4 px-6 text-right">
+                      <td className="py-3 px-4 text-right">
                         <button
                           title="Dar de baja / Retirar"
                           onClick={() => {
                             setSelectedOperario(operario);
                             setShowDeleteModal(true);
                           }}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
                         >
-                          <Icon path={mdiTrashCanOutline} size={0.8} />
+                          <Icon path={mdiTrashCanOutline} size={0.7} />
                         </button>
                       </td>
                     </tr>
@@ -594,59 +649,74 @@ export default function ChoferesDashboardPage() {
             </table>
           </div>
         )}
+
+        {/* Paginación */}
+        {!loading && filteredPersonal.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredPersonal.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+          />
+        )}
       </div>
 
       {/* ============================================================ */}
       {/* MODAL 1: REGISTRAR NUEVO PERSONAL OPERATIVO                  */}
       {/* ============================================================ */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-xl overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
-                  <Icon path={mdiAccountGroup} size={0.8} className="text-primary" />
+                <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  <Icon path={mdiAccountGroup} size={0.75} className="text-slate-700" />
                   Registrar Personal Operativo
                 </h3>
-                <p className="text-xs text-gray-500 font-medium mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Alta de choferes, cobradores y taquilleros para la operación diaria.
                 </p>
               </div>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                <Icon path={mdiClose} size={0.8} />
+                <Icon path={mdiClose} size={0.7} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateOperario} className="p-6 space-y-5 overflow-y-auto flex-1">
+            <form onSubmit={handleCreateOperario} className="p-5 space-y-4 overflow-y-auto flex-1">
               {formError && (
-                <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-xs font-bold text-red-700 flex items-center gap-2">
-                  <Icon path={mdiAlertCircle} size={0.8} />
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs font-medium text-red-700 flex items-center gap-2">
+                  <Icon path={mdiAlertCircle} size={0.7} />
                   <span>{formError}</span>
                 </div>
               )}
 
               {/* Rol Operativo */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                   Rol del Colaborador
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {roles.map((rol) => {
                     const isSelected = formIdRol === rol.idRol;
                     return (
                       <div
                         key={rol.idRol}
                         onClick={() => setFormIdRol(rol.idRol)}
-                        className={`p-3 rounded-2xl border-2 transition-all cursor-pointer text-center ${
+                        className={`p-2.5 rounded-lg border transition-all cursor-pointer text-center text-xs font-medium ${
                           isSelected
-                            ? "border-primary bg-primary/5 text-primary font-black shadow-2xs"
-                            : "border-gray-200 hover:border-gray-300 font-bold text-gray-700 bg-white"
+                            ? "border-slate-900 bg-slate-900 text-white shadow-2xs"
+                            : "border-slate-200 hover:border-slate-300 text-slate-700 bg-white"
                         }`}
                       >
-                        <p className="text-xs">{rol.nombre}</p>
+                        <p>{rol.nombre}</p>
                       </div>
                     );
                   })}
@@ -654,9 +724,9 @@ export default function ChoferesDashboardPage() {
               </div>
 
               {/* Nombres y Apellidos */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                     Nombres
                   </label>
                   <input
@@ -665,12 +735,12 @@ export default function ChoferesDashboardPage() {
                     placeholder="Ej: Marvin José"
                     value={formNombre}
                     onChange={(e) => handleNombreChange(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                     Apellidos
                   </label>
                   <input
@@ -679,54 +749,61 @@ export default function ChoferesDashboardPage() {
                     placeholder="Ej: Castillo Ruiz"
                     value={formApellido}
                     onChange={(e) => handleApellidoChange(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                   />
                 </div>
               </div>
 
               {/* Teléfono y Cooperativa */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                    Teléfono Celular
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Teléfono Celular (8 dígitos)
                   </label>
                   <input
                     type="tel"
-                    placeholder="Ej: +505 8888-9999"
+                    maxLength={8}
+                    placeholder="Ej: 88889999"
                     value={formTelefono}
-                    onChange={(e) => setFormTelefono(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    onChange={(e) => setFormTelefono(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                     Cooperativa
                   </label>
-                  <select
-                    value={formIdCoop}
-                    onChange={(e) => setFormIdCoop(Number(e.target.value))}
-                    className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  >
-                    {cooperativas.map((c) => (
-                      <option key={c.idCooperativa} value={c.idCooperativa}>
-                        {c.nombre}
-                      </option>
-                    ))}
-                  </select>
+                  {currentUser?.rolNombre === "ADMIN_COOP" && currentUser?.idCooperativa ? (
+                    <div className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-100 text-xs sm:text-sm font-semibold text-slate-700">
+                      {cooperativas.find((c) => c.idCooperativa === currentUser.idCooperativa)?.nombre || "Tu Cooperativa"}
+                    </div>
+                  ) : (
+                    <select
+                      value={formIdCoop}
+                      onChange={(e) => setFormIdCoop(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
+                    >
+                      {cooperativas.map((c) => (
+                        <option key={c.idCooperativa} value={c.idCooperativa}>
+                          {c.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 
               {/* Credenciales de Acceso */}
-              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 space-y-3">
-                <span className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <Icon path={mdiKeyOutline} size={0.7} className="text-primary" />
+              <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+                <span className="text-xs font-semibold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Icon path={mdiKeyOutline} size={0.65} className="text-slate-600" />
                   Credenciales de Acceso al Sistema
                 </span>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">
                       Nombre de Usuario
                     </label>
                     <input
@@ -734,12 +811,12 @@ export default function ChoferesDashboardPage() {
                       required
                       value={formUsuario}
                       onChange={(e) => setFormUsuario(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-white border border-gray-200 text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      className="w-full px-3 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-mono font-medium text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">
                       Correo Electrónico
                     </label>
                     <input
@@ -747,13 +824,13 @@ export default function ChoferesDashboardPage() {
                       required
                       value={formCorreo}
                       onChange={(e) => setFormCorreo(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-white border border-gray-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      className="w-full px-3 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">
                     Contraseña Temporal Asignada
                   </label>
                   <input
@@ -761,30 +838,30 @@ export default function ChoferesDashboardPage() {
                     required
                     value={formPasswd}
                     onChange={(e) => setFormPasswd(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-white border border-gray-200 text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="w-full px-3 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-mono font-medium text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                   />
-                  <p className="text-[10px] text-gray-400 font-medium mt-1">
-                    El operario podrá cambiar su contraseña desde su perfil en cualquier momento.
+                  <p className="text-[10px] text-slate-400 font-normal mt-1">
+                    El colaborador podrá cambiar su contraseña desde su perfil en cualquier momento.
                   </p>
                 </div>
               </div>
 
               {/* Botones */}
-              <div className="pt-2 flex items-center justify-end gap-3">
+              <div className="pt-2 flex items-center justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-5 py-2.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-100 transition-colors cursor-pointer"
+                  className="px-3.5 py-2 rounded-lg border border-slate-200 text-slate-700 font-medium text-xs sm:text-sm hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={formSubmitting}
-                  className="px-6 py-2.5 rounded-2xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-sm transition-all hover:shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                  className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2"
                 >
                   {formSubmitting && (
-                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                   )}
                   {formSubmitting ? "Registrando..." : "Guardar Personal"}
                 </button>
@@ -798,36 +875,36 @@ export default function ChoferesDashboardPage() {
       {/* MODAL 2: CONFIRMAR ELIMINACIÓN DE OPERARIO                   */}
       {/* ============================================================ */}
       {showDeleteModal && selectedOperario && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden border border-gray-100 p-6 space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mx-auto">
-              <Icon path={mdiAlertCircle} size={1.2} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200 p-5 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-10 h-10 rounded-lg bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <Icon path={mdiAlertCircle} size={1} />
             </div>
 
             <div className="text-center">
-              <h3 className="text-lg font-black text-gray-900">¿Retirar este colaborador?</h3>
-              <p className="text-xs text-gray-500 font-medium mt-1">
+              <h3 className="text-base font-bold text-slate-900">¿Retirar este colaborador?</h3>
+              <p className="text-xs text-slate-500 mt-1">
                 Estás a punto de eliminar a {selectedOperario.nombre} {selectedOperario.apellido} (
                 {selectedOperario.rol.nombre}). Si tiene registros históricos de viaje, te
                 recomendamos cambiar su estado a INACTIVO.
               </p>
             </div>
 
-            <div className="flex items-center gap-3 pt-2">
+            <div className="flex items-center gap-2.5 pt-1">
               <button
                 type="button"
                 onClick={() => {
                   setShowDeleteModal(false);
                   setSelectedOperario(null);
                 }}
-                className="flex-1 py-2.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-100 transition-colors cursor-pointer"
+                className="flex-1 py-2 rounded-lg border border-slate-200 text-slate-700 font-medium text-xs sm:text-sm hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                className="flex-1 py-2.5 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-sm transition-colors cursor-pointer"
+                className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
               >
                 Sí, Retirar
               </button>

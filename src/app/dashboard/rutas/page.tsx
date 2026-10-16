@@ -31,6 +31,8 @@ import {
   createTipoRutaAction,
 } from "@/backend/actions/rutas";
 import { getCooperativas } from "@/backend/actions/cooperativas";
+import { TableSkeleton } from "@/frontend/components/ui/Skeleton";
+import { Pagination } from "@/frontend/components/ui/Pagination";
 
 interface TipoRutaItem {
   idTipoRuta: number;
@@ -87,6 +89,8 @@ export default function RutasDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("TODOS");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Modales
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -169,6 +173,17 @@ export default function RutasDashboardPage() {
       return matchSearch && matchStatus;
     });
   }, [rutas, searchTerm, statusFilter]);
+
+  // Reset de página al cambiar filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  const totalPages = Math.ceil(filteredRutas.length / pageSize) || 1;
+  const paginatedRutas = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredRutas.slice(start, start + pageSize);
+  }, [filteredRutas, currentPage, pageSize]);
 
   // Contadores
   const stats = useMemo(() => {
@@ -401,29 +416,29 @@ export default function RutasDashboardPage() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-200">
       {/* Cabecera y Botones de Acción */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2.5">
-            <Icon path={mdiMapMarkerPath} size={1} className="text-primary" />
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Icon path={mdiMapMarkerPath} size={0.9} className="text-primary" />
             Constructor de Rutas y Tarifas
           </h1>
-          <p className="text-sm text-gray-500 font-medium mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Definición secuencial de paradas intermedias, catálogo de modalidades y tarifas por tramo en Córdobas (C$).
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Botón para registrar Tipo de Ruta en el catálogo */}
           <button
             onClick={() => {
               setTipoModalError(null);
               setShowCreateTipoModal(true);
             }}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-2xl font-bold text-sm shadow-2xs transition-all cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-medium text-xs sm:text-sm shadow-2xs transition-colors cursor-pointer"
           >
-            <Icon path={mdiTagOutline} size={0.8} className="text-primary" />
+            <Icon path={mdiTagOutline} size={0.7} className="text-slate-500" />
             + Tipo de Ruta
           </button>
 
@@ -433,9 +448,9 @@ export default function RutasDashboardPage() {
               setFormError(null);
               setShowCreateModal(true);
             }}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-2xl font-bold text-sm shadow-sm transition-all hover:shadow-md cursor-pointer active:scale-95"
+            className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
           >
-            <Icon path={mdiPlus} size={0.8} />
+            <Icon path={mdiPlus} size={0.7} />
             Crear Nueva Ruta
           </button>
         </div>
@@ -444,7 +459,7 @@ export default function RutasDashboardPage() {
       {/* Banner de feedback */}
       {feedbackMsg && (
         <div
-          className={`p-4 rounded-2xl border text-sm font-semibold flex items-center justify-between animate-in fade-in duration-200 ${
+          className={`p-3.5 rounded-lg border text-xs sm:text-sm font-medium flex items-center justify-between animate-in fade-in duration-150 ${
             feedbackMsg.type === "success"
               ? "bg-emerald-50 border-emerald-200 text-emerald-800"
               : "bg-red-50 border-red-200 text-red-800"
@@ -453,99 +468,99 @@ export default function RutasDashboardPage() {
           <div className="flex items-center gap-2">
             <Icon
               path={feedbackMsg.type === "success" ? mdiCheckCircle : mdiAlertCircle}
-              size={0.8}
+              size={0.7}
               className={feedbackMsg.type === "success" ? "text-emerald-600" : "text-red-600"}
             />
             <span>{feedbackMsg.text}</span>
           </div>
           <button
             onClick={() => setFeedbackMsg(null)}
-            className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+            className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
           >
-            <Icon path={mdiClose} size={0.7} />
+            <Icon path={mdiClose} size={0.6} />
           </button>
         </div>
       )}
 
-      {/* Métricas Reales */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center justify-between">
+      {/* Métricas con diseño neutral y acentos del sistema */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Rutas Totales</p>
-            <p className="text-2xl sm:text-3xl font-black text-gray-900 mt-1">{stats.total}</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Rutas Totales</p>
+            <p className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5 tabular-nums">{stats.total}</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-gray-100 text-gray-600 flex items-center justify-center">
-            <Icon path={mdiMapMarkerPath} size={0.9} />
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <Icon path={mdiMapMarkerPath} size={0.8} />
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Rutas Activas</p>
-            <p className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">{stats.activas}</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Rutas Activas</p>
+            <p className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5 tabular-nums">{stats.activas}</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <Icon path={mdiCheckCircle} size={0.9} />
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <Icon path={mdiCheckCircle} size={0.8} />
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">Paradas Registradas</p>
-            <p className="text-2xl sm:text-3xl font-black text-blue-600 mt-1">{stats.puntosCount}</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Paradas</p>
+            <p className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5 tabular-nums">{stats.puntosCount}</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <Icon path={mdiMapMarker} size={0.9} />
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <Icon path={mdiMapMarker} size={0.8} />
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-amber-600 uppercase tracking-wider">Modalidades / Tipos</p>
-            <p className="text-2xl sm:text-3xl font-black text-amber-600 mt-1">{stats.tiposCount}</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Modalidades</p>
+            <p className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5 tabular-nums">{stats.tiposCount}</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
-            <Icon path={mdiTagOutline} size={0.9} />
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <Icon path={mdiTagOutline} size={0.8} />
           </div>
         </div>
       </div>
 
       {/* Buscador y Filtros */}
-      <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
           <Icon
             path={mdiMagnify}
-            size={0.8}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+            size={0.7}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
           />
           <input
             type="text"
             placeholder="Buscar por nombre de ruta, parada o modalidad..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-sm font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            className="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-200 bg-slate-50/50 text-xs sm:text-sm font-normal text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20 transition-colors"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
             >
-              <Icon path={mdiClose} size={0.6} />
+              <Icon path={mdiClose} size={0.5} />
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200/60">
           {(["TODOS", "ACTIVO", "INACTIVO"] as const).map((tab) => {
             const active = statusFilter === tab;
             return (
               <button
                 key={tab}
                 onClick={() => setStatusFilter(tab)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
                   active
-                    ? "bg-gray-900 text-white shadow-xs"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    ? "bg-white text-slate-900 shadow-2xs font-semibold"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 {tab === "TODOS" ? "Todas" : tab === "ACTIVO" ? "Activas" : "Inactivas"}
@@ -556,26 +571,29 @@ export default function RutasDashboardPage() {
       </div>
 
       {/* Lista de Rutas */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {loading ? (
-          <div className="bg-white rounded-3xl border border-gray-100 p-16 flex flex-col items-center justify-center text-gray-400">
-            <div className="w-10 h-10 border-3 border-primary/20 border-t-primary rounded-full animate-spin mb-3"></div>
-            <p className="text-sm font-semibold text-gray-600">Cargando catálogo dinámico de rutas...</p>
+          <div className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-2xs">
+            <div className="mb-3 px-1">
+              <div className="h-4 w-40 bg-slate-200/80 rounded animate-pulse mb-1"></div>
+              <div className="h-3 w-64 bg-slate-200/60 rounded animate-pulse"></div>
+            </div>
+            <TableSkeleton rows={5} cols={4} />
           </div>
         ) : filteredRutas.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-gray-100 p-16 text-center">
-            <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3 text-gray-300">
-              <Icon path={mdiMapMarkerPath} size={1.4} />
+          <div className="bg-white rounded-xl border border-slate-200/80 p-12 text-center">
+            <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center mx-auto mb-2.5 text-slate-400">
+              <Icon path={mdiMapMarkerPath} size={1} />
             </div>
-            <h3 className="text-base font-bold text-gray-800">No se encontraron rutas</h3>
-            <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+            <h3 className="text-sm font-semibold text-slate-800">No se encontraron rutas</h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
               {searchTerm || statusFilter !== "TODOS"
                 ? "Intenta con otros términos de búsqueda."
                 : "Crea tu primera ruta definiendo paradas intermedias, modalidad y tarifas por tramo."}
             </p>
           </div>
         ) : (
-          filteredRutas.map((ruta) => {
+          paginatedRutas.map((ruta) => {
             const paradasOrdenadas = (ruta.puntosRuta || []).map((pr) => pr.punto?.nombre || "");
             const tarifasCount = ruta.tarifas?.length || 0;
             const tarifaMinima = ruta.tarifas?.[0]?.monto ? Number(ruta.tarifas[0].monto) : 0;
@@ -587,42 +605,42 @@ export default function RutasDashboardPage() {
             return (
               <div
                 key={ruta.idRuta}
-                className="bg-white rounded-3xl border border-gray-100 shadow-xs p-5 sm:p-6 hover:border-gray-200 transition-all group"
+                className="bg-white rounded-xl border border-slate-200/80 shadow-2xs p-4 sm:p-5 hover:border-slate-300 transition-colors"
               >
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-gray-100">
-                  <div className="flex items-start gap-3.5">
-                    <div className="w-11 h-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                      <Icon path={mdiMapMarkerPath} size={0.9} />
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3.5 border-b border-slate-100">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0 mt-0.5 border border-slate-200">
+                      <Icon path={mdiMapMarkerPath} size={0.75} />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2.5 flex-wrap">
-                        <h2 className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
                           {ruta.nombre}
                         </h2>
 
                         {/* Modalidad dinámica (Tipo de Ruta) */}
                         {ruta.tipoRuta && (
-                          <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                          <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
                             {ruta.tipoRuta.nombre}
                           </span>
                         )}
 
                         <span
-                          className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
                             ruta.estado === "ACTIVO"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "bg-gray-100 text-gray-600 border-gray-200"
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              : "bg-slate-100 text-slate-600 border-slate-200"
                           }`}
                         >
-                          {ruta.estado}
+                          {ruta.estado === "ACTIVO" ? "Activa" : "Inactiva"}
                         </span>
 
-                        <span className="text-xs font-semibold text-gray-400">
+                        <span className="text-xs text-slate-400 font-normal">
                           {ruta.cooperativa?.nombre || "Cooperativa"}
                         </span>
                       </div>
                       {ruta.descripcion && (
-                        <p className="text-xs text-gray-500 font-medium mt-1">{ruta.descripcion}</p>
+                        <p className="text-xs text-slate-500 font-normal mt-0.5">{ruta.descripcion}</p>
                       )}
                     </div>
                   </div>
@@ -634,18 +652,18 @@ export default function RutasDashboardPage() {
                         setSelectedRuta(ruta);
                         setShowMatrixModal(true);
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
                     >
-                      <Icon path={mdiTableLarge} size={0.7} className="text-primary" />
-                      Ver Matriz ({tarifasCount} Tarifas)
+                      <Icon path={mdiTableLarge} size={0.65} className="text-slate-500" />
+                      Matriz ({tarifasCount} Tarifas)
                     </button>
 
                     <button
                       onClick={() => handleToggleEstado(ruta.idRuta, ruta.estado)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
                         ruta.estado === "ACTIVO"
-                          ? "border-amber-200 text-amber-700 hover:bg-amber-50"
-                          : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                          ? "border-amber-200 text-amber-800 hover:bg-amber-50"
+                          : "border-emerald-200 text-emerald-800 hover:bg-emerald-50"
                       }`}
                     >
                       {ruta.estado === "ACTIVO" ? "Pausar" : "Activar"}
@@ -656,51 +674,43 @@ export default function RutasDashboardPage() {
                         setSelectedRuta(ruta);
                         setShowDeleteModal(true);
                       }}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                     >
-                      <Icon path={mdiTrashCanOutline} size={0.8} />
+                      <Icon path={mdiTrashCanOutline} size={0.7} />
                     </button>
                   </div>
                 </div>
 
                 {/* Secuencia visual de paradas */}
-                <div className="pt-4 space-y-3">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                    Secuencia de Paradas Intermedias ({paradasOrdenadas.length} Estaciones)
+                <div className="pt-3 space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    Paradas del trayecto ({paradasOrdenadas.length} Estaciones)
                   </p>
 
-                  <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
                     {paradasOrdenadas.map((punto, idx) => (
                       <React.Fragment key={idx}>
-                        <div className="flex items-center gap-2 shrink-0 px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-bold text-gray-800">
-                          <span
-                            className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
-                              idx === 0
-                                ? "bg-emerald-600 text-white"
-                                : idx === paradasOrdenadas.length - 1
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-200 text-gray-700"
-                            }`}
-                          >
+                        <div className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800">
+                          <span className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold bg-slate-200 text-slate-700">
                             {idx + 1}
                           </span>
                           <span>{punto}</span>
                         </div>
                         {idx < paradasOrdenadas.length - 1 && (
-                          <Icon path={mdiArrowRight} size={0.6} className="text-gray-300 shrink-0" />
+                          <Icon path={mdiArrowRight} size={0.5} className="text-slate-300 shrink-0" />
                         )}
                       </React.Fragment>
                     ))}
                   </div>
 
                   {/* Resumen de Tarifas */}
-                  <div className="flex items-center gap-4 text-xs font-semibold text-gray-500 pt-1">
+                  <div className="flex items-center gap-3 text-xs text-slate-500 pt-1">
                     <span>
-                      Tarifa Mínima: <strong className="text-gray-900 font-black">C$ {tarifaMinima.toFixed(2)}</strong>
+                      Tarifa Mínima: <strong className="text-slate-900 font-semibold">C$ {tarifaMinima.toFixed(2)}</strong>
                     </span>
                     <span>•</span>
                     <span>
-                      Tramo Completo: <strong className="text-gray-900 font-black">C$ {tarifaMaxima.toFixed(2)}</strong>
+                      Tramo Completo: <strong className="text-slate-900 font-semibold">C$ {tarifaMaxima.toFixed(2)}</strong>
                     </span>
                   </div>
                 </div>
@@ -708,42 +718,59 @@ export default function RutasDashboardPage() {
             );
           })
         )}
+
+        {/* Paginación */}
+        {!loading && filteredRutas.length > 0 && (
+          <div className="bg-white rounded-xl border border-slate-200/80 shadow-2xs overflow-hidden">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredRutas.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* ============================================================ */}
       {/* MODAL 1: FORMULARIO REGISTRAR TIPO DE RUTA                   */}
       {/* ============================================================ */}
       {showCreateTipoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
-                  <Icon path={mdiTagOutline} size={0.8} className="text-primary" />
+                <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  <Icon path={mdiTagOutline} size={0.75} className="text-slate-700" />
                   Registrar Tipo de Ruta
                 </h3>
-                <p className="text-xs text-gray-500 font-medium mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Agrega una nueva modalidad de servicio al catálogo de rutas.
                 </p>
               </div>
               <button
                 onClick={() => setShowCreateTipoModal(false)}
-                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                <Icon path={mdiClose} size={0.8} />
+                <Icon path={mdiClose} size={0.7} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateTipoRuta} className="p-6 space-y-4">
+            <form onSubmit={handleCreateTipoRuta} className="p-5 space-y-3.5">
               {tipoModalError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-2xl text-xs font-bold text-red-700 flex items-center gap-2">
-                  <Icon path={mdiAlertCircle} size={0.8} />
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs font-medium text-red-700 flex items-center gap-2">
+                  <Icon path={mdiAlertCircle} size={0.7} />
                   <span>{tipoModalError}</span>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                   Nombre de la Modalidad
                 </label>
                 <input
@@ -752,12 +779,12 @@ export default function RutasDashboardPage() {
                   placeholder="Ej: Expreso Nocturno, Rutero Interurbano..."
                   value={newTipoNombre}
                   onChange={(e) => setNewTipoNombre(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                   Descripción del Servicio (Opcional)
                 </label>
                 <textarea
@@ -765,20 +792,20 @@ export default function RutasDashboardPage() {
                   placeholder="Ej: Servicio directo con aire acondicionado sin paradas intermedias..."
                   value={newTipoDescripcion}
                   onChange={(e) => setNewTipoDescripcion(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20 resize-none"
                 />
               </div>
 
               {/* Lista actual del catálogo */}
-              <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-200 space-y-1.5">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                   Tipos ya registrados ({tiposRuta.length}):
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {tiposRuta.map((t) => (
                     <span
                       key={t.idTipoRuta}
-                      className="px-2 py-0.5 rounded-lg bg-white border border-gray-200 text-[11px] font-semibold text-gray-700"
+                      className="px-2 py-0.5 rounded bg-white border border-slate-200 text-[11px] font-medium text-slate-700"
                     >
                       {t.nombre}
                     </span>
@@ -786,21 +813,21 @@ export default function RutasDashboardPage() {
                 </div>
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-3">
+              <div className="pt-2 flex items-center justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setShowCreateTipoModal(false)}
-                  className="px-5 py-2.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-100 transition-colors cursor-pointer"
+                  className="px-3.5 py-2 rounded-lg border border-slate-200 text-slate-700 font-medium text-xs sm:text-sm hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={submittingTipo}
-                  className="px-6 py-2.5 rounded-2xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-sm transition-all hover:shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                  className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2"
                 >
                   {submittingTipo && (
-                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                   )}
                   {submittingTipo ? "Guardando..." : "Guardar Modalidad"}
                 </button>
@@ -814,44 +841,44 @@ export default function RutasDashboardPage() {
       {/* MODAL 2: CONSTRUCTOR DE RUTA Y MATRIZ TARIFARIA              */}
       {/* ============================================================ */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-3xl overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
-                  <Icon path={mdiMapMarkerPath} size={0.8} className="text-primary" />
+                <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  <Icon path={mdiMapMarkerPath} size={0.75} className="text-slate-700" />
                   Constructor de Ruta y Tarifas
                 </h3>
-                <p className="text-xs text-gray-500 font-medium mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Modalidad de servicio, secuencia de paradas y tarifas por tramo en Córdobas (C$).
                 </p>
               </div>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                <Icon path={mdiClose} size={0.8} />
+                <Icon path={mdiClose} size={0.7} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateRuta} className="p-6 space-y-6 overflow-y-auto flex-1">
+            <form onSubmit={handleCreateRuta} className="p-5 space-y-5 overflow-y-auto flex-1">
               {formError && (
-                <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-xs font-bold text-red-700 flex items-center gap-2">
-                  <Icon path={mdiAlertCircle} size={0.8} />
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs font-medium text-red-700 flex items-center gap-2">
+                  <Icon path={mdiAlertCircle} size={0.7} />
                   <span>{formError}</span>
                 </div>
               )}
 
               {/* Paso 1: Datos de la Ruta */}
-              <div className="space-y-4">
-                <h4 className="text-xs font-black text-gray-400 uppercase tracking-wider">
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
                   1. Información de la Ruta
                 </h4>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {/* Nombre */}
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                       Nombre de la Ruta
                     </label>
                     <input
@@ -860,19 +887,19 @@ export default function RutasDashboardPage() {
                       placeholder="Ej: Managua UCA - Rivas - San Juan del Sur"
                       value={formNombre}
                       onChange={(e) => setFormNombre(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                     />
                   </div>
 
                   {/* Cooperativa */}
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                       Cooperativa
                     </label>
                     <select
                       value={formCoopId}
                       onChange={(e) => setFormCoopId(Number(e.target.value))}
-                      className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                     >
                       {cooperativas.map((c) => (
                         <option key={c.idCooperativa} value={c.idCooperativa}>
@@ -884,10 +911,10 @@ export default function RutasDashboardPage() {
                 </div>
 
                 {/* Modalidad de ruta (Cargada dinámicamente) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
                         Modalidad / Tipo de Ruta
                       </label>
                       <button
@@ -896,7 +923,7 @@ export default function RutasDashboardPage() {
                           setTipoModalError(null);
                           setShowCreateTipoModal(true);
                         }}
-                        className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
+                        className="text-[11px] font-medium text-slate-600 hover:text-slate-900 underline cursor-pointer"
                       >
                         + Registrar nuevo tipo
                       </button>
@@ -904,7 +931,7 @@ export default function RutasDashboardPage() {
                     <select
                       value={formIdTipoRuta}
                       onChange={(e) => setFormIdTipoRuta(Number(e.target.value))}
-                      className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                     >
                       <option value={0}>Selecciona una modalidad del catálogo...</option>
                       {tiposRuta.map((tr) => (
@@ -916,7 +943,7 @@ export default function RutasDashboardPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                       Descripción del Trayecto
                     </label>
                     <input
@@ -924,40 +951,40 @@ export default function RutasDashboardPage() {
                       placeholder="Ej: Salidas directas cada 30 minutos"
                       value={formDescripcion}
                       onChange={(e) => setFormDescripcion(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Paso 2: Secuenciador de Paradas Intermedias */}
-              <div className="space-y-4 pt-2">
+              <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-wider">
+                  <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
                     2. Paradas y Trayecto (Mínimo 2 Paradas)
                   </h4>
                   <button
                     type="button"
                     onClick={() => setShowNewPuntoInput(!showNewPuntoInput)}
-                    className="text-xs font-bold text-primary hover:underline cursor-pointer"
+                    className="text-xs font-medium text-slate-600 hover:text-slate-900 underline cursor-pointer"
                   >
                     {showNewPuntoInput ? "Cancelar nueva parada" : "+ Registrar nueva parada al catálogo"}
                   </button>
                 </div>
 
                 {showNewPuntoInput && (
-                  <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20 flex items-center gap-3 animate-in fade-in duration-200">
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center gap-2.5 animate-in fade-in duration-150">
                     <input
                       type="text"
                       placeholder="Nombre de la nueva parada (ej: Nandaime Central)"
                       value={newPuntoNombre}
                       onChange={(e) => setNewPuntoNombre(e.target.value)}
-                      className="flex-1 px-4 py-2 rounded-xl bg-white border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      className="flex-1 px-3 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                     />
                     <button
                       type="button"
                       onClick={handleCreateNuevoPunto}
-                      className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl shadow-xs hover:bg-primary-hover cursor-pointer"
+                      className="px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-md hover:bg-slate-800 cursor-pointer"
                     >
                       Guardar y Añadir
                     </button>
@@ -965,7 +992,7 @@ export default function RutasDashboardPage() {
                 )}
 
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-bold text-gray-500">Añadir parada:</span>
+                  <span className="text-xs font-medium text-slate-500">Añadir parada:</span>
                   <select
                     onChange={(e) => {
                       const id = Number(e.target.value);
@@ -975,7 +1002,7 @@ export default function RutasDashboardPage() {
                       }
                     }}
                     defaultValue=""
-                    className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                   >
                     <option value="" disabled>
                       Selecciona una parada del catálogo...
@@ -992,9 +1019,9 @@ export default function RutasDashboardPage() {
                   </select>
                 </div>
 
-                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200 space-y-2">
+                <div className="bg-slate-50 rounded-lg p-3 border border-slate-200 space-y-2">
                   {selectedPuntosIds.length === 0 ? (
-                    <p className="text-xs text-gray-400 font-semibold text-center py-4">
+                    <p className="text-xs text-slate-400 font-normal text-center py-4">
                       Aún no has agregado paradas. Selecciona al menos un origen y un destino.
                     </p>
                   ) : (
@@ -1003,25 +1030,17 @@ export default function RutasDashboardPage() {
                       return (
                         <div
                           key={pId}
-                          className="bg-white p-3 rounded-xl border border-gray-200 shadow-2xs flex items-center justify-between gap-3"
+                          className="bg-white p-2.5 rounded-md border border-slate-200 flex items-center justify-between gap-2.5"
                         >
-                          <div className="flex items-center gap-3">
-                            <span
-                              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${
-                                idx === 0
-                                  ? "bg-emerald-600 text-white"
-                                  : idx === selectedPuntosIds.length - 1
-                                  ? "bg-blue-600 text-white"
-                                  : "bg-gray-200 text-gray-700"
-                              }`}
-                            >
+                          <div className="flex items-center gap-2.5">
+                            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-slate-200 text-slate-700">
                               {idx + 1}
                             </span>
                             <div>
-                              <p className="text-xs font-extrabold text-gray-900 leading-none">
+                              <p className="text-xs font-semibold text-slate-900 leading-none">
                                 {puntoObj?.nombre || "Parada"}
                               </p>
-                              <span className="text-[10px] text-gray-400 font-semibold">
+                              <span className="text-[10px] text-slate-400 font-normal">
                                 {idx === 0
                                   ? "Punto de Partida (Origen)"
                                   : idx === selectedPuntosIds.length - 1
@@ -1036,24 +1055,24 @@ export default function RutasDashboardPage() {
                               type="button"
                               onClick={() => handleMovePunto(idx, "up")}
                               disabled={idx === 0}
-                              className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30 cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
                             >
-                              <Icon path={mdiArrowUp} size={0.6} />
+                              <Icon path={mdiArrowUp} size={0.5} />
                             </button>
                             <button
                               type="button"
                               onClick={() => handleMovePunto(idx, "down")}
                               disabled={idx === selectedPuntosIds.length - 1}
-                              className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-30 cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
                             >
-                              <Icon path={mdiArrowDown} size={0.6} />
+                              <Icon path={mdiArrowDown} size={0.5} />
                             </button>
                             <button
                               type="button"
                               onClick={() => handleRemovePunto(idx)}
                               className="p-1 text-red-400 hover:text-red-600 cursor-pointer ml-1"
                             >
-                              <Icon path={mdiClose} size={0.6} />
+                              <Icon path={mdiClose} size={0.5} />
                             </button>
                           </div>
                         </div>
@@ -1065,35 +1084,35 @@ export default function RutasDashboardPage() {
 
               {/* Paso 3: Matriz Tarifaria Generada */}
               {tramosGenerados.length > 0 && (
-                <div className="space-y-4 pt-2">
+                <div className="space-y-3 pt-2">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-wider">
+                    <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
                       3. Matriz Tarifaria en Córdobas (C$)
                     </h4>
-                    <span className="text-xs font-bold text-gray-500">
+                    <span className="text-xs font-normal text-slate-500">
                       {tramosGenerados.length} tramos generados
                     </span>
                   </div>
 
-                  <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-2xs">
+                  <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-gray-50 border-b border-gray-200 font-bold uppercase text-gray-400">
+                      <thead className="bg-slate-50 border-b border-slate-200 font-semibold uppercase text-slate-500">
                         <tr>
-                          <th className="py-2.5 px-4">Tramo de Trayecto</th>
-                          <th className="py-2.5 px-4 w-40 text-right">Tarifa (C$)</th>
+                          <th className="py-2.5 px-3">Tramo de Trayecto</th>
+                          <th className="py-2.5 px-3 w-36 text-right">Tarifa (C$)</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100 font-semibold">
+                      <tbody className="divide-y divide-slate-100">
                         {tramosGenerados.map((tramo) => (
-                          <tr key={tramo.key} className="hover:bg-gray-50/50">
-                            <td className="py-3 px-4 flex items-center gap-2">
-                              <span className="font-bold text-gray-900">{tramo.origenNombre}</span>
-                              <Icon path={mdiArrowRight} size={0.5} className="text-gray-400" />
-                              <span className="font-bold text-gray-900">{tramo.destinoNombre}</span>
+                          <tr key={tramo.key} className="hover:bg-slate-50/50">
+                            <td className="py-2.5 px-3 flex items-center gap-1.5">
+                              <span className="font-medium text-slate-900">{tramo.origenNombre}</span>
+                              <Icon path={mdiArrowRight} size={0.4} className="text-slate-400" />
+                              <span className="font-medium text-slate-900">{tramo.destinoNombre}</span>
                             </td>
-                            <td className="py-3 px-4 text-right">
+                            <td className="py-2.5 px-3 text-right">
                               <div className="inline-flex items-center gap-1.5">
-                                <span className="font-extrabold text-gray-400 text-xs">C$</span>
+                                <span className="font-medium text-slate-400 text-xs">C$</span>
                                 <input
                                   type="number"
                                   min="1"
@@ -1103,7 +1122,7 @@ export default function RutasDashboardPage() {
                                   onChange={(e) =>
                                     handleTarifaChange(tramo.key, Number(e.target.value))
                                   }
-                                  className="w-24 px-3 py-1.5 text-right font-black text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                  className="w-20 px-2 py-1 text-right font-semibold text-xs sm:text-sm rounded border border-slate-200 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                                 />
                               </div>
                             </td>
@@ -1116,21 +1135,21 @@ export default function RutasDashboardPage() {
               )}
 
               {/* Botones de acción */}
-              <div className="pt-2 flex items-center justify-end gap-3">
+              <div className="pt-2 flex items-center justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-5 py-2.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-100 transition-colors cursor-pointer"
+                  className="px-3.5 py-2 rounded-lg border border-slate-200 text-slate-700 font-medium text-xs sm:text-sm hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={formSubmitting || selectedPuntosIds.length < 2}
-                  className="px-6 py-2.5 rounded-2xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-sm transition-all hover:shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                  className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2"
                 >
                   {formSubmitting && (
-                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                   )}
                   {formSubmitting ? "Registrando..." : "Guardar Ruta y Matriz"}
                 </button>
@@ -1144,15 +1163,15 @@ export default function RutasDashboardPage() {
       {/* MODAL 3: VER MATRIZ TARIFARIA COMPLETA                       */}
       {/* ============================================================ */}
       {showMatrixModal && selectedRuta && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-xl overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
-                  <Icon path={mdiTableLarge} size={0.8} className="text-primary" />
+                <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  <Icon path={mdiTableLarge} size={0.75} className="text-slate-700" />
                   Matriz Tarifaria: {selectedRuta.nombre}
                 </h3>
-                <p className="text-xs text-gray-500 font-medium mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Modalidad: {selectedRuta.tipoRuta?.nombre || "Estándar"} | Tarifas oficiales en C$.
                 </p>
               </div>
@@ -1161,31 +1180,31 @@ export default function RutasDashboardPage() {
                   setShowMatrixModal(false);
                   setSelectedRuta(null);
                 }}
-                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                <Icon path={mdiClose} size={0.8} />
+                <Icon path={mdiClose} size={0.7} />
               </button>
             </div>
 
-            <div className="p-6 max-h-[60vh] overflow-y-auto">
-              <table className="w-full text-left text-sm">
+            <div className="p-5 max-h-[60vh] overflow-y-auto">
+              <table className="w-full text-left text-xs sm:text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 text-xs font-bold uppercase text-gray-400 bg-gray-50/75">
-                    <th className="py-3 px-4">Origen</th>
-                    <th className="py-3 px-4">Destino</th>
-                    <th className="py-3 px-4 text-right">Tarifa Oficial</th>
+                  <tr className="border-b border-slate-200 text-xs font-semibold uppercase text-slate-500 bg-slate-50/75">
+                    <th className="py-2.5 px-3">Origen</th>
+                    <th className="py-2.5 px-3">Destino</th>
+                    <th className="py-2.5 px-3 text-right">Tarifa Oficial</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 font-semibold text-xs sm:text-sm">
+                <tbody className="divide-y divide-slate-100">
                   {(selectedRuta.tarifas || []).map((tarifa) => (
-                    <tr key={tarifa.idTarifa} className="hover:bg-gray-50/50">
-                      <td className="py-3 px-4 text-gray-800">
+                    <tr key={tarifa.idTarifa} className="hover:bg-slate-50/50">
+                      <td className="py-2.5 px-3 text-slate-800">
                         {tarifa.puntoOrigen?.nombre || "Parada"}
                       </td>
-                      <td className="py-3 px-4 text-gray-800">
+                      <td className="py-2.5 px-3 text-slate-800">
                         {tarifa.puntoDestino?.nombre || "Parada"}
                       </td>
-                      <td className="py-3 px-4 text-right font-black text-emerald-600">
+                      <td className="py-2.5 px-3 text-right font-semibold text-slate-900">
                         C$ {Number(tarifa.monto).toFixed(2)}
                       </td>
                     </tr>
@@ -1194,13 +1213,13 @@ export default function RutasDashboardPage() {
               </table>
             </div>
 
-            <div className="p-4 bg-gray-50 border-t border-gray-100 text-center">
+            <div className="p-3.5 bg-slate-50 border-t border-slate-100 text-center">
               <button
                 onClick={() => {
                   setShowMatrixModal(false);
                   setSelectedRuta(null);
                 }}
-                className="w-full py-2.5 rounded-2xl bg-gray-900 text-white font-bold text-sm hover:bg-black transition-colors cursor-pointer"
+                className="w-full py-2 rounded-lg bg-slate-900 text-white font-medium text-xs sm:text-sm hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Cerrar Matriz
               </button>
@@ -1213,34 +1232,34 @@ export default function RutasDashboardPage() {
       {/* MODAL 4: CONFIRMAR ELIMINACIÓN DE RUTA                       */}
       {/* ============================================================ */}
       {showDeleteModal && selectedRuta && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden border border-gray-100 p-6 space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mx-auto">
-              <Icon path={mdiAlertCircle} size={1.2} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200 p-5 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-10 h-10 rounded-lg bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <Icon path={mdiAlertCircle} size={1} />
             </div>
 
             <div className="text-center">
-              <h3 className="text-lg font-black text-gray-900">¿Eliminar esta ruta?</h3>
-              <p className="text-xs text-gray-500 font-medium mt-1">
+              <h3 className="text-base font-bold text-slate-900">¿Eliminar esta ruta?</h3>
+              <p className="text-xs text-slate-500 mt-1">
                 Estás a punto de eliminar la ruta &quot;{selectedRuta.nombre}&quot; junto a sus paradas y tarifas asociadas.
               </p>
             </div>
 
-            <div className="flex items-center gap-3 pt-2">
+            <div className="flex items-center gap-2.5 pt-1">
               <button
                 type="button"
                 onClick={() => {
                   setShowDeleteModal(false);
                   setSelectedRuta(null);
                 }}
-                className="flex-1 py-2.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-100 transition-colors cursor-pointer"
+                className="flex-1 py-2 rounded-lg border border-slate-200 text-slate-700 font-medium text-xs sm:text-sm hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                className="flex-1 py-2.5 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-sm transition-colors cursor-pointer"
+                className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
               >
                 Sí, Eliminar
               </button>
@@ -1251,3 +1270,5 @@ export default function RutasDashboardPage() {
     </div>
   );
 }
+
+

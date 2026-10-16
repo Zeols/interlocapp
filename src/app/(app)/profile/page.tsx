@@ -703,7 +703,7 @@ export default function ProfilePage() {
                       htmlFor="profile-telefono"
                       className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5"
                     >
-                      Teléfono Móvil
+                      Teléfono Móvil (8 dígitos)
                     </label>
                     <div className="relative">
                       <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
@@ -714,10 +714,11 @@ export default function ProfilePage() {
                         name="telefono"
                         type="tel"
                         autoComplete="tel"
+                        maxLength={8}
                         value={telefono ?? ""}
-                        onChange={(e) => setTelefono(e.target.value)}
-                        placeholder="8888 8888"
-                        className="w-full bg-gray-50/80 border border-gray-200/90 text-gray-900 text-sm font-semibold rounded-2xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white transition-all"
+                        onChange={(e) => setTelefono(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                        placeholder="Ej: 88888888"
+                        className="w-full bg-gray-50/80 border border-gray-200/90 text-gray-900 text-sm font-semibold rounded-2xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-slate-400/20 focus:border-slate-400 focus:bg-white transition-all"
                       />
                     </div>
                   </div>
