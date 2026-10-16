@@ -285,15 +285,29 @@ model Asiento {
 // 5. RUTAS, CHECKPOINTS Y TARIFAS
 // ==========================================
 
+model TipoRuta {
+  idTipoRuta  Int            @id @default(autoincrement())
+  nombre      String         @unique
+  descripcion String?
+  estado      EstadoCatalogo @default(ACTIVO)
+
+  // Relaciones
+  rutas Ruta[]
+
+  @@map("tipos_ruta")
+}
+
 model Ruta {
   idRuta        Int            @id @default(autoincrement())
   idCooperativa Int
+  idTipoRuta    Int?
   nombre        String
   descripcion   String?
   estado        EstadoCatalogo @default(ACTIVO)
 
   // Relaciones
   cooperativa Cooperativa @relation(fields: [idCooperativa], references: [idCooperativa], onDelete: Cascade)
+  tipoRuta    TipoRuta?   @relation(fields: [idTipoRuta], references: [idTipoRuta], onDelete: SetNull)
   puntosRuta  PuntoRuta[]
   tarifas     Tarifa[]
   viajes      Viaje[]

@@ -62,9 +62,11 @@ export function getMailTransporter(): Transporter | null {
         user: config.user,
         pass: config.pass.replace(/\s+/g, ''), // Remueve espacios si el usuario pegó la clave de aplicación con espacios
       },
-      pool: true,
-      maxConnections: 5,
-      maxMessages: 100,
+      connectionTimeout: 10000, // 10 segundos timeout de conexión
+      greetingTimeout: 8000,
+      socketTimeout: 15000,
+      // Desactivar pool en entornos serverless (Vercel) para evitar sockets congelados
+      pool: false,
     });
   }
 

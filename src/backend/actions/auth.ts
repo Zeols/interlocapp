@@ -356,7 +356,11 @@ export async function requestSignupCodeAction(input: SignupInput): Promise<Actio
     });
 
     if (!emailResult.success) {
-      console.warn('[Signup] Advertencia al enviar correo:', emailResult.error);
+      console.error('[Signup] Error al enviar correo de verificación:', emailResult.error);
+      return {
+        success: false,
+        error: `No se pudo enviar el correo con el código: ${emailResult.error || 'Verifica que las credenciales SMTP estén configuradas en Vercel o el archivo de entorno'}.`,
+      };
     }
 
     return {
@@ -559,12 +563,20 @@ export async function resendSignupCodeAction(correo: string): Promise<ActionResp
       },
     });
 
-    await sendVerificationCodeEmail({
+    const emailResult = await sendVerificationCodeEmail({
       to: cleanEmail,
       name: userData.nombre,
       code: newCode,
       expiresMinutes: 15,
     });
+
+    if (!emailResult.success) {
+      console.error('[ResendSignup] Error al reenviar correo:', emailResult.error);
+      return {
+        success: false,
+        error: `No se pudo enviar el correo de verificación: ${emailResult.error || 'Revisa la configuración SMTP'}.`,
+      };
+    }
 
     return {
       success: true,
@@ -648,12 +660,20 @@ export async function requestPasswordResetCodeAction(input: RequestPasswordReset
       },
     });
 
-    await sendPasswordResetCodeEmail({
+    const emailResult = await sendPasswordResetCodeEmail({
       to: user.correo,
       name: user.nombre,
       code,
       expiresMinutes: 15,
     });
+
+    if (!emailResult.success) {
+      console.error('[PasswordReset] Error al enviar código de recuperación:', emailResult.error);
+      return {
+        success: false,
+        error: `No se pudo enviar el correo de recuperación: ${emailResult.error || 'Revisa la configuración SMTP'}.`,
+      };
+    }
 
     return {
       success: true,
