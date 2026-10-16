@@ -17,6 +17,7 @@ import {
   mdiArrowDown,
   mdiTableLarge,
   mdiEyeOutline,
+  mdiTagOutline,
   mdiBusDoubleDecker,
 } from "@mdi/js";
 import {
@@ -26,8 +27,16 @@ import {
   createRutaConPuntosYTarifas,
   updateEstadoRutaAction,
   deleteRutaAction,
+  getTiposRutaAction,
+  createTipoRutaAction,
 } from "@/backend/actions/rutas";
 import { getCooperativas } from "@/backend/actions/cooperativas";
+
+interface TipoRutaItem {
+  idTipoRuta: number;
+  nombre: string;
+  descripcion?: string | null;
+}
 
 interface PuntoItem {
   idPunto: number;
@@ -54,9 +63,11 @@ interface PuntoRutaItem {
 interface RutaItem {
   idRuta: number;
   idCooperativa: number;
+  idTipoRuta?: number | null;
   nombre: string;
   descripcion?: string | null;
   estado: "ACTIVO" | "INACTIVO";
+  tipoRuta?: TipoRutaItem | null;
   cooperativa?: {
     idCooperativa: number;
     nombre: string;
@@ -71,6 +82,7 @@ interface RutaItem {
 export default function RutasDashboardPage() {
   const [rutas, setRutas] = useState<RutaItem[]>([]);
   const [catalogoPuntos, setCatalogoPuntos] = useState<PuntoItem[]>([]);
+  const [tiposRuta, setTiposRuta] = useState<TipoRutaItem[]>([]);
   const [cooperativas, setCooperativas] = useState<{ idCooperativa: number; nombre: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -78,6 +90,7 @@ export default function RutasDashboardPage() {
 
   // Modales
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateTipoModal, setShowCreateTipoModal] = useState(false);
   const [showMatrixModal, setShowMatrixModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showNewPuntoInput, setShowNewPuntoInput] = useState(false);
@@ -89,11 +102,18 @@ export default function RutasDashboardPage() {
   const [formNombre, setFormNombre] = useState("");
   const [formDescripcion, setFormDescripcion] = useState("");
   const [formCoopId, setFormCoopId] = useState<number>(0);
+  const [formIdTipoRuta, setFormIdTipoRuta] = useState<number>(0);
   const [selectedPuntosIds, setSelectedPuntosIds] = useState<number[]>([]);
   const [tarifaValores, setTarifaValores] = useState<Record<string, number>>({});
   const [newPuntoNombre, setNewPuntoNombre] = useState("");
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Formulario Nuevo Tipo de Ruta
+  const [newTipoNombre, setNewTipoNombre] = useState("");
+  const [newTipoDescripcion, setNewTipoDescripcion] = useState("");
+  const [submittingTipo, setSubmittingTipo] = useState(false);
+  const [tipoModalError, setTipoModalError] = useState<string | null>(null);
 
   // Feedback y estado
   const [updatingId, setUpdatingId] = useState<number | null>(null);
@@ -102,10 +122,11 @@ export default function RutasDashboardPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [resRutas, resPuntos, resCoops] = await Promise.all([
+      const [resRutas, resPuntos, resCoops, resTipos] = await Promise.all([
         getAllRutasAction(),
         getPuntos(),
         getCooperativas(),
+        getTiposRutaAction(),
       ]);
 
       if (resRutas.success && resRutas.data) {
@@ -113,6 +134,12 @@ export default function RutasDashboardPage() {
       }
       if (resPuntos.success && resPuntos.data) {
         setCatalogoPuntos(resPuntos.data);
+      }
+      if (resTipos.success && resTipos.data) {
+        setTiposRuta(resTipos.data);
+        if (resTipos.data.length > 0 && formIdTipoRuta === 0) {
+          setFormIdTipoRuta(resTipos.data[0].idTipoRuta);
+        }
       }
       if (resCoops.success && resCoops.data) {
         setCooperativas(resCoops.data as any);
@@ -136,6 +163,7 @@ export default function RutasDashboardPage() {
     return rutas.filter((r) => {
       const matchSearch =
         r.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (r.tipoRuta?.nombre || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.puntosRuta.some((pr) => pr.punto.nombre.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchStatus = statusFilter === "TODOS" || r.estado === statusFilter;
       return matchSearch && matchStatus;
@@ -149,9 +177,10 @@ export default function RutasDashboardPage() {
       total: rutas.length,
       activas: rutas.filter((r) => r.estado === "ACTIVO").length,
       puntosCount: catalogoPuntos.length,
+      tiposCount: tiposRuta.length,
       totalTarifas,
     };
-  }, [rutas, catalogoPuntos]);
+  }, [rutas, catalogoPuntos, tiposRuta]);
 
   // Manejo de secuencias de paradas en el constructor
   const handleAddPuntoToSecuencia = (idPunto: number) => {
@@ -195,12 +224,57 @@ export default function RutasDashboardPage() {
     }
   };
 
+  // Crear nuevo tipo de ruta
+  const handleCreateTipoRuta = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTipoModalError(null);
+
+    if (!newTipoNombre.trim()) {
+      setTipoModalError("El nombre del tipo de ruta es obligatorio.");
+      return;
+    }
+
+    setSubmittingTipo(true);
+    try {
+      const res = await createTipoRutaAction(
+        newTipoNombre.trim(),
+        newTipoDescripcion.trim() || undefined
+      );
+
+      if (res.success && res.data) {
+        setTiposRuta((prev) => [...prev, res.data]);
+        setFormIdTipoRuta(res.data.idTipoRuta);
+        setNewTipoNombre("");
+        setNewTipoDescripcion("");
+        setShowCreateTipoModal(false);
+        setFeedbackMsg({
+          type: "success",
+          text: `Tipo de ruta "${res.data.nombre}" registrado exitosamente en el catálogo.`,
+        });
+      } else {
+        setTipoModalError(res.error || "No se pudo registrar el tipo de ruta.");
+      }
+    } catch {
+      setTipoModalError("Error al conectar con el servidor.");
+    } finally {
+      setSubmittingTipo(false);
+    }
+  };
+
   // Generar pares de tramos para la matriz de tarifas
   const tramosGenerados = useMemo(() => {
-    const tramos: { origenId: number; destinoId: number; origenNombre: string; destinoNombre: string; key: string }[] = [];
+    const tramos: {
+      origenId: number;
+      destinoId: number;
+      origenNombre: string;
+      destinoNombre: string;
+      key: string;
+    }[] = [];
     if (selectedPuntosIds.length < 2) return tramos;
 
-    const puntosObj = selectedPuntosIds.map((id) => catalogoPuntos.find((p) => p.idPunto === id)).filter(Boolean) as PuntoItem[];
+    const puntosObj = selectedPuntosIds
+      .map((id) => catalogoPuntos.find((p) => p.idPunto === id))
+      .filter(Boolean) as PuntoItem[];
 
     for (let i = 0; i < puntosObj.length; i++) {
       for (let j = i + 1; j < puntosObj.length; j++) {
@@ -252,6 +326,7 @@ export default function RutasDashboardPage() {
     try {
       const res = await createRutaConPuntosYTarifas({
         idCooperativa: formCoopId,
+        idTipoRuta: formIdTipoRuta || undefined,
         nombre: formNombre.trim(),
         descripcion: formDescripcion.trim() || undefined,
         puntosIds: selectedPuntosIds,
@@ -264,7 +339,10 @@ export default function RutasDashboardPage() {
         setFormDescripcion("");
         setSelectedPuntosIds([]);
         setTarifaValores({});
-        setFeedbackMsg({ type: "success", text: "Nueva ruta y matriz tarifaria registradas con éxito." });
+        setFeedbackMsg({
+          type: "success",
+          text: "Nueva ruta y matriz tarifaria registradas con éxito.",
+        });
         await fetchData();
       } else {
         setFormError(res.error || "No se pudo crear la ruta.");
@@ -306,7 +384,10 @@ export default function RutasDashboardPage() {
       const res = await deleteRutaAction(selectedRuta.idRuta);
       if (res.success) {
         setRutas((prev) => prev.filter((r) => r.idRuta !== selectedRuta.idRuta));
-        setFeedbackMsg({ type: "success", text: `Ruta ${selectedRuta.nombre} eliminada correctamente.` });
+        setFeedbackMsg({
+          type: "success",
+          text: `Ruta ${selectedRuta.nombre} eliminada correctamente.`,
+        });
         setShowDeleteModal(false);
         setSelectedRuta(null);
       } else {
@@ -321,7 +402,7 @@ export default function RutasDashboardPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Cabecera */}
+      {/* Cabecera y Botones de Acción */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2.5">
@@ -329,20 +410,35 @@ export default function RutasDashboardPage() {
             Constructor de Rutas y Tarifas
           </h1>
           <p className="text-sm text-gray-500 font-medium mt-1">
-            Definición secuencial de paradas intermedias y fijación de tarifas por tramo en Córdobas (C$).
+            Definición secuencial de paradas intermedias, catálogo de modalidades y tarifas por tramo en Córdobas (C$).
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setFormError(null);
-            setShowCreateModal(true);
-          }}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-2xl font-bold text-sm shadow-sm transition-all hover:shadow-md cursor-pointer active:scale-95"
-        >
-          <Icon path={mdiPlus} size={0.8} />
-          Crear Nueva Ruta
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Botón para registrar Tipo de Ruta en el catálogo */}
+          <button
+            onClick={() => {
+              setTipoModalError(null);
+              setShowCreateTipoModal(true);
+            }}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-2xl font-bold text-sm shadow-2xs transition-all cursor-pointer"
+          >
+            <Icon path={mdiTagOutline} size={0.8} className="text-primary" />
+            + Tipo de Ruta
+          </button>
+
+          {/* Botón para crear nueva ruta */}
+          <button
+            onClick={() => {
+              setFormError(null);
+              setShowCreateModal(true);
+            }}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-2xl font-bold text-sm shadow-sm transition-all hover:shadow-md cursor-pointer active:scale-95"
+          >
+            <Icon path={mdiPlus} size={0.8} />
+            Crear Nueva Ruta
+          </button>
+        </div>
       </div>
 
       {/* Banner de feedback */}
@@ -364,14 +460,14 @@ export default function RutasDashboardPage() {
           </div>
           <button
             onClick={() => setFeedbackMsg(null)}
-            className="text-gray-400 hover:text-gray-600 p-1"
+            className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
           >
             <Icon path={mdiClose} size={0.7} />
           </button>
         </div>
       )}
 
-      {/* Métricas */}
+      {/* Métricas Reales */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center justify-between">
           <div>
@@ -405,16 +501,16 @@ export default function RutasDashboardPage() {
 
         <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-amber-600 uppercase tracking-wider">Tramos Tarifarios</p>
-            <p className="text-2xl sm:text-3xl font-black text-amber-600 mt-1">{stats.totalTarifas}</p>
+            <p className="text-xs font-bold text-amber-600 uppercase tracking-wider">Modalidades / Tipos</p>
+            <p className="text-2xl sm:text-3xl font-black text-amber-600 mt-1">{stats.tiposCount}</p>
           </div>
           <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
-            <Icon path={mdiCurrencyUsd} size={0.9} />
+            <Icon path={mdiTagOutline} size={0.9} />
           </div>
         </div>
       </div>
 
-      {/* Buscador y filtros */}
+      {/* Buscador y Filtros */}
       <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
           <Icon
@@ -424,15 +520,15 @@ export default function RutasDashboardPage() {
           />
           <input
             type="text"
-            placeholder="Buscar ruta o parada intermedia..."
+            placeholder="Buscar por nombre de ruta, parada o modalidad..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-sm font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
             >
               <Icon path={mdiClose} size={0.6} />
             </button>
@@ -464,7 +560,7 @@ export default function RutasDashboardPage() {
         {loading ? (
           <div className="bg-white rounded-3xl border border-gray-100 p-16 flex flex-col items-center justify-center text-gray-400">
             <div className="w-10 h-10 border-3 border-primary/20 border-t-primary rounded-full animate-spin mb-3"></div>
-            <p className="text-sm font-semibold text-gray-600">Cargando catálogo de rutas y tarifas...</p>
+            <p className="text-sm font-semibold text-gray-600">Cargando catálogo dinámico de rutas...</p>
           </div>
         ) : filteredRutas.length === 0 ? (
           <div className="bg-white rounded-3xl border border-gray-100 p-16 text-center">
@@ -475,14 +571,12 @@ export default function RutasDashboardPage() {
             <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
               {searchTerm || statusFilter !== "TODOS"
                 ? "Intenta con otros términos de búsqueda."
-                : "Crea tu primera ruta definiendo paradas y tarifas por tramo."}
+                : "Crea tu primera ruta definiendo paradas intermedias, modalidad y tarifas por tramo."}
             </p>
           </div>
         ) : (
           filteredRutas.map((ruta) => {
             const paradasOrdenadas = (ruta.puntosRuta || []).map((pr) => pr.punto?.nombre || "");
-            const origen = paradasOrdenadas[0] || "Origen";
-            const destino = paradasOrdenadas[paradasOrdenadas.length - 1] || "Destino";
             const tarifasCount = ruta.tarifas?.length || 0;
             const tarifaMinima = ruta.tarifas?.[0]?.monto ? Number(ruta.tarifas[0].monto) : 0;
             const tarifaMaxima =
@@ -505,6 +599,14 @@ export default function RutasDashboardPage() {
                         <h2 className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
                           {ruta.nombre}
                         </h2>
+
+                        {/* Modalidad dinámica (Tipo de Ruta) */}
+                        {ruta.tipoRuta && (
+                          <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                            {ruta.tipoRuta.nombre}
+                          </span>
+                        )}
+
                         <span
                           className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
                             ruta.estado === "ACTIVO"
@@ -514,6 +616,7 @@ export default function RutasDashboardPage() {
                         >
                           {ruta.estado}
                         </span>
+
                         <span className="text-xs font-semibold text-gray-400">
                           {ruta.cooperativa?.nombre || "Cooperativa"}
                         </span>
@@ -597,7 +700,7 @@ export default function RutasDashboardPage() {
                     </span>
                     <span>•</span>
                     <span>
-                      Rango Tramo Completo: <strong className="text-gray-900 font-black">C$ {tarifaMaxima.toFixed(2)}</strong>
+                      Tramo Completo: <strong className="text-gray-900 font-black">C$ {tarifaMaxima.toFixed(2)}</strong>
                     </span>
                   </div>
                 </div>
@@ -608,7 +711,107 @@ export default function RutasDashboardPage() {
       </div>
 
       {/* ============================================================ */}
-      {/* MODAL 1: CONSTRUCTOR DE RUTA Y MATRIZ TARIFARIA              */}
+      {/* MODAL 1: FORMULARIO REGISTRAR TIPO DE RUTA                   */}
+      {/* ============================================================ */}
+      {showCreateTipoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
+                  <Icon path={mdiTagOutline} size={0.8} className="text-primary" />
+                  Registrar Tipo de Ruta
+                </h3>
+                <p className="text-xs text-gray-500 font-medium mt-0.5">
+                  Agrega una nueva modalidad de servicio al catálogo de rutas.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCreateTipoModal(false)}
+                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <Icon path={mdiClose} size={0.8} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTipoRuta} className="p-6 space-y-4">
+              {tipoModalError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-2xl text-xs font-bold text-red-700 flex items-center gap-2">
+                  <Icon path={mdiAlertCircle} size={0.8} />
+                  <span>{tipoModalError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Nombre de la Modalidad
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Expreso Nocturno, Rutero Interurbano..."
+                  value={newTipoNombre}
+                  onChange={(e) => setNewTipoNombre(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Descripción del Servicio (Opcional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Ej: Servicio directo con aire acondicionado sin paradas intermedias..."
+                  value={newTipoDescripcion}
+                  onChange={(e) => setNewTipoDescripcion(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+                />
+              </div>
+
+              {/* Lista actual del catálogo */}
+              <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-200 space-y-1.5">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                  Tipos ya registrados ({tiposRuta.length}):
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {tiposRuta.map((t) => (
+                    <span
+                      key={t.idTipoRuta}
+                      className="px-2 py-0.5 rounded-lg bg-white border border-gray-200 text-[11px] font-semibold text-gray-700"
+                    >
+                      {t.nombre}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateTipoModal(false)}
+                  className="px-5 py-2.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingTipo}
+                  className="px-6 py-2.5 rounded-2xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-sm transition-all hover:shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                >
+                  {submittingTipo && (
+                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                  )}
+                  {submittingTipo ? "Guardando..." : "Guardar Modalidad"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* MODAL 2: CONSTRUCTOR DE RUTA Y MATRIZ TARIFARIA              */}
       {/* ============================================================ */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-xs animate-in fade-in duration-200">
@@ -620,7 +823,7 @@ export default function RutasDashboardPage() {
                   Constructor de Ruta y Tarifas
                 </h3>
                 <p className="text-xs text-gray-500 font-medium mt-0.5">
-                  Ordena la secuencia de paradas y establece los precios por tramo en Córdobas (C$).
+                  Modalidad de servicio, secuencia de paradas y tarifas por tramo en Córdobas (C$).
                 </p>
               </div>
               <button
@@ -645,21 +848,23 @@ export default function RutasDashboardPage() {
                   1. Información de la Ruta
                 </h4>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Nombre */}
+                  <div className="sm:col-span-2">
                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
                       Nombre de la Ruta
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="Ej: Managua UCA - Rivas - San Juan"
+                      placeholder="Ej: Managua UCA - Rivas - San Juan del Sur"
                       value={formNombre}
                       onChange={(e) => setFormNombre(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                     />
                   </div>
 
+                  {/* Cooperativa */}
                   <div>
                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
                       Cooperativa
@@ -678,17 +883,50 @@ export default function RutasDashboardPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                    Descripción / Tipo de Servicio
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ej: Servicio expreso ordinario con parada en empalmes oficiales"
-                    value={formDescripcion}
-                    onChange={(e) => setFormDescripcion(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  />
+                {/* Modalidad de ruta (Cargada dinámicamente) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                        Modalidad / Tipo de Ruta
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTipoModalError(null);
+                          setShowCreateTipoModal(true);
+                        }}
+                        className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
+                      >
+                        + Registrar nuevo tipo
+                      </button>
+                    </div>
+                    <select
+                      value={formIdTipoRuta}
+                      onChange={(e) => setFormIdTipoRuta(Number(e.target.value))}
+                      className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    >
+                      <option value={0}>Selecciona una modalidad del catálogo...</option>
+                      {tiposRuta.map((tr) => (
+                        <option key={tr.idTipoRuta} value={tr.idTipoRuta}>
+                          {tr.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                      Descripción del Trayecto
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej: Salidas directas cada 30 minutos"
+                      value={formDescripcion}
+                      onChange={(e) => setFormDescripcion(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -707,7 +945,6 @@ export default function RutasDashboardPage() {
                   </button>
                 </div>
 
-                {/* Sub-formulario para agregar parada nueva al vuelo */}
                 {showNewPuntoInput && (
                   <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20 flex items-center gap-3 animate-in fade-in duration-200">
                     <input
@@ -727,7 +964,6 @@ export default function RutasDashboardPage() {
                   </div>
                 )}
 
-                {/* Selector de paradas existentes */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-bold text-gray-500">Añadir parada:</span>
                   <select
@@ -756,7 +992,6 @@ export default function RutasDashboardPage() {
                   </select>
                 </div>
 
-                {/* Lista interactiva de paradas añadidas */}
                 <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200 space-y-2">
                   {selectedPuntosIds.length === 0 ? (
                     <p className="text-xs text-gray-400 font-semibold text-center py-4">
@@ -880,7 +1115,7 @@ export default function RutasDashboardPage() {
                 </div>
               )}
 
-              {/* Footer */}
+              {/* Botones de acción */}
               <div className="pt-2 flex items-center justify-end gap-3">
                 <button
                   type="button"
@@ -906,7 +1141,7 @@ export default function RutasDashboardPage() {
       )}
 
       {/* ============================================================ */}
-      {/* MODAL 2: VER MATRIZ TARIFARIA COMPLETA                       */}
+      {/* MODAL 3: VER MATRIZ TARIFARIA COMPLETA                       */}
       {/* ============================================================ */}
       {showMatrixModal && selectedRuta && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-xs animate-in fade-in duration-200">
@@ -918,7 +1153,7 @@ export default function RutasDashboardPage() {
                   Matriz Tarifaria: {selectedRuta.nombre}
                 </h3>
                 <p className="text-xs text-gray-500 font-medium mt-0.5">
-                  Tarifas oficiales en Córdobas (C$) fijadas para cada tramo.
+                  Modalidad: {selectedRuta.tipoRuta?.nombre || "Estándar"} | Tarifas oficiales en C$.
                 </p>
               </div>
               <button
@@ -975,7 +1210,7 @@ export default function RutasDashboardPage() {
       )}
 
       {/* ============================================================ */}
-      {/* MODAL 3: CONFIRMAR ELIMINACIÓN DE RUTA                       */}
+      {/* MODAL 4: CONFIRMAR ELIMINACIÓN DE RUTA                       */}
       {/* ============================================================ */}
       {showDeleteModal && selectedRuta && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-xs animate-in fade-in duration-200">
