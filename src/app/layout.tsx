@@ -3,6 +3,8 @@ import { Manrope, Inter } from "next/font/google";
 import "./globals.css";
 import "./components.css";
 import { SmoothCursor } from "@/registry/magicui/smooth-cursor";
+import { CurrencyProvider } from "@/frontend/context/CurrencyContext";
+import { GoogleTranslateScript } from "@/frontend/components/ui/GoogleTranslateScript";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -85,7 +87,10 @@ export default function RootLayout({
       </head>
       <body>
         <SmoothCursor />
-        {children}
+        <CurrencyProvider>
+          <GoogleTranslateScript />
+          {children}
+        </CurrencyProvider>
       </body>
     </html>
   );

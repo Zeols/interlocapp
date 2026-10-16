@@ -15,6 +15,7 @@ import {
   mdiEmailOutline
 } from "@mdi/js";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCurrency } from "@/frontend/context/CurrencyContext";
 
 type SeatStatus = "available" | "occupied" | "selected" | "unavailable";
 
@@ -81,7 +82,8 @@ function PurchaseContent() {
     );
   };
 
-  const fmt = (n: number) => `C$ ${n.toFixed(2)}`;
+  const { formatPrice } = useCurrency();
+  const fmt = (n: number) => formatPrice(n);
 
   const goTrips = () => router.push("/trips");
   const goHome = () => router.push("/home");
