@@ -20,6 +20,7 @@ import {
   mdiRefresh,
   mdiBusDoubleDecker,
   mdiDomain,
+  mdiClose,
 } from "@mdi/js";
 import { Logo } from "@/frontend/components/ui/Logo";
 import {
@@ -63,6 +64,24 @@ export default function SignUpPage() {
 
   const passwordsMatch = confirmPassword !== "" && password === confirmPassword;
   const passwordsMismatch = confirmPassword !== "" && password !== confirmPassword;
+
+  // Auto-descartar mensaje de error tras 6 segundos
+  useEffect(() => {
+    if (!errorMessage) return;
+    const timer = setTimeout(() => {
+      setErrorMessage(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [errorMessage]);
+
+  // Auto-descartar aviso de reenvío exitoso tras 5 segundos
+  useEffect(() => {
+    if (!resendSuccess) return;
+    const timer = setTimeout(() => {
+      setResendSuccess(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [resendSuccess]);
 
   // Temporizador para reenvío de código
   useEffect(() => {
@@ -269,12 +288,33 @@ export default function SignUpPage() {
                   </button>
                 </div>
 
-                {errorMessage && (
-                  <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5">
-                    <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-red-500" />
-                    <span>{errorMessage}</span>
-                  </div>
-                )}
+                <AnimatePresence>
+                  {errorMessage && (
+                    <motion.div
+                      key="signup-error-step1"
+                      initial={{ opacity: 0, y: -6, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: "auto" }}
+                      exit={{ opacity: 0, y: -6, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden mb-4"
+                    >
+                      <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start justify-between gap-2.5">
+                        <div className="flex items-start gap-2">
+                          <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-red-500" />
+                          <span>{errorMessage}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setErrorMessage(null)}
+                          className="text-red-400 hover:text-red-600 p-0.5 rounded cursor-pointer shrink-0"
+                          title="Cerrar mensaje"
+                        >
+                          <Icon path={mdiClose} size={0.65} />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 <form onSubmit={handleRequestCode} className="space-y-3.5">
                   {/* SECCIÓN DATOS DE COOPERATIVA (SI ES CUENTA COOPERATIVA) */}
@@ -510,19 +550,59 @@ export default function SignUpPage() {
                   </p>
                 </div>
 
-                {errorMessage && (
-                  <div className="mb-5 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5">
-                    <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-red-500" />
-                    <span>{errorMessage}</span>
-                  </div>
-                )}
+                <AnimatePresence>
+                  {errorMessage && (
+                    <motion.div
+                      key="signup-error-step2"
+                      initial={{ opacity: 0, y: -6, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: "auto" }}
+                      exit={{ opacity: 0, y: -6, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden mb-5"
+                    >
+                      <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start justify-between gap-2.5">
+                        <div className="flex items-start gap-2.5">
+                          <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-red-500" />
+                          <span>{errorMessage}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setErrorMessage(null)}
+                          className="text-red-400 hover:text-red-600 p-0.5 rounded cursor-pointer shrink-0"
+                          title="Cerrar mensaje"
+                        >
+                          <Icon path={mdiClose} size={0.65} />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
 
-                {resendSuccess && (
-                  <div className="mb-5 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs sm:text-sm flex items-center gap-2.5">
-                    <Icon path={mdiCheckCircleOutline} size={0.8} className="shrink-0 text-emerald-500" />
-                    <span>¡Nuevo código de verificación enviado a tu correo!</span>
-                  </div>
-                )}
+                  {resendSuccess && (
+                    <motion.div
+                      key="signup-resend-success"
+                      initial={{ opacity: 0, y: -6, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: "auto" }}
+                      exit={{ opacity: 0, y: -6, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden mb-5"
+                    >
+                      <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs sm:text-sm flex items-center justify-between gap-2.5">
+                        <div className="flex items-center gap-2.5">
+                          <Icon path={mdiCheckCircleOutline} size={0.8} className="shrink-0 text-emerald-500" />
+                          <span>¡Nuevo código de verificación enviado a tu correo!</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setResendSuccess(false)}
+                          className="text-emerald-500 hover:text-emerald-700 p-0.5 rounded cursor-pointer shrink-0"
+                          title="Cerrar mensaje"
+                        >
+                          <Icon path={mdiClose} size={0.65} />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 <form onSubmit={handleVerifyCode} className="space-y-4">
                   <div>

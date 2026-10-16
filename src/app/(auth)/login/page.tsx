@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useTransition, Suspense } from "react";
+import React, { useState, useEffect, useTransition, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Icon from "@mdi/react";
 import {
   mdiEmailOutline,
@@ -11,6 +11,7 @@ import {
   mdiArrowLeft,
   mdiAlertCircleOutline,
   mdiLoading,
+  mdiClose,
 } from "@mdi/js";
 import { Logo } from "@/frontend/components/ui/Logo";
 import { loginAction } from "@/backend/actions/auth";
@@ -23,10 +24,37 @@ function LoginFormContent() {
   const [identificador, setIdentificador] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showPending, setShowPending] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // Mostrar mensaje de cooperativa pendiente solo temporalmente y limpiar query param
+  useEffect(() => {
+    if (searchParams.get("pending") === "true") {
+      setShowPending(true);
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("pending");
+        window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+      }
+      const timer = setTimeout(() => {
+        setShowPending(false);
+      }, 7000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams]);
+
+  // Auto-descartar mensaje de error tras 6 segundos
+  useEffect(() => {
+    if (!errorMessage) return;
+    const timer = setTimeout(() => {
+      setErrorMessage(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [errorMessage]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setShowPending(false);
     setErrorMessage(null);
 
     startTransition(async () => {
@@ -99,22 +127,62 @@ function LoginFormContent() {
             </p>
           </div>
 
-          {searchParams.get("pending") === "true" && (
-            <div className="mb-5 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm flex items-start gap-2.5 animate-in fade-in">
-              <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-emerald-600" />
-              <div>
-                <p className="font-bold">¡Solicitud de Cooperativa Registrada!</p>
-                <p className="mt-0.5 text-emerald-700">Tu cooperativa y credenciales han sido recibidas y están en proceso de verificación por el equipo de supervisión de InterlocApp. Te notificaremos por correo en cuanto sea aprobada para que puedas acceder.</p>
-              </div>
-            </div>
-          )}
+          <AnimatePresence>
+            {showPending && (
+              <motion.div
+                key="pending-alert"
+                initial={{ opacity: 0, y: -6, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: "auto" }}
+                exit={{ opacity: 0, y: -6, height: 0 }}
+                transition={{ duration: 0.25 }}
+                className="overflow-hidden mb-5"
+              >
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm flex items-start justify-between gap-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-emerald-600" />
+                    <div>
+                      <p className="font-bold">¡Solicitud de Cooperativa Registrada!</p>
+                      <p className="mt-0.5 text-emerald-700">Tu cooperativa y credenciales han sido recibidas y están en proceso de verificación por el equipo de supervisión de InterlocApp. Te notificaremos por correo en cuanto sea aprobada para que puedas acceder.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPending(false)}
+                    className="text-emerald-500 hover:text-emerald-700 p-1 rounded-md hover:bg-emerald-100 transition-colors cursor-pointer shrink-0"
+                    title="Cerrar notificación"
+                  >
+                    <Icon path={mdiClose} size={0.65} />
+                  </button>
+                </div>
+              </motion.div>
+            )}
 
-          {errorMessage && (
-            <div className="mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5 animate-in fade-in">
-              <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-red-500" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
+            {errorMessage && (
+              <motion.div
+                key="error-alert"
+                initial={{ opacity: 0, y: -6, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: "auto" }}
+                exit={{ opacity: 0, y: -6, height: 0 }}
+                transition={{ duration: 0.25 }}
+                className="overflow-hidden mb-5"
+              >
+                <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start justify-between gap-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-red-500" />
+                    <span className="font-medium">{errorMessage}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setErrorMessage(null)}
+                    className="text-red-400 hover:text-red-600 p-1 rounded-md hover:bg-red-100 transition-colors cursor-pointer shrink-0"
+                    title="Cerrar mensaje"
+                  >
+                    <Icon path={mdiClose} size={0.65} />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
@@ -128,7 +196,10 @@ function LoginFormContent() {
                 <input
                   type="text"
                   value={identificador}
-                  onChange={(e) => setIdentificador(e.target.value)}
+                  onChange={(e) => {
+                    setIdentificador(e.target.value);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
                   placeholder="ejemplo@correo.com"
                   className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm rounded-xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
                   required
@@ -148,7 +219,10 @@ function LoginFormContent() {
                 <input
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
                   placeholder="••••••••"
                   className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm rounded-xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
                   required

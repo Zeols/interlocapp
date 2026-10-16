@@ -15,6 +15,7 @@ import {
   mdiLoading,
   mdiShieldKeyOutline,
   mdiRefresh,
+  mdiClose,
 } from "@mdi/js";
 import { motion, AnimatePresence } from "framer-motion";
 import { Logo } from "@/frontend/components/ui/Logo";
@@ -48,6 +49,24 @@ export default function ForgotPage() {
 
   const passwordsMatch = confirmPassword !== "" && newPassword === confirmPassword;
   const passwordsMismatch = confirmPassword !== "" && newPassword !== confirmPassword;
+
+  // Auto-descartar error tras 6 segundos
+  useEffect(() => {
+    if (!errorMessage) return;
+    const timer = setTimeout(() => {
+      setErrorMessage(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [errorMessage]);
+
+  // Auto-descartar reenvío exitoso tras 5 segundos
+  useEffect(() => {
+    if (!resendSuccess) return;
+    const timer = setTimeout(() => {
+      setResendSuccess(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [resendSuccess]);
 
   // Temporizador para reenvío
   useEffect(() => {
