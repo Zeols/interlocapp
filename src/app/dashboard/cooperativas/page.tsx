@@ -28,6 +28,8 @@ import {
   rechazarCooperativaAction,
   createCooperativa,
 } from "@/backend/actions/cooperativas";
+import { TableSkeleton, CardSkeleton } from "@/frontend/components/ui/Skeleton";
+import { Pagination } from "@/frontend/components/ui/Pagination";
 
 interface AdminUser {
   idUsuario: number;
@@ -74,6 +76,8 @@ export default function CooperativasDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"solicitudes" | "directorio">("solicitudes");
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Modales
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -127,6 +131,17 @@ export default function CooperativasDashboardPage() {
         (c.direccion && c.direccion.toLowerCase().includes(term))
     );
   }, [cooperativas, searchTerm]);
+
+  // Reset de página al buscar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const totalPages = Math.ceil(filteredCooperativas.length / pageSize) || 1;
+  const paginatedCooperativas = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredCooperativas.slice(start, start + pageSize);
+  }, [filteredCooperativas, currentPage, pageSize]);
 
   // Manejador para aprobar solicitud
   const handleAprobar = async (idCooperativa: number) => {
@@ -265,7 +280,7 @@ export default function CooperativasDashboardPage() {
           </button>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-3.5 py-2 bg-primary hover:bg-primary/95 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <Icon path={mdiPlus} size={0.7} />
             <span>+ Nueva Cooperativa</span>
@@ -334,7 +349,7 @@ export default function CooperativasDashboardPage() {
           onClick={() => setActiveTab("solicitudes")}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer ${
             activeTab === "solicitudes"
-              ? "border-primary text-primary"
+              ? "border-slate-900 text-slate-900"
               : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
@@ -351,7 +366,7 @@ export default function CooperativasDashboardPage() {
           onClick={() => setActiveTab("directorio")}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-all cursor-pointer ${
             activeTab === "directorio"
-              ? "border-primary text-primary"
+              ? "border-slate-900 text-slate-900"
               : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
@@ -367,8 +382,8 @@ export default function CooperativasDashboardPage() {
       {activeTab === "solicitudes" && (
         <div className="space-y-4">
           {loading ? (
-            <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400 text-xs font-medium">
-              Cargando solicitudes de cooperativas...
+            <div className="p-2">
+              <CardSkeleton count={2} />
             </div>
           ) : solicitudes.length === 0 ? (
             <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
@@ -523,34 +538,30 @@ export default function CooperativasDashboardPage() {
 
           {/* Tabla de Cooperativas */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-bold text-[10px] tracking-wider">
-                  <tr>
-                    <th className="py-3 px-4">Cooperativa / Empresa</th>
-                    <th className="py-3 px-4">Contacto</th>
-                    <th className="py-3 px-4 text-center">Unidades</th>
-                    <th className="py-3 px-4 text-center">Rutas</th>
-                    <th className="py-3 px-4 text-center">Usuarios</th>
-                    <th className="py-3 px-4 text-center">Estado</th>
-                    <th className="py-3 px-4 text-right">Fecha Registro</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {loading ? (
+            {loading ? (
+              <div className="p-4">
+                <TableSkeleton rows={5} cols={7} />
+              </div>
+            ) : filteredCooperativas.length === 0 ? (
+              <div className="p-12 text-center text-slate-400 text-xs">
+                No se encontraron cooperativas registradas.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-bold text-[10px] tracking-wider">
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-400 text-xs">
-                        Cargando directorio de cooperativas...
-                      </td>
+                      <th className="py-3 px-4">Cooperativa / Empresa</th>
+                      <th className="py-3 px-4">Contacto</th>
+                      <th className="py-3 px-4 text-center">Unidades</th>
+                      <th className="py-3 px-4 text-center">Rutas</th>
+                      <th className="py-3 px-4 text-center">Usuarios</th>
+                      <th className="py-3 px-4 text-center">Estado</th>
+                      <th className="py-3 px-4 text-right">Fecha Registro</th>
                     </tr>
-                  ) : filteredCooperativas.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-400 text-xs">
-                        No se encontraron cooperativas registradas.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredCooperativas.map((c) => {
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paginatedCooperativas.map((c) => {
                       const fechaFormat = new Date(c.createdAt).toLocaleDateString("es-NI", {
                         year: "numeric",
                         month: "short",
@@ -614,11 +625,26 @@ export default function CooperativasDashboardPage() {
                           </td>
                         </tr>
                       );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Paginación */}
+            {!loading && filteredCooperativas.length > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={filteredCooperativas.length}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={(newSize) => {
+                  setPageSize(newSize);
+                  setCurrentPage(1);
+                }}
+              />
+            )}
           </div>
         </div>
       )}
@@ -728,14 +754,15 @@ export default function CooperativasDashboardPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Teléfono de Contacto
+                  Teléfono de Contacto (8 dígitos)
                 </label>
                 <input
                   type="tel"
+                  maxLength={8}
                   value={formTelefono}
-                  onChange={(e) => setFormTelefono(e.target.value)}
-                  placeholder="Ej: +505 2222-3344"
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-primary text-slate-800"
+                  onChange={(e) => setFormTelefono(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                  placeholder="Ej: 22223344"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 text-slate-800"
                 />
               </div>
 
@@ -763,7 +790,7 @@ export default function CooperativasDashboardPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary/95 rounded-lg shadow-2xs transition-all cursor-pointer"
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-2xs transition-all cursor-pointer disabled:opacity-50"
                 >
                   {submitting ? "Guardando..." : "Guardar Cooperativa"}
                 </button>
