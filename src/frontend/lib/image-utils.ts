@@ -82,12 +82,16 @@ export async function processAvatarImage(
     throw new Error("No se ha seleccionado ningún archivo de imagen.");
   }
 
+  if (file.size === 0) {
+    throw new Error("El archivo de imagen está vacío o el permiso de acceso fue denegado por el teléfono.");
+  }
+
   // Comprobar si el archivo es imagen considerando que algunos móviles no reportan MIME type explícito
   const isImageMime = file.type ? file.type.startsWith("image/") : true;
   const isImageExt = /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif|svg)$/i.test(file.name || "");
 
   if (!isImageMime && !isImageExt && file.type !== "") {
-    throw new Error("El archivo seleccionado no es un formato de imagen compatible.");
+    throw new Error("Formato de imagen no compatible. Usa JPG, PNG o WebP.");
   }
 
   if (file.size > maxInputBytes) {

@@ -29,6 +29,16 @@ export interface WelcomeEmailData {
   name: string;
 }
 
+// Convierte HTML a texto plano limpio para snippets de preview en clientes de correo
+export function stripHtmlToText(html: string): string {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // Helper para obtener configuración SMTP actual
 export function getMailConfig() {
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
@@ -162,32 +172,56 @@ export async function sendEmail({
       };
     }
 
+    // Soporte para simular o desactivar globalmente envíos de correo en testing
+    if (process.env.DISABLE_EMAIL_SENDING === 'true') {
+      console.log(`[MailService] Envío simulado (DISABLE_EMAIL_SENDING=true) para: ${Array.isArray(to) ? to.join(', ') : to}`);
+      return {
+        success: true,
+        messageId: `simulated-${Date.now()}`,
+      };
+    }
+
     // Adjuntar automáticamente el logo con Content-ID (CID) si la plantilla lo referencia
     const finalAttachments = [...attachments];
     const hasLogoCid = html.includes('cid:logo@interlocapp');
     if (hasLogoCid && !finalAttachments.some((a) => a.cid === 'logo@interlocapp')) {
-      const logoPath = path.join(process.cwd(), 'public', 'apple-touch-icon.png');
-      if (fs.existsSync(logoPath)) {
-        finalAttachments.push({
-          filename: 'interlocapp-logo.png',
-          path: logoPath,
-          cid: 'logo@interlocapp',
-        });
+      try {
+        const logoPath = path.join(process.cwd(), 'public', 'apple-touch-icon.png');
+        if (fs.existsSync(logoPath)) {
+          const logoBuffer = fs.readFileSync(logoPath);
+          finalAttachments.push({
+            filename: 'interlocapp-logo.png',
+            content: logoBuffer,
+            cid: 'logo@interlocapp',
+          });
+        }
+      } catch (logoErr) {
+        console.warn('[MailService] No se pudo cargar el logo adjunto:', logoErr);
       }
     }
 
     const config = getMailConfig();
     let info;
 
+    const cleanText = text || stripHtmlToText(html);
+
     try {
-      info = await client.sendMail({
+      const sendPromise = client.sendMail({
         from: config.from,
         to,
         subject,
         html,
-        text: text || html.replace(/<[^>]+>/g, ' '),
+        text: cleanText,
         attachments: finalAttachments,
       });
+
+      // Timeout de protección de 8 segundos
+      info = await Promise.race([
+        sendPromise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Greeting never received (Timeout local)')), 8000)
+        ),
+      ]);
     } catch (primaryError: any) {
       const isConnectionIssue =
         primaryError?.code === 'ETIMEDOUT' ||
@@ -203,14 +237,21 @@ export async function sendEmail({
         );
 
         const fallbackTransporter = createTransporterInstance(config, altPort, altSecure);
-        info = await fallbackTransporter.sendMail({
+        const fallbackPromise = fallbackTransporter.sendMail({
           from: config.from,
           to,
           subject,
           html,
-          text: text || html.replace(/<[^>]+>/g, ' '),
+          text: cleanText,
           attachments: finalAttachments,
         });
+
+        info = await Promise.race([
+          fallbackPromise,
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Greeting never received (Timeout en puerto alternativo)')), 8000)
+          ),
+        ]);
       } else {
         throw primaryError;
       }

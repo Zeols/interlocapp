@@ -123,17 +123,37 @@ export async function aprobarCooperativaAction(idCooperativa: number): Promise<A
         },
         data: { estado: 'ACTIVO' },
       }),
+      prisma.codigoVerificacion.updateMany({
+        where: {
+          correo: { in: cooperativa.usuarios.map((u) => u.correo) },
+          tipo: 'REGISTRO',
+        },
+        data: { usado: true },
+      }),
     ]);
 
-    // Enviar correo de notificación a los administradores
-    for (const admin of cooperativa.usuarios) {
-      sendCooperativaAprobadaEmail({
-        to: admin.correo,
-        adminName: `${admin.nombre} ${admin.apellido}`,
-        cooperativaName: cooperativa.nombre,
-      }).catch((mailErr) => {
+    // Enviar correo de notificación a los administradores de forma segura (con timeout de protección)
+    if (process.env.DISABLE_COOP_APPROVAL_EMAIL !== 'true' && process.env.DISABLE_EMAIL_SENDING !== 'true') {
+      try {
+        await Promise.allSettled(
+          cooperativa.usuarios.map((admin) =>
+            Promise.race([
+              sendCooperativaAprobadaEmail({
+                to: admin.correo,
+                adminName: `${admin.nombre} ${admin.apellido}`,
+                cooperativaName: cooperativa.nombre,
+              }),
+              new Promise<{ success: boolean; error: string }>((resolve) =>
+                setTimeout(() => resolve({ success: false, error: 'Tiempo de espera agotado al enviar correo' }), 5000)
+              ),
+            ])
+          )
+        );
+      } catch (mailErr) {
         console.warn('[Cooperativa] No se pudo enviar correo de aprobación:', mailErr);
-      });
+      }
+    } else {
+      console.log('[Cooperativa] Envío de correo de aprobación desactivado por configuración de entorno.');
     }
 
     revalidatePath('/dashboard/cooperativas');

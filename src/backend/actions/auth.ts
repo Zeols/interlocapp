@@ -229,13 +229,22 @@ export async function registerAction(input: SignupInput): Promise<ActionResponse
     const token = await createSessionToken(sessionPayload);
     await setSessionCookie(token);
 
-    // Enviar correo de bienvenida asíncrono
-    sendWelcomeEmail({
-      to: nuevoUsuario.correo,
-      name: nuevoUsuario.nombre,
-    }).catch((mailErr) => {
-      console.warn('[Register] No se pudo enviar el correo de bienvenida:', mailErr);
-    });
+    // Enviar correo de bienvenida de forma segura con timeout de protección
+    if (process.env.DISABLE_WELCOME_EMAIL !== 'true' && process.env.DISABLE_EMAIL_SENDING !== 'true') {
+      try {
+        await Promise.race([
+          sendWelcomeEmail({
+            to: nuevoUsuario.correo,
+            name: nuevoUsuario.nombre,
+          }),
+          new Promise<{ success: boolean; error: string }>((resolve) =>
+            setTimeout(() => resolve({ success: false, error: 'Tiempo de espera agotado al enviar bienvenida' }), 4000)
+          ),
+        ]);
+      } catch (mailErr) {
+        console.warn('[Register] No se pudo enviar el correo de bienvenida:', mailErr);
+      }
+    }
 
     return {
       success: true,
@@ -784,13 +793,22 @@ export async function verifySignupCodeAction(input: VerifyCodeInput): Promise<Ac
     const token = await createSessionToken(sessionPayload);
     await setSessionCookie(token);
 
-    // Enviar correo de bienvenida
-    sendWelcomeEmail({
-      to: nuevoUsuario.correo,
-      name: nuevoUsuario.nombre,
-    }).catch((mailErr) => {
-      console.warn('[Register] No se pudo enviar el correo de bienvenida:', mailErr);
-    });
+    // Enviar correo de bienvenida de forma segura con timeout de protección
+    if (process.env.DISABLE_WELCOME_EMAIL !== 'true' && process.env.DISABLE_EMAIL_SENDING !== 'true') {
+      try {
+        await Promise.race([
+          sendWelcomeEmail({
+            to: nuevoUsuario.correo,
+            name: nuevoUsuario.nombre,
+          }),
+          new Promise<{ success: boolean; error: string }>((resolve) =>
+            setTimeout(() => resolve({ success: false, error: 'Tiempo de espera agotado al enviar bienvenida' }), 4000)
+          ),
+        ]);
+      } catch (mailErr) {
+        console.warn('[Register] No se pudo enviar el correo de bienvenida:', mailErr);
+      }
+    }
 
     return {
       success: true,
@@ -814,6 +832,25 @@ export async function resendSignupCodeAction(correo: string): Promise<ActionResp
   try {
     const cleanEmail = correo.trim().toLowerCase();
 
+    // 1. Si el usuario ya existe y ya fue creado o verificado, no enviar ningún código
+    const existingUser = await prisma.usuario.findFirst({
+      where: {
+        correo: { equals: cleanEmail, mode: 'insensitive' },
+      },
+    });
+
+    if (existingUser) {
+      // Invalidar cualquier código pendiente residual
+      await prisma.codigoVerificacion.updateMany({
+        where: { correo: cleanEmail, usado: false },
+        data: { usado: true },
+      });
+      return {
+        success: false,
+        error: 'Esta cuenta ya se encuentra registrada y verificada en el sistema.',
+      };
+    }
+
     const lastRecord = await prisma.codigoVerificacion.findFirst({
       where: {
         correo: cleanEmail,
@@ -830,6 +867,19 @@ export async function resendSignupCodeAction(correo: string): Promise<ActionResp
     }
 
     const userData = JSON.parse(lastRecord.datosTemp);
+
+    // 2. Si el registro pertenecía a una cooperativa, no requiere códigos de verificación
+    if (userData.tipoRegistro === 'COOPERATIVA') {
+      await prisma.codigoVerificacion.updateMany({
+        where: { correo: cleanEmail, usado: false },
+        data: { usado: true },
+      });
+      return {
+        success: false,
+        error: 'Las cuentas de cooperativa son verificadas directamente por el Super Administrador y no requieren código.',
+      };
+    }
+
     const newCode = generateSixDigitCode();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
