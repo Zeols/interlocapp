@@ -254,3 +254,129 @@ export async function procesarVentaBoletos(data: VentaInput) {
     };
   }
 }
+
+// -------------------------------------------------------------
+// 4. MÉTRICAS REALES PARA EL PANEL ADMINISTRATIVO (SIN SLOP)
+// -------------------------------------------------------------
+
+export async function getDashboardStatsAction() {
+  try {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const [
+      ventasHoyAggregate,
+      ventasHistoricasAggregate,
+      boletosCount,
+      unidades,
+      pasajerosCount,
+      ultimasVentas,
+      asientosTotalesCount,
+      boletosOcupadosCount,
+    ] = await Promise.all([
+      // Ventas de hoy
+      prisma.venta.aggregate({
+        _sum: { total: true },
+        _count: { idVenta: true },
+        where: {
+          fechaHora: { gte: startOfDay },
+          estado: 'COMPLETADA',
+        },
+      }),
+      // Ventas totales acumuladas
+      prisma.venta.aggregate({
+        _sum: { total: true },
+        where: { estado: 'COMPLETADA' },
+      }),
+      // Boletos emitidos en total
+      prisma.boleto.count({
+        where: { estado: { in: ['PAGADO', 'ABORDADO'] } },
+      }),
+      // Unidades y disponibilidad
+      prisma.unidad.findMany({
+        select: { idUnidad: true, estado: true },
+      }),
+      // Pasajeros registrados
+      prisma.usuario.count({
+        where: { rol: { nombre: 'PASAJERO' } },
+      }),
+      // Últimas 6 ventas reales
+      prisma.venta.findMany({
+        take: 6,
+        orderBy: { fechaHora: 'desc' },
+        include: {
+          tipoVenta: true,
+          viaje: {
+            include: { ruta: true },
+          },
+          boletos: {
+            include: { asiento: true },
+          },
+        },
+      }),
+      // Total de asientos instalados
+      prisma.asiento.count(),
+      // Asientos ocupados en boletos activos
+      prisma.boleto.count({
+        where: { estado: { in: ['PAGADO', 'RESERVADO'] } },
+      }),
+    ]);
+
+    const totalVentasHoy = Number(ventasHoyAggregate._sum.total || 0);
+    const totalVentasHistoricas = Number(ventasHistoricasAggregate._sum.total || 0);
+    const transaccionesHoy = ventasHoyAggregate._count.idVenta || 0;
+
+    const totalUnidades = unidades.length;
+    const unidadesOperativas = unidades.filter(
+      (u) => u.estado === 'DISPONIBLE' || u.estado === 'EN_RUTA'
+    ).length;
+
+    // Calcular ocupación real basada en asientos ocupados vs total de asientos
+    const ocupacionCalculada =
+      asientosTotalesCount > 0
+        ? Math.round((boletosOcupadosCount / asientosTotalesCount) * 100)
+        : 0;
+
+    return {
+      success: true,
+      data: {
+        ventasHoy: totalVentasHoy,
+        ventasHistoricas: totalVentasHistoricas,
+        transaccionesHoy,
+        boletosCount,
+        unidadesActivas: unidadesOperativas,
+        totalUnidades,
+        pasajerosCount,
+        ocupacionPorcentaje: Math.min(ocupacionCalculada, 100),
+        ultimasVentas: ultimasVentas.map((v) => ({
+          idVenta: v.idVenta,
+          total: Number(v.total),
+          estado: v.estado,
+          tipoVenta: v.tipoVenta.nombre,
+          rutaNombre: v.viaje?.ruta?.nombre || 'Ruta sin asignar',
+          boletosCantidad: v.boletos.length,
+          asientosNumeros: v.boletos.map((b) => b.asiento.numero),
+          fechaHora: v.fechaHora.toISOString(),
+        })),
+      },
+    };
+  } catch (error) {
+    console.error('Error al calcular estadísticas reales del dashboard:', error);
+    return {
+      success: false,
+      error: 'No se pudieron consultar las métricas del dashboard.',
+      data: {
+        ventasHoy: 0,
+        ventasHistoricas: 0,
+        transaccionesHoy: 0,
+        boletosCount: 0,
+        unidadesActivas: 0,
+        totalUnidades: 0,
+        pasajerosCount: 0,
+        ocupacionPorcentaje: 0,
+        ultimasVentas: [],
+      },
+    };
+  }
+}
+

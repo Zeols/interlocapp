@@ -17,6 +17,7 @@ export interface TarifaInput {
 
 export interface RutaInput {
   idCooperativa: number;
+  idTipoRuta?: number;
   nombre: string;
   descripcion?: string;
   puntosIds: number[]; // Arreglo ordenado de IDs de paradas [1, 2, 3]
@@ -24,7 +25,71 @@ export interface RutaInput {
 }
 
 // -------------------------------------------------------------
-// 1. CATÁLOGO DE PUNTOS (Terminales / Paradas)
+// 1. CATÁLOGO DE TIPOS DE RUTA
+// -------------------------------------------------------------
+
+export async function getTiposRutaAction() {
+  try {
+    let tipos = await prisma.tipoRuta.findMany({
+      where: { estado: 'ACTIVO' },
+      orderBy: { nombre: 'asc' },
+    });
+
+    if (tipos.length === 0) {
+      await prisma.tipoRuta.createMany({
+        data: [
+          { nombre: 'Expreso Directo', descripcion: 'Viaje directo de terminal a terminal sin paradas intermedias.' },
+          { nombre: 'Ordinario Rutero', descripcion: 'Servicio con paradas intermedias autorizadas en empalmes y estaciones.' },
+          { nombre: 'Interurbano Semidirecto', descripcion: 'Paradas exclusivas en terminales de cabeceras departamentales.' },
+        ],
+      });
+
+      tipos = await prisma.tipoRuta.findMany({
+        where: { estado: 'ACTIVO' },
+        orderBy: { nombre: 'asc' },
+      });
+    }
+
+    return { success: true, data: tipos };
+  } catch (error) {
+    console.error('Error al obtener tipos de ruta:', error);
+    return { success: false, error: 'No se pudieron consultar los tipos de ruta.', data: [] };
+  }
+}
+
+export async function createTipoRutaAction(nombre: string, descripcion?: string) {
+  try {
+    if (!nombre || nombre.trim() === '') {
+      return { success: false, error: 'El nombre del tipo de ruta es obligatorio.' };
+    }
+
+    const cleanName = nombre.trim();
+    const existing = await prisma.tipoRuta.findUnique({
+      where: { nombre: cleanName },
+    });
+
+    if (existing) {
+      return { success: false, error: 'Ya existe un tipo de ruta registrado con este nombre.' };
+    }
+
+    const nuevoTipo = await prisma.tipoRuta.create({
+      data: {
+        nombre: cleanName,
+        descripcion: descripcion?.trim() || null,
+        estado: 'ACTIVO',
+      },
+    });
+
+    revalidatePath('/dashboard/rutas');
+    return { success: true, data: nuevoTipo };
+  } catch (error) {
+    console.error('Error al registrar tipo de ruta:', error);
+    return { success: false, error: 'No se pudo crear el tipo de ruta.' };
+  }
+}
+
+// -------------------------------------------------------------
+// 2. CATÁLOGO DE PUNTOS (Terminales / Paradas)
 // -------------------------------------------------------------
 
 export async function createPunto(data: PuntoInput) {
@@ -106,6 +171,7 @@ export async function createRutaConPuntosYTarifas(data: RutaInput) {
       const ruta = await tx.ruta.create({
         data: {
           idCooperativa: data.idCooperativa,
+          idTipoRuta: data.idTipoRuta || null,
           nombre: data.nombre.trim(),
           descripcion: data.descripcion?.trim() || null,
           estado: 'ACTIVO',
@@ -155,6 +221,7 @@ export async function getAllRutasAction() {
     const rutas = await prisma.ruta.findMany({
       include: {
         cooperativa: true,
+        tipoRuta: true,
         puntosRuta: {
           include: { punto: true },
           orderBy: { orden: 'asc' },

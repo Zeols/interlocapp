@@ -377,10 +377,10 @@ export default function FlotaDashboardPage() {
         </div>
       </div>
 
-      {/* Filtros de búsqueda y estados */}
-      <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Input de búsqueda */}
-        <div className="relative flex-1 max-w-md">
+      {/* Barra de búsqueda por placa y filtro combo box por estado */}
+      <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Barra de búsqueda especializada para buscar por placa */}
+        <div className="relative flex-1 max-w-lg">
           <Icon
             path={mdiMagnify}
             size={0.8}
@@ -388,40 +388,53 @@ export default function FlotaDashboardPage() {
           />
           <input
             type="text"
-            placeholder="Buscar por placa, número o modelo..."
+            placeholder="Buscar unidad por placa (ej: M 321-456) o número..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-sm font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
             >
               <Icon path={mdiClose} size={0.6} />
             </button>
           )}
         </div>
 
-        {/* Pestañas de estado operativo */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-          {(["TODOS", "DISPONIBLE", "EN_RUTA", "MANTENIMIENTO", "INOPERATIVA"] as const).map(
-            (tab) => {
-              const active = statusFilter === tab;
-              return (
-                <button
-                  key={tab}
-                  onClick={() => setStatusFilter(tab)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                    active
-                      ? "bg-gray-900 text-white shadow-xs"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                >
-                  {tab === "TODOS" ? "Todos" : tab.replace("_", " ")}
-                </button>
-              );
-            }
+        {/* Combo box de estado de unidad */}
+        <div className="flex items-center gap-3">
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider shrink-0 hidden sm:inline-block">
+            Estado Operativo:
+          </label>
+          <div className="relative min-w-[200px]">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-xs font-bold text-gray-800 appearance-none pr-9 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-all"
+            >
+              <option value="TODOS">Todos los estados</option>
+              <option value="DISPONIBLE">Disponibles</option>
+              <option value="EN_RUTA">En Ruta</option>
+              <option value="MANTENIMIENTO">En Mantenimiento</option>
+              <option value="INOPERATIVA">Inoperativas</option>
+            </select>
+            <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">
+              ▼
+            </div>
+          </div>
+
+          {(searchTerm || statusFilter !== "TODOS") && (
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setStatusFilter("TODOS");
+              }}
+              className="px-3 py-2 rounded-xl text-xs font-bold text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors cursor-pointer"
+            >
+              Limpiar
+            </button>
           )}
         </div>
       </div>
