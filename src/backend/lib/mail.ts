@@ -32,8 +32,24 @@ export interface WelcomeEmailData {
 // Helper para obtener configuración SMTP actual
 export function getMailConfig() {
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = parseInt(process.env.SMTP_PORT || '465', 10);
-  const secure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : (port === 465);
+  const rawPort = parseInt(process.env.SMTP_PORT || '587', 10);
+  const port = isNaN(rawPort) ? 587 : rawPort;
+
+  // En serverless (Vercel) y la mayoría de redes, el puerto 587 con STARTTLS (secure: false)
+  // es el estándar recomendado para evitar 'Greeting never received'.
+  // El puerto 465 requiere secure: true; el puerto 587 requiere obligatoriamente secure: false.
+  let secure = port === 465;
+  if (process.env.SMTP_SECURE !== undefined) {
+    const isExplicitlyTrue = process.env.SMTP_SECURE === 'true';
+    if (port === 587) {
+      secure = false; // El puerto 587 jamás debe usar secure: true (provoca bloqueo en el saludo TLS inicial)
+    } else if (port === 465) {
+      secure = true;
+    } else {
+      secure = isExplicitlyTrue;
+    }
+  }
+
   const user = process.env.SMTP_USER || process.env.EMAIL_USER || '';
   const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS || '';
   const from = process.env.SMTP_FROM || (user ? `InterlocApp <${user}>` : 'InterlocApp <notificaciones@interlocapp.com>');
@@ -41,10 +57,39 @@ export function getMailConfig() {
   return { host, port, secure, user, pass, from };
 }
 
+// Crea una instancia de transporter con configuraciones optimizadas
+function createTransporterInstance(
+  config: ReturnType<typeof getMailConfig>,
+  portOverride?: number,
+  secureOverride?: boolean
+): Transporter {
+  const port = portOverride ?? config.port;
+  const secure = secureOverride ?? (port === 465 ? true : false);
+
+  return nodemailer.createTransport({
+    host: config.host,
+    port,
+    secure,
+    auth: {
+      user: config.user,
+      pass: config.pass.replace(/\s+/g, ''), // Remueve espacios si el usuario pegó la clave de aplicación con espacios
+    },
+    tls: {
+      rejectUnauthorized: false, // Compatibilidad con redes cloud/serverless
+    },
+    requireTLS: port === 587,
+    connectionTimeout: 10000,
+    greetingTimeout: 8000,
+    socketTimeout: 15000,
+    pool: false, // Desactivar pool en entornos serverless (Vercel) para evitar sockets congelados
+  });
+}
+
 // Singleton del transporter de nodemailer
 let transporter: Transporter | null = null;
 let lastUsedUser = '';
 let lastUsedPass = '';
+let lastUsedPort = 0;
 
 export function getMailTransporter(): Transporter | null {
   const config = getMailConfig();
@@ -52,29 +97,17 @@ export function getMailTransporter(): Transporter | null {
     return null;
   }
 
-  // Si cambiaron las credenciales o no existe, recrear el transporter
-  if (!transporter || lastUsedUser !== config.user || lastUsedPass !== config.pass) {
+  // Si cambiaron las credenciales o el puerto o no existe, recrear el transporter
+  if (
+    !transporter ||
+    lastUsedUser !== config.user ||
+    lastUsedPass !== config.pass ||
+    lastUsedPort !== config.port
+  ) {
     lastUsedUser = config.user;
     lastUsedPass = config.pass;
-
-    transporter = nodemailer.createTransport({
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      auth: {
-        user: config.user,
-        pass: config.pass.replace(/\s+/g, ''), // Remueve espacios si el usuario pegó la clave de aplicación con espacios
-      },
-      tls: {
-        rejectUnauthorized: false, // Compatibilidad con redes serverless
-      },
-      requireTLS: config.port === 587,
-      connectionTimeout: 15000,
-      greetingTimeout: 10000,
-      socketTimeout: 20000,
-      // Desactivar pool en entornos serverless (Vercel) para evitar sockets congelados
-      pool: false,
-    });
+    lastUsedPort = config.port;
+    transporter = createTransporterInstance(config);
   }
 
   return transporter;
@@ -108,13 +141,21 @@ export async function verifyEmailConnection(): Promise<{ success: boolean; messa
 }
 
 /**
- * Envío genérico de correos electrónicos con soporte para logo embebido (CID)
+ * Envío genérico de correos electrónicos con soporte para logo embebido (CID) y fallback de puerto
  */
-export async function sendEmail({ to, subject, html, text, attachments = [] }: SendMailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
+export async function sendEmail({
+  to,
+  subject,
+  html,
+  text,
+  attachments = [],
+}: SendMailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const client = getMailTransporter();
     if (!client) {
-      console.warn('[MailService Warning] Variables SMTP no detectadas (SMTP_USER y SMTP_PASS). En Vercel, agrégalas en Project Settings > Environment Variables.');
+      console.warn(
+        '[MailService Warning] Variables SMTP no detectadas (SMTP_USER y SMTP_PASS). En Vercel, agrégalas en Project Settings > Environment Variables.'
+      );
       return {
         success: false,
         error: 'Servicio de correo no configurado en variables de entorno (SMTP_USER/SMTP_PASS).',
@@ -136,14 +177,44 @@ export async function sendEmail({ to, subject, html, text, attachments = [] }: S
     }
 
     const config = getMailConfig();
-    const info = await client.sendMail({
-      from: config.from,
-      to,
-      subject,
-      html,
-      text: text || html.replace(/<[^>]+>/g, ' '),
-      attachments: finalAttachments,
-    });
+    let info;
+
+    try {
+      info = await client.sendMail({
+        from: config.from,
+        to,
+        subject,
+        html,
+        text: text || html.replace(/<[^>]+>/g, ' '),
+        attachments: finalAttachments,
+      });
+    } catch (primaryError: any) {
+      const isConnectionIssue =
+        primaryError?.code === 'ETIMEDOUT' ||
+        primaryError?.command === 'CONN' ||
+        primaryError?.message?.includes('Greeting never received');
+
+      // Si falló por timeout de conexión o saludo en Vercel, reintentar automáticamente en el puerto alternativo
+      if (isConnectionIssue) {
+        const altPort = config.port === 465 ? 587 : 465;
+        const altSecure = altPort === 465;
+        console.warn(
+          `[MailService Warning] Falló envío en puerto ${config.port} (${primaryError?.message}). Reintentando automáticamente en puerto alternativo ${altPort} (secure: ${altSecure})...`
+        );
+
+        const fallbackTransporter = createTransporterInstance(config, altPort, altSecure);
+        info = await fallbackTransporter.sendMail({
+          from: config.from,
+          to,
+          subject,
+          html,
+          text: text || html.replace(/<[^>]+>/g, ' '),
+          attachments: finalAttachments,
+        });
+      } else {
+        throw primaryError;
+      }
+    }
 
     return {
       success: true,
@@ -157,9 +228,19 @@ export async function sendEmail({ to, subject, html, text, attachments = [] }: S
       response: error?.response,
       responseCode: error?.responseCode,
     });
+
+    let friendlyError = error?.message || 'Fallo desconocido al enviar correo.';
+    if (error?.code === 'EAUTH' || error?.responseCode === 535 || error?.message?.includes('BadCredentials')) {
+      friendlyError =
+        'Error de autenticación con Gmail: La contraseña de aplicación (SMTP_PASS) es incorrecta o fue revocada. Genera una nueva contraseña de aplicación en tu cuenta de Google.';
+    } else if (error?.code === 'ETIMEDOUT' || error?.message?.includes('Greeting never received')) {
+      friendlyError =
+        'Tiempo de espera agotado al conectar con el servidor SMTP. Configura el puerto 587 con STARTTLS en las variables de entorno de Vercel.';
+    }
+
     return {
       success: false,
-      error: error?.message || 'Fallo desconocido al enviar correo.',
+      error: friendlyError,
     };
   }
 }
