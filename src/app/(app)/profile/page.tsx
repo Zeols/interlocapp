@@ -164,7 +164,7 @@ export default function ProfilePage() {
       const webpDataUrl = await processAvatarImage(file, {
         targetSize: 256,
         quality: 0.85,
-        maxInputBytes: 5 * 1024 * 1024,
+        maxInputBytes: 15 * 1024 * 1024,
       });
       setFoto(webpDataUrl);
       setFotoError(false);
@@ -377,10 +377,10 @@ export default function ProfilePage() {
         
         {/* TARJETA DE IDENTIDAD HERO DEL USUARIO */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xs overflow-hidden mb-6">
-          {/* Banner superior con gradiente de marca */}
-          <div className="h-28 sm:h-32 bg-gradient-to-r from-gray-900 via-slate-800 to-primary/85 relative px-6 flex items-end">
+          {/* Banner superior ejecutivo en tono slate oscuro */}
+          <div className="h-28 sm:h-32 bg-slate-900 border-b border-slate-800 relative px-6 flex items-end">
             <div className="absolute top-4 right-4 flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/15 backdrop-blur-md text-white border border-white/20">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/10 backdrop-blur-md text-white border border-white/15">
                 <Icon path={mdiShieldCheckOutline} size={0.65} className="text-emerald-400" />
                 Cuenta Verificada
               </span>
@@ -395,7 +395,7 @@ export default function ProfilePage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/png,image/jpeg,image/webp,image/jpg"
+                  accept="image/*"
                   onChange={handleFileInputChange}
                   className="hidden"
                   id="avatar-file-upload"
@@ -476,7 +476,7 @@ export default function ProfilePage() {
 
               {/* Botón de acceso rápido a boletos */}
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+                <span className="text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
                   {rolNombre || "PASAJERO"}
                 </span>
               </div>
@@ -502,19 +502,19 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* PESTAÑAS HORIZONTALES MODERNAS (Segmented Control) con botón de acción en PC */}
-          <div className="border-t border-gray-100 bg-gray-50/60 px-6 sm:px-8 py-2.5 flex items-center justify-between gap-3">
+          {/* PESTAÑAS HORIZONTALES (Segmented Control) con botón de acción en PC */}
+          <div className="border-t border-gray-100 bg-slate-50/70 px-6 sm:px-8 py-2.5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => handleTabClick("personal")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                   activeTab === "personal"
-                    ? "bg-white text-gray-900 shadow-xs border border-gray-200/80"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold border border-slate-200/80"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                 }`}
               >
-                <Icon path={mdiAccountOutline} size={0.75} className={activeTab === "personal" ? "text-primary" : "text-gray-400"} />
+                <Icon path={mdiAccountOutline} size={0.75} className={activeTab === "personal" ? "text-slate-900" : "text-slate-400"} />
                 <span>Datos Personales</span>
                 {hasUnsavedChanges && (
                   <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Cambios sin guardar" />
@@ -524,13 +524,13 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={() => handleTabClick("password")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                   activeTab === "password"
-                    ? "bg-white text-gray-900 shadow-xs border border-gray-200/80"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold border border-slate-200/80"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                 }`}
               >
-                <Icon path={mdiKeyOutline} size={0.75} className={activeTab === "password" ? "text-primary" : "text-gray-400"} />
+                <Icon path={mdiKeyOutline} size={0.75} className={activeTab === "password" ? "text-slate-900" : "text-slate-400"} />
                 <span>Seguridad y Contraseña</span>
               </button>
             </div>
@@ -555,7 +555,7 @@ export default function ProfilePage() {
                   disabled={savingPersonal || !hasUnsavedChanges}
                   className={`px-5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-xs ${
                     hasUnsavedChanges
-                      ? "bg-primary hover:bg-primary-dark text-white shadow-primary/20 cursor-pointer active:scale-95"
+                      ? "bg-slate-900 hover:bg-slate-800 text-white cursor-pointer active:scale-95"
                       : "bg-gray-100 text-gray-400 cursor-not-allowed opacity-75"
                   }`}
                   title={hasUnsavedChanges ? "Guardar cambios realizados" : "No hay cambios pendientes"}
@@ -581,6 +581,38 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
+
+        {/* NOTIFICACIÓN PROMINENTE DE ESTADO Y ERRORES (Alta visibilidad inmediata en móvil) */}
+        {personalFeedback && (
+          <div
+            className={`mb-6 p-4 rounded-2xl text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 border shadow-sm transition-all animate-in fade-in slide-in-from-top-2 ${
+              personalFeedback.type === "success"
+                ? "bg-emerald-50 text-emerald-900 border-emerald-300 ring-2 ring-emerald-200/50"
+                : "bg-red-50 text-red-900 border-red-300 ring-2 ring-red-200/50"
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Icon
+                path={
+                  personalFeedback.type === "success"
+                    ? mdiCheckCircleOutline
+                    : mdiAlertCircleOutline
+                }
+                size={0.85}
+                className={personalFeedback.type === "success" ? "text-emerald-600 shrink-0" : "text-red-600 shrink-0"}
+              />
+              <span className="font-bold">{personalFeedback.message}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPersonalFeedback(null)}
+              className="p-1 rounded-lg hover:bg-black/5 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer shrink-0"
+              title="Cerrar notificación"
+            >
+              <Icon path={mdiClose} size={0.65} />
+            </button>
+          </div>
+        )}
 
         {/* CONTENIDO DE LA PESTAÑA ACTIVA */}
         {loading ? (
@@ -703,7 +735,7 @@ export default function ProfilePage() {
                       htmlFor="profile-telefono"
                       className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5"
                     >
-                      Teléfono Móvil
+                      Teléfono Móvil (8 dígitos)
                     </label>
                     <div className="relative">
                       <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
@@ -714,10 +746,11 @@ export default function ProfilePage() {
                         name="telefono"
                         type="tel"
                         autoComplete="tel"
+                        maxLength={8}
                         value={telefono ?? ""}
-                        onChange={(e) => setTelefono(e.target.value)}
-                        placeholder="8888 8888"
-                        className="w-full bg-gray-50/80 border border-gray-200/90 text-gray-900 text-sm font-semibold rounded-2xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white transition-all"
+                        onChange={(e) => setTelefono(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                        placeholder="Ej: 88888888"
+                        className="w-full bg-gray-50/80 border border-gray-200/90 text-gray-900 text-sm font-semibold rounded-2xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-slate-400/20 focus:border-slate-400 focus:bg-white transition-all"
                       />
                     </div>
                   </div>
@@ -748,27 +781,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* MENSAJES DE ESTADO / FEEDBACK */}
-            {personalFeedback && (
-              <div
-                className={`p-4 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-3 border transition-all animate-in fade-in ${
-                  personalFeedback.type === "success"
-                    ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                    : "bg-red-50 text-red-800 border-red-200"
-                }`}
-              >
-                <Icon
-                  path={
-                    personalFeedback.type === "success"
-                      ? mdiCheckCircleOutline
-                      : mdiAlertCircleOutline
-                  }
-                  size={0.85}
-                  className={personalFeedback.type === "success" ? "text-emerald-600 shrink-0" : "text-red-600 shrink-0"}
-                />
-                <span>{personalFeedback.message}</span>
-              </div>
-            )}
 
             {/* BARRA DE ACCIÓN INFERIOR */}
             <div className="flex items-center justify-between pt-2">
@@ -796,10 +808,10 @@ export default function ProfilePage() {
                 <button
                   type="submit"
                   disabled={savingPersonal || !hasUnsavedChanges}
-                  className={`text-white font-black text-sm px-8 py-3.5 rounded-2xl transition-all shadow-md flex items-center gap-2 ${
+                  className={`text-white font-bold text-sm px-7 py-3 rounded-xl transition-all shadow-xs flex items-center gap-2 ${
                     hasUnsavedChanges
-                      ? "bg-primary hover:bg-primary-dark shadow-primary/25 hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-                      : "bg-gray-300 text-gray-500 shadow-none cursor-not-allowed opacity-75"
+                      ? "bg-slate-900 hover:bg-slate-800 cursor-pointer active:scale-95"
+                      : "bg-gray-200 text-gray-400 shadow-none cursor-not-allowed opacity-75"
                   }`}
                 >
                   {savingPersonal ? (
@@ -951,7 +963,7 @@ export default function ProfilePage() {
                 <button
                   type="submit"
                   disabled={savingPassword}
-                  className="bg-primary hover:bg-primary-dark text-white font-bold text-sm px-8 py-3.5 rounded-2xl transition-all cursor-pointer shadow-md shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 flex items-center gap-2"
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm px-7 py-3 rounded-xl transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-60 flex items-center gap-2"
                 >
                   {savingPassword ? (
                     <>
@@ -998,7 +1010,7 @@ export default function ProfilePage() {
                 type="button"
                 onClick={() => handleSavePersonal()}
                 disabled={savingPersonal}
-                className="px-4 sm:px-5 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs sm:text-sm transition-all shadow-md shadow-primary/20 flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-60"
+                className="px-4 sm:px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-60"
               >
                 {savingPersonal ? (
                   <>

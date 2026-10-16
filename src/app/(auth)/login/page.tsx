@@ -99,6 +99,16 @@ function LoginFormContent() {
             </p>
           </div>
 
+          {searchParams.get("pending") === "true" && (
+            <div className="mb-5 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm flex items-start gap-2.5 animate-in fade-in">
+              <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-emerald-600" />
+              <div>
+                <p className="font-bold">¡Solicitud de Cooperativa Registrada!</p>
+                <p className="mt-0.5 text-emerald-700">Tu cooperativa y credenciales han sido recibidas y están en proceso de verificación por el equipo de supervisión de InterlocApp. Te notificaremos por correo en cuanto sea aprobada para que puedas acceder.</p>
+              </div>
+            </div>
+          )}
+
           {errorMessage && (
             <div className="mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5 animate-in fade-in">
               <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-red-500" />

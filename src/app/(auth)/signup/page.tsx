@@ -18,10 +18,13 @@ import {
   mdiLoading,
   mdiShieldCheckOutline,
   mdiRefresh,
+  mdiBusDoubleDecker,
+  mdiDomain,
 } from "@mdi/js";
 import { Logo } from "@/frontend/components/ui/Logo";
 import {
   requestSignupCodeAction,
+  requestSignupCooperativaCodeAction,
   verifySignupCodeAction,
   resendSignupCodeAction,
 } from "@/backend/actions/auth";
@@ -29,10 +32,13 @@ import {
 export default function SignUpPage() {
   const router = useRouter();
 
+  // Tipo de cuenta
+  const [accountType, setAccountType] = useState<"PASAJERO" | "COOPERATIVA">("PASAJERO");
+
   // Estados del flujo
   const [step, setStep] = useState<"form" | "verify">("form");
 
-  // Campos de formulario
+  // Campos para Pasajero y Administrador
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -40,6 +46,11 @@ export default function SignUpPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  // Campos adicionales para Cooperativa
+  const [coopNombre, setCoopNombre] = useState("");
+  const [coopTelefono, setCoopTelefono] = useState("");
+  const [coopDireccion, setCoopDireccion] = useState("");
 
   // Código de verificación
   const [code, setCode] = useState("");
@@ -78,18 +89,38 @@ export default function SignUpPage() {
     }
 
     const nameParts = fullName.trim().split(" ");
-    const nombre = nameParts[0] || "Pasajero";
+    const nombre = nameParts[0] || (accountType === "COOPERATIVA" ? "Admin" : "Pasajero");
     const apellido = nameParts.slice(1).join(" ") || "Registrado";
 
+    if (accountType === "COOPERATIVA" && !coopNombre.trim()) {
+      setErrorMessage("El nombre de la cooperativa o empresa es obligatorio.");
+      return;
+    }
+
     startTransition(async () => {
-      const response = await requestSignupCodeAction({
-        nombre,
-        apellido,
-        correo: email.trim().toLowerCase(),
-        telefono: telefono.trim() || undefined,
-        password,
-        confirmPassword,
-      });
+      let response;
+      if (accountType === "COOPERATIVA") {
+        response = await requestSignupCooperativaCodeAction({
+          cooperativaNombre: coopNombre.trim(),
+          cooperativaTelefono: coopTelefono.trim() || undefined,
+          cooperativaDireccion: coopDireccion.trim() || undefined,
+          nombre,
+          apellido,
+          correo: email.trim().toLowerCase(),
+          telefono: telefono.trim() || undefined,
+          password,
+          confirmPassword,
+        });
+      } else {
+        response = await requestSignupCodeAction({
+          nombre,
+          apellido,
+          correo: email.trim().toLowerCase(),
+          telefono: telefono.trim() || undefined,
+          password,
+          confirmPassword,
+        });
+      }
 
       if (!response.success) {
         setErrorMessage(response.error || "No se pudo procesar el registro.");
@@ -192,40 +223,130 @@ export default function SignUpPage() {
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.25 }}
               >
-                <div className="mb-6">
-                  <div className="mb-4 lg:hidden">
+                <div className="mb-5">
+                  <div className="mb-3 lg:hidden">
                     <Logo size={1} />
                   </div>
-                  <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight mb-2">
+                  <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight mb-1">
                     Crear Cuenta
                   </h1>
-                  <p className="text-sm text-gray-500">
-                    Ingresa tus datos para recibir tu código de activación
+                  <p className="text-xs sm:text-sm text-gray-500">
+                    Selecciona tu perfil e ingresa tus datos
                   </p>
                 </div>
 
+                {/* Selector de Pestañas: Pasajero vs Cooperativa */}
+                <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl mb-5 border border-slate-200/80">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountType("PASAJERO");
+                      setErrorMessage(null);
+                    }}
+                    className={`py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                      accountType === "PASAJERO"
+                        ? "bg-white text-slate-900 shadow-2xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <Icon path={mdiAccountOutline} size={0.75} className={accountType === "PASAJERO" ? "text-primary" : ""} />
+                    Soy Pasajero
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountType("COOPERATIVA");
+                      setErrorMessage(null);
+                    }}
+                    className={`py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                      accountType === "COOPERATIVA"
+                        ? "bg-white text-slate-900 shadow-2xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <Icon path={mdiBusDoubleDecker} size={0.75} className={accountType === "COOPERATIVA" ? "text-primary" : ""} />
+                    Soy Cooperativa
+                  </button>
+                </div>
+
                 {errorMessage && (
-                  <div className="mb-5 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5">
+                  <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5">
                     <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-red-500" />
                     <span>{errorMessage}</span>
                   </div>
                 )}
 
-                <form onSubmit={handleRequestCode} className="space-y-4">
+                <form onSubmit={handleRequestCode} className="space-y-3.5">
+                  {/* SECCIÓN DATOS DE COOPERATIVA (SI ES CUENTA COOPERATIVA) */}
+                  {accountType === "COOPERATIVA" && (
+                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-3">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                        <Icon path={mdiDomain} size={0.7} />
+                        Datos de la Cooperativa / Empresa
+                      </p>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">
+                          Nombre Oficial de la Cooperativa *
+                        </label>
+                        <input
+                          type="text"
+                          value={coopNombre}
+                          onChange={(e) => setCoopNombre(e.target.value)}
+                          placeholder="Ej: COOTRANSTEL R.L., Transporte del Norte..."
+                          className="w-full bg-white border border-gray-200 text-gray-900 text-xs sm:text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                          required
+                          disabled={isPending}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            Teléfono institucional
+                          </label>
+                          <input
+                            type="tel"
+                            maxLength={8}
+                            value={coopTelefono}
+                            onChange={(e) => setCoopTelefono(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                            placeholder="Ej: 22223344"
+                            className="w-full bg-white border border-gray-200 text-gray-900 text-xs sm:text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
+                            disabled={isPending}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            Terminal / Dirección
+                          </label>
+                          <input
+                            type="text"
+                            value={coopDireccion}
+                            onChange={(e) => setCoopDireccion(e.target.value)}
+                            placeholder="Terminal UCA, Managua..."
+                            className="w-full bg-white border border-gray-200 text-gray-900 text-xs sm:text-sm rounded-lg py-2 px-3 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
+                            disabled={isPending}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SECCIÓN DATOS PERSONALES DEL USUARIO / ADMIN */}
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                      Nombre Completo
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      {accountType === "COOPERATIVA" ? "Nombre Completo del Administrador *" : "Nombre Completo *"}
                     </label>
                     <div className="relative">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                        <Icon path={mdiAccountOutline} size={0.8} />
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        <Icon path={mdiAccountOutline} size={0.7} />
                       </div>
                       <input
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder="Nombre y apellido"
-                        className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
+                        className="w-full bg-gray-50/80 border border-gray-200 text-gray-900 text-xs sm:text-sm rounded-lg py-2.5 pl-9 pr-3 focus:outline-none focus:border-slate-400 focus:bg-white transition-all disabled:opacity-60"
                         required
                         disabled={isPending}
                       />
@@ -233,19 +354,19 @@ export default function SignUpPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                      Correo electrónico
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      {accountType === "COOPERATIVA" ? "Correo Electrónico del Administrador *" : "Correo electrónico *"}
                     </label>
                     <div className="relative">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                        <Icon path={mdiEmailOutline} size={0.8} />
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        <Icon path={mdiEmailOutline} size={0.7} />
                       </div>
                       <input
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="correo@ejemplo.com"
-                        className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
+                        className="w-full bg-gray-50/80 border border-gray-200 text-gray-900 text-xs sm:text-sm rounded-lg py-2.5 pl-9 pr-3 focus:outline-none focus:border-slate-400 focus:bg-white transition-all disabled:opacity-60"
                         required
                         disabled={isPending}
                       />
@@ -253,96 +374,107 @@ export default function SignUpPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                      Teléfono móvil (opcional)
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Teléfono de contacto (8 dígitos numéricos)
                     </label>
                     <div className="relative">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                        <Icon path={mdiPhoneOutline} size={0.8} />
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        <Icon path={mdiPhoneOutline} size={0.7} />
                       </div>
                       <input
                         type="tel"
+                        maxLength={8}
                         value={telefono}
-                        onChange={(e) => setTelefono(e.target.value)}
-                        placeholder="8888 8888"
-                        className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
+                        onChange={(e) => setTelefono(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                        placeholder="Ej: 88888888"
+                        className="w-full bg-gray-50/80 border border-gray-200 text-gray-900 text-xs sm:text-sm rounded-lg py-2.5 pl-9 pr-3 focus:outline-none focus:border-slate-400 focus:bg-white transition-all disabled:opacity-60"
                         disabled={isPending}
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                      Contraseña
-                    </label>
-                    <div className="relative">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                        <Icon path={mdiLockOutline} size={0.8} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Contraseña *
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                          <Icon path={mdiLockOutline} size={0.7} />
+                        </div>
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Mínimo 6 caracteres"
+                          className="w-full bg-gray-50/80 border border-gray-200 text-gray-900 text-xs sm:text-sm rounded-lg py-2.5 pl-9 pr-9 focus:outline-none focus:border-primary focus:bg-white transition-all disabled:opacity-60"
+                          required
+                          disabled={isPending}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                        >
+                          <Icon path={showPassword ? mdiEyeOffOutline : mdiEyeOutline} size={0.65} />
+                        </button>
                       </div>
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm rounded-2xl py-3 pl-11 pr-11 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
-                        required
-                        disabled={isPending}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                      >
-                        <Icon path={showPassword ? mdiEyeOffOutline : mdiEyeOutline} size={0.8} />
-                      </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Confirmar Contraseña *
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                          <Icon path={mdiLockOutline} size={0.7} />
+                        </div>
+                        <input
+                          type={showConfirm ? "text" : "password"}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Repite tu contraseña"
+                          className={`w-full bg-gray-50/80 border text-gray-900 text-xs sm:text-sm rounded-lg py-2.5 pl-9 pr-9 focus:outline-none focus:bg-white transition-all disabled:opacity-60 ${
+                            passwordsMismatch
+                              ? "border-red-300 focus:border-red-500"
+                              : passwordsMatch
+                              ? "border-emerald-300 focus:border-emerald-500"
+                              : "border-gray-200 focus:border-primary"
+                          }`}
+                          required
+                          disabled={isPending}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirm(!showConfirm)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                        >
+                          <Icon path={showConfirm ? mdiEyeOffOutline : mdiEyeOutline} size={0.65} />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                      Confirmar Contraseña
-                    </label>
-                    <div className="relative">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                        <Icon path={mdiLockOutline} size={0.8} />
-                      </div>
-                      <input
-                        type={showConfirm ? "text" : "password"}
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className={`w-full bg-gray-50/80 border text-gray-900 text-sm rounded-2xl py-3 pl-11 pr-11 focus:outline-none focus:ring-2 transition-all disabled:opacity-60 ${
-                          passwordsMismatch
-                            ? "border-red-300 focus:ring-red-500/20 focus:border-red-500"
-                            : passwordsMatch
-                            ? "border-emerald-400 focus:ring-emerald-500/20 focus:border-emerald-500"
-                            : "border-gray-200/80 focus:ring-primary/10 focus:border-primary focus:bg-white"
-                        }`}
-                        required
-                        disabled={isPending}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirm(!showConfirm)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                      >
-                        <Icon path={showConfirm ? mdiEyeOffOutline : mdiEyeOutline} size={0.8} />
-                      </button>
+                  {accountType === "COOPERATIVA" && (
+                    <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
+                      <strong>Aviso de verificación:</strong> Al registrar una cooperativa, la solicitud pasará a revisión por el Super Administrador de InterlocApp. Tras ser aprobada, recibirás un correo y podrás ingresar a gestionar tu flota, rutas y colaboradores.
                     </div>
-                  </div>
+                  )}
 
                   <button
                     type="submit"
-                    disabled={isPending}
-                    className="w-full bg-primary hover:bg-primary-dark text-white font-bold text-sm sm:text-base py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all mt-6 cursor-pointer shadow-md shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed"
+                    disabled={isPending || passwordsMismatch}
+                    className="w-full bg-primary hover:bg-primary-dark text-white font-semibold text-xs sm:text-sm py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all mt-4 cursor-pointer shadow-xs disabled:opacity-60"
                   >
                     {isPending ? (
                       <>
-                        <Icon path={mdiLoading} size={0.9} className="animate-spin" />
+                        <Icon path={mdiLoading} size={0.8} className="animate-spin" />
                         <span>Enviando código...</span>
                       </>
                     ) : (
-                      <span>Continuar y verificar correo</span>
+                      <span>
+                        {accountType === "COOPERATIVA" ? "Solicitar Registro de Cooperativa" : "Crear Cuenta de Pasajero"}
+                      </span>
                     )}
                   </button>
                 </form>

@@ -18,6 +18,7 @@ import {
   mdiShieldCheckOutline,
   mdiDotsVertical,
   mdiEyeOutline,
+  mdiTagOutline,
 } from "@mdi/js";
 import {
   getAllUnidadesAction,
@@ -25,8 +26,11 @@ import {
   createUnidadWithAsientos,
   updateEstadoUnidadAction,
   deleteUnidadAction,
+  createTipoUnidad,
 } from "@/backend/actions/unidades";
 import { getCooperativas } from "@/backend/actions/cooperativas";
+import { TableSkeleton } from "@/frontend/components/ui/Skeleton";
+import { Pagination } from "@/frontend/components/ui/Pagination";
 
 type EstadoUnidad = "DISPONIBLE" | "EN_RUTA" | "MANTENIMIENTO" | "INOPERATIVA";
 
@@ -77,11 +81,20 @@ export default function FlotaDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("TODOS");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Modales
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateTipoModal, setShowCreateTipoModal] = useState(false);
   const [showCroquisModal, setShowCroquisModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  // Formulario de nuevo Tipo de Unidad
+  const [tipoNombre, setTipoNombre] = useState("");
+  const [tipoDescripcion, setTipoDescripcion] = useState("");
+  const [submittingTipo, setSubmittingTipo] = useState(false);
+  const [tipoModalError, setTipoModalError] = useState<string | null>(null);
 
   // Unidad seleccionada para ver o borrar
   const [selectedUnidad, setSelectedUnidad] = useState<UnidadItem | null>(null);
@@ -98,6 +111,36 @@ export default function FlotaDashboardPage() {
   // Estado de acción rápida (cambio de estado de una unidad)
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const handleCreateTipoUnidad = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tipoNombre.trim()) {
+      setTipoModalError("El nombre del tipo de unidad es obligatorio.");
+      return;
+    }
+    setSubmittingTipo(true);
+    setTipoModalError(null);
+    try {
+      const res = await createTipoUnidad(tipoNombre.trim(), tipoDescripcion.trim() || undefined);
+      if (res.success && res.data) {
+        setTiposUnidad((prev) => [...prev, res.data]);
+        setFormTipoId(res.data.idTipoUnidad);
+        setShowCreateTipoModal(false);
+        setTipoNombre("");
+        setTipoDescripcion("");
+        setFeedbackMsg({
+          type: "success",
+          text: `Tipo de unidad "${res.data.nombre}" registrado en el catálogo.`,
+        });
+      } else {
+        setTipoModalError(res.error || "No se pudo registrar el tipo de unidad.");
+      }
+    } catch {
+      setTipoModalError("Error al procesar la solicitud en el servidor.");
+    } finally {
+      setSubmittingTipo(false);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -165,6 +208,17 @@ export default function FlotaDashboardPage() {
       return matchSearch && matchStatus;
     });
   }, [unidades, searchTerm, statusFilter]);
+
+  // Reset de página al cambiar filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  const totalPages = Math.ceil(filteredUnidades.length / pageSize) || 1;
+  const paginatedUnidades = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredUnidades.slice(start, start + pageSize);
+  }, [filteredUnidades, currentPage, pageSize]);
 
   // Contadores métricos
   const stats = useMemo(() => {
@@ -270,48 +324,63 @@ export default function FlotaDashboardPage() {
   const getBadgeStyle = (estado: EstadoUnidad) => {
     switch (estado) {
       case "DISPONIBLE":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        return "bg-emerald-50 text-emerald-800 border-emerald-200";
       case "EN_RUTA":
-        return "bg-blue-50 text-blue-700 border-blue-200";
+        return "bg-slate-100 text-slate-800 border-slate-200";
       case "MANTENIMIENTO":
-        return "bg-amber-50 text-amber-700 border-amber-200";
+        return "bg-amber-50 text-amber-800 border-amber-200";
       case "INOPERATIVA":
-        return "bg-red-50 text-red-700 border-red-200";
+        return "bg-red-50 text-red-800 border-red-200";
       default:
-        return "bg-gray-50 text-gray-700 border-gray-200";
+        return "bg-slate-50 text-slate-700 border-slate-200";
     }
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-200">
       {/* Cabecera y botón de acción */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2.5">
-            <Icon path={mdiBus} size={1} className="text-primary" />
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Icon path={mdiBus} size={0.9} className="text-primary" />
             Flota de Unidades
           </h1>
-          <p className="text-sm text-gray-500 font-medium mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Gestión de autobuses registrados, asignación de carrocería y croquis de asientos.
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setFormError(null);
-            setShowCreateModal(true);
-          }}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-2xl font-bold text-sm shadow-sm transition-all hover:shadow-md cursor-pointer active:scale-95"
-        >
-          <Icon path={mdiPlus} size={0.8} />
-          Registrar Nueva Unidad
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Botón para registrar Tipo de Unidad en el catálogo */}
+          <button
+            onClick={() => {
+              setTipoModalError(null);
+              setShowCreateTipoModal(true);
+            }}
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-medium text-xs sm:text-sm shadow-2xs transition-colors cursor-pointer"
+          >
+            <Icon path={mdiTagOutline} size={0.7} className="text-slate-500" />
+            + Tipo de Unidad
+          </button>
+
+          {/* Botón para registrar nueva unidad */}
+          <button
+            onClick={() => {
+              setFormError(null);
+              setShowCreateModal(true);
+            }}
+            className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
+          >
+            <Icon path={mdiPlus} size={0.7} />
+            Registrar Nueva Unidad
+          </button>
+        </div>
       </div>
 
       {/* Banner de feedback */}
       {feedbackMsg && (
         <div
-          className={`p-4 rounded-2xl border text-sm font-semibold flex items-center justify-between animate-in fade-in duration-200 ${
+          className={`p-3.5 rounded-lg border text-xs sm:text-sm font-medium flex items-center justify-between animate-in fade-in duration-150 ${
             feedbackMsg.type === "success"
               ? "bg-emerald-50 border-emerald-200 text-emerald-800"
               : "bg-red-50 border-red-200 text-red-800"
@@ -320,99 +389,99 @@ export default function FlotaDashboardPage() {
           <div className="flex items-center gap-2">
             <Icon
               path={feedbackMsg.type === "success" ? mdiCheckCircle : mdiAlertCircle}
-              size={0.8}
+              size={0.7}
               className={feedbackMsg.type === "success" ? "text-emerald-600" : "text-red-600"}
             />
             <span>{feedbackMsg.text}</span>
           </div>
           <button
             onClick={() => setFeedbackMsg(null)}
-            className="text-gray-400 hover:text-gray-600 p-1"
+            className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
           >
-            <Icon path={mdiClose} size={0.7} />
+            <Icon path={mdiClose} size={0.6} />
           </button>
         </div>
       )}
 
-      {/* Tarjetas de métricas de flota */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center justify-between">
+      {/* Tarjetas de métricas de flota con diseño limpio y acentos del sistema */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Flota</p>
-            <p className="text-2xl sm:text-3xl font-black text-gray-900 mt-1">{stats.total}</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Flota</p>
+            <p className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5 tabular-nums">{stats.total}</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-gray-100 text-gray-600 flex items-center justify-center">
-            <Icon path={mdiBus} size={0.9} />
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <Icon path={mdiBus} size={0.8} />
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Disponibles</p>
-            <p className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">{stats.disponibles}</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Disponibles</p>
+            <p className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5 tabular-nums">{stats.disponibles}</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <Icon path={mdiCheckCircle} size={0.9} />
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <Icon path={mdiCheckCircle} size={0.8} />
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">En Ruta</p>
-            <p className="text-2xl sm:text-3xl font-black text-blue-600 mt-1">{stats.enRuta}</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">En Ruta</p>
+            <p className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5 tabular-nums">{stats.enRuta}</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <Icon path={mdiSteering} size={0.9} />
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <Icon path={mdiSteering} size={0.8} />
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-amber-600 uppercase tracking-wider">Taller / Paro</p>
-            <p className="text-2xl sm:text-3xl font-black text-amber-600 mt-1">{stats.mantenimiento}</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Taller / Paro</p>
+            <p className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5 tabular-nums">{stats.mantenimiento}</p>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
-            <Icon path={mdiWrench} size={0.9} />
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <Icon path={mdiWrench} size={0.8} />
           </div>
         </div>
       </div>
 
       {/* Barra de búsqueda por placa y filtro combo box por estado */}
-      <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Barra de búsqueda especializada para buscar por placa */}
-        <div className="relative flex-1 max-w-lg">
+        <div className="relative flex-1 max-w-md">
           <Icon
             path={mdiMagnify}
-            size={0.8}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+            size={0.7}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
           />
           <input
             type="text"
             placeholder="Buscar unidad por placa (ej: M 321-456) o número..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-sm font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            className="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-200 bg-slate-50/50 text-xs sm:text-sm font-normal text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20 transition-colors"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
             >
-              <Icon path={mdiClose} size={0.6} />
+              <Icon path={mdiClose} size={0.5} />
             </button>
           )}
         </div>
 
         {/* Combo box de estado de unidad */}
-        <div className="flex items-center gap-3">
-          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider shrink-0 hidden sm:inline-block">
+        <div className="flex items-center gap-2.5">
+          <label className="text-xs font-medium text-slate-500 shrink-0 hidden sm:inline-block">
             Estado Operativo:
           </label>
-          <div className="relative min-w-[200px]">
+          <div className="relative min-w-[170px]">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 bg-gray-50/50 text-xs font-bold text-gray-800 appearance-none pr-9 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-all"
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50/50 text-xs font-medium text-slate-700 appearance-none pr-8 focus:bg-white focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20 cursor-pointer transition-colors"
             >
               <option value="TODOS">Todos los estados</option>
               <option value="DISPONIBLE">Disponibles</option>
@@ -420,7 +489,7 @@ export default function FlotaDashboardPage() {
               <option value="MANTENIMIENTO">En Mantenimiento</option>
               <option value="INOPERATIVA">Inoperativas</option>
             </select>
-            <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">
+            <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">
               ▼
             </div>
           </div>
@@ -431,7 +500,7 @@ export default function FlotaDashboardPage() {
                 setSearchTerm("");
                 setStatusFilter("TODOS");
               }}
-              className="px-3 py-2 rounded-xl text-xs font-bold text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors cursor-pointer"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               Limpiar
             </button>
@@ -440,19 +509,18 @@ export default function FlotaDashboardPage() {
       </div>
 
       {/* Contenedor principal: Lista o Tabla de unidades */}
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200/80 shadow-2xs overflow-hidden">
         {loading ? (
-          <div className="p-16 flex flex-col items-center justify-center text-gray-400">
-            <div className="w-10 h-10 border-3 border-primary/20 border-t-primary rounded-full animate-spin mb-3"></div>
-            <p className="text-sm font-semibold text-gray-600">Consultando flota operativa...</p>
+          <div className="p-4">
+            <TableSkeleton rows={5} cols={6} />
           </div>
         ) : filteredUnidades.length === 0 ? (
-          <div className="p-16 text-center">
-            <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3 text-gray-300">
-              <Icon path={mdiBus} size={1.4} />
+          <div className="p-12 text-center">
+            <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center mx-auto mb-2.5 text-slate-400">
+              <Icon path={mdiBus} size={1} />
             </div>
-            <h3 className="text-base font-bold text-gray-800">No se encontraron unidades</h3>
-            <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+            <h3 className="text-sm font-semibold text-slate-800">No se encontraron unidades</h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
               {searchTerm || statusFilter !== "TODOS"
                 ? "Prueba a cambiar tus criterios de búsqueda o filtros seleccionados."
                 : "Aún no hay microbuses registrados. Da de alta tu primera unidad para comenzar a operar."}
@@ -460,69 +528,69 @@ export default function FlotaDashboardPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse text-xs sm:text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/75 text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                  <th className="py-4 px-6">Unidad</th>
-                  <th className="py-4 px-6">Placa Oficial</th>
-                  <th className="py-4 px-6">Tipo y Carrocería</th>
-                  <th className="py-4 px-6 text-center">Capacidad</th>
-                  <th className="py-4 px-6">Estado Operativo</th>
-                  <th className="py-4 px-6 text-right">Acciones</th>
+                <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  <th className="py-3 px-4">Unidad</th>
+                  <th className="py-3 px-4">Placa Oficial</th>
+                  <th className="py-3 px-4">Tipo y Carrocería</th>
+                  <th className="py-3 px-4 text-center">Capacidad</th>
+                  <th className="py-3 px-4">Estado Operativo</th>
+                  <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-sm">
-                {filteredUnidades.map((unidad) => {
+              <tbody className="divide-y divide-slate-100">
+                {paginatedUnidades.map((unidad) => {
                   const isUpdating = updatingId === unidad.idUnidad;
                   const capacidadReal = unidad.asientos?.length || unidad._count?.asientos || 20;
 
                   return (
                     <tr
                       key={unidad.idUnidad}
-                      className="hover:bg-gray-50/60 transition-colors group"
+                      className="hover:bg-slate-50/60 transition-colors"
                     >
                       {/* Número de Unidad */}
-                      <td className="py-4 px-6 font-extrabold text-gray-900 flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-sm">
+                      <td className="py-3 px-4 font-semibold text-slate-900 flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs border border-slate-200">
                           {unidad.numeroUnidad}
                         </div>
                         <div>
-                          <p className="font-extrabold text-gray-900 leading-tight">
+                          <p className="font-semibold text-slate-900 leading-tight">
                             Unidad #{unidad.numeroUnidad}
                           </p>
-                          <p className="text-[11px] font-semibold text-gray-400 mt-0.5">
+                          <p className="text-[11px] font-normal text-slate-400 mt-0.5">
                             {unidad.cooperativa?.nombre || "Cooperativa General"}
                           </p>
                         </div>
                       </td>
 
                       {/* Placa estilo nicaragüense */}
-                      <td className="py-4 px-6 font-mono">
-                        <span className="inline-block px-2.5 py-1 rounded-lg border border-gray-300 bg-gray-100 text-gray-800 font-extrabold text-xs tracking-wider shadow-2xs">
+                      <td className="py-3 px-4 font-mono">
+                        <span className="inline-block px-2 py-0.5 rounded border border-slate-300 bg-slate-100 text-slate-800 font-semibold text-xs tracking-wider">
                           {unidad.placa}
                         </span>
                       </td>
 
                       {/* Tipo */}
-                      <td className="py-4 px-6">
-                        <p className="font-bold text-gray-800 text-xs sm:text-sm">
+                      <td className="py-3 px-4">
+                        <p className="font-medium text-slate-800 text-xs sm:text-sm">
                           {unidad.tipoUnidad?.nombre || "Interlocal Estándar"}
                         </p>
-                        <p className="text-[11px] text-gray-400 font-medium truncate max-w-xs">
+                        <p className="text-[11px] text-slate-400 truncate max-w-xs">
                           {unidad.tipoUnidad?.descripcion || "Transporte interurbano"}
                         </p>
                       </td>
 
                       {/* Capacidad */}
-                      <td className="py-4 px-6 text-center">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-gray-100 text-gray-700 font-bold text-xs">
-                          <Icon path={mdiCarSeat} size={0.6} className="text-gray-400" />
+                      <td className="py-3 px-4 text-center">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium text-xs border border-slate-200">
+                          <Icon path={mdiCarSeat} size={0.5} className="text-slate-400" />
                           {capacidadReal} asientos
                         </span>
                       </td>
 
                       {/* Selector de Estado Operativo */}
-                      <td className="py-4 px-6">
+                      <td className="py-3 px-4">
                         <div className="relative inline-block">
                           <select
                             disabled={isUpdating}
@@ -530,33 +598,33 @@ export default function FlotaDashboardPage() {
                             onChange={(e) =>
                               handleUpdateEstado(unidad.idUnidad, e.target.value as EstadoUnidad)
                             }
-                            className={`text-xs font-extrabold px-3 py-1.5 rounded-xl border appearance-none pr-8 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all ${getBadgeStyle(
+                            className={`text-xs font-medium px-2.5 py-1 rounded-md border appearance-none pr-6 cursor-pointer focus:outline-none focus:ring-1 focus:ring-slate-400/20 transition-all ${getBadgeStyle(
                               unidad.estado
                             )}`}
                           >
-                            <option value="DISPONIBLE">DISPONIBLE</option>
-                            <option value="EN_RUTA">EN RUTA</option>
-                            <option value="MANTENIMIENTO">MANTENIMIENTO</option>
-                            <option value="INOPERATIVA">INOPERATIVA</option>
+                            <option value="DISPONIBLE">Disponible</option>
+                            <option value="EN_RUTA">En Ruta</option>
+                            <option value="MANTENIMIENTO">Mantenimiento</option>
+                            <option value="INOPERATIVA">Inoperativa</option>
                           </select>
-                          <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-current opacity-70">
+                          <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-current opacity-70 text-[9px]">
                             ▼
                           </div>
                         </div>
                       </td>
 
                       {/* Acciones */}
-                      <td className="py-4 px-6 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
                           <button
                             title="Ver Croquis de Asientos"
                             onClick={() => {
                               setSelectedUnidad(unidad);
                               setShowCroquisModal(true);
                             }}
-                            className="p-2 text-gray-500 hover:text-primary hover:bg-primary/10 rounded-xl transition-all cursor-pointer"
+                            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
                           >
-                            <Icon path={mdiEyeOutline} size={0.8} />
+                            <Icon path={mdiEyeOutline} size={0.7} />
                           </button>
 
                           <button
@@ -565,9 +633,9 @@ export default function FlotaDashboardPage() {
                               setSelectedUnidad(unidad);
                               setShowDeleteModal(true);
                             }}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
                           >
-                            <Icon path={mdiTrashCanOutline} size={0.8} />
+                            <Icon path={mdiTrashCanOutline} size={0.7} />
                           </button>
                         </div>
                       </td>
@@ -578,38 +646,53 @@ export default function FlotaDashboardPage() {
             </table>
           </div>
         )}
+
+        {/* Paginación */}
+        {!loading && filteredUnidades.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredUnidades.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+          />
+        )}
       </div>
 
       {/* ============================================================ */}
       {/* MODAL 1: REGISTRAR NUEVA UNIDAD Y GENERAR ASIENTOS           */}
       {/* ============================================================ */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
             {/* Header del modal */}
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
-                  <Icon path={mdiBus} size={0.8} className="text-primary" />
+                <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  <Icon path={mdiBus} size={0.75} className="text-slate-700" />
                   Registrar Nueva Unidad de Flota
                 </h3>
-                <p className="text-xs text-gray-500 font-medium mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Asigna la carrocería y el sistema autogenerará el croquis de asientos correspondiente.
                 </p>
               </div>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                <Icon path={mdiClose} size={0.8} />
+                <Icon path={mdiClose} size={0.7} />
               </button>
             </div>
 
             {/* Contenido con scroll */}
-            <form onSubmit={handleCreateUnidad} className="p-6 space-y-6 overflow-y-auto flex-1">
+            <form onSubmit={handleCreateUnidad} className="p-5 space-y-4 overflow-y-auto flex-1">
               {formError && (
-                <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-xs font-bold text-red-700 flex items-center gap-2">
-                  <Icon path={mdiAlertCircle} size={0.8} />
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs font-medium text-red-700 flex items-center gap-2">
+                  <Icon path={mdiAlertCircle} size={0.7} />
                   <span>{formError}</span>
                 </div>
               )}
@@ -617,13 +700,13 @@ export default function FlotaDashboardPage() {
               {/* Cooperativa Asignada */}
               {cooperativas.length > 1 && (
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                     Cooperativa Operadora
                   </label>
                   <select
                     value={formCoopId}
                     onChange={(e) => setFormCoopId(Number(e.target.value))}
-                    className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                   >
                     {cooperativas.map((c) => (
                       <option key={c.idCooperativa} value={c.idCooperativa}>
@@ -636,10 +719,10 @@ export default function FlotaDashboardPage() {
 
               {/* Selector visual de tipo de carrocería */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                   Tipo de Carrocería y Distribución
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   {tiposUnidad.map((tipo) => {
                     const isSelected = formTipoId === tipo.idTipoUnidad;
                     const seats = tipo.nombre.includes("15")
@@ -652,28 +735,28 @@ export default function FlotaDashboardPage() {
                       <div
                         key={tipo.idTipoUnidad}
                         onClick={() => handleSelectTipo(tipo)}
-                        className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                        className={`p-3 rounded-lg border transition-all cursor-pointer flex flex-col justify-between ${
                           isSelected
-                            ? "border-primary bg-primary/5 shadow-xs"
-                            : "border-gray-200 hover:border-gray-300 bg-white"
+                            ? "border-slate-900 bg-slate-900 text-white shadow-2xs"
+                            : "border-slate-200 hover:border-slate-300 bg-white text-slate-800"
                         }`}
                       >
                         <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-black text-gray-900 leading-tight">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs font-bold leading-tight">
                               {tipo.nombre.split("(")[0].trim()}
                             </span>
                             <span
-                              className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
                                 isSelected
-                                  ? "bg-primary text-white"
-                                  : "bg-gray-100 text-gray-600"
+                                  ? "bg-white/20 text-white"
+                                  : "bg-slate-100 text-slate-600"
                               }`}
                             >
                               {seats} Asientos
                             </span>
                           </div>
-                          <p className="text-[11px] text-gray-500 font-medium line-clamp-2">
+                          <p className={`text-[11px] line-clamp-2 ${isSelected ? "text-slate-300" : "text-slate-500"}`}>
                             {tipo.descripcion || "Configuración para ruta interlocal"}
                           </p>
                         </div>
@@ -684,9 +767,9 @@ export default function FlotaDashboardPage() {
               </div>
 
               {/* Número y Placa */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                     Número de Unidad
                   </label>
                   <input
@@ -695,12 +778,12 @@ export default function FlotaDashboardPage() {
                     placeholder="Ej: 03 o U-15"
                     value={formNumero}
                     onChange={(e) => setFormNumero(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                     Placa de Circulación
                   </label>
                   <input
@@ -709,39 +792,39 @@ export default function FlotaDashboardPage() {
                     placeholder="Ej: M 345-987"
                     value={formPlaca}
                     onChange={(e) => setFormPlaca(e.target.value.toUpperCase())}
-                    className="w-full px-4 py-2.5 rounded-2xl border border-gray-200 text-sm font-semibold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal uppercase tracking-wider text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
                   />
                 </div>
               </div>
 
               {/* Previsualización en vivo del croquis de asientos a generarse */}
-              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <Icon path={mdiCarSeat} size={0.7} className="text-primary" />
+              <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-center justify-between mb-2.5">
+                  <span className="text-xs font-semibold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Icon path={mdiCarSeat} size={0.65} className="text-slate-600" />
                     Croquis a Generar ({formCapacidad} Asientos)
                   </span>
-                  <span className="text-[11px] text-gray-400 font-semibold">
+                  <span className="text-[11px] text-slate-400 font-normal">
                     Generación secuencial #1 al #{formCapacidad}
                   </span>
                 </div>
 
                 {/* Gráfico del Microbús */}
-                <div className="bg-white p-4 rounded-xl border border-gray-200 max-w-sm mx-auto shadow-2xs">
+                <div className="bg-white p-3.5 rounded-lg border border-slate-200 max-w-sm mx-auto shadow-2xs">
                   {/* Cabina */}
-                  <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100 text-gray-400">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-gray-600">
-                      <Icon path={mdiSteering} size={0.7} className="text-gray-500" />
+                  <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-100 text-slate-400">
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                      <Icon path={mdiSteering} size={0.6} className="text-slate-500" />
                       Chofer
                     </div>
-                    <span className="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-medium uppercase bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
                       Puerta
                     </span>
                   </div>
 
                   {/* Asientos en cuadrícula interactiva */}
                   <div
-                    className={`grid gap-2 ${
+                    className={`grid gap-1.5 ${
                       formCapacidad === 15
                         ? "grid-cols-3"
                         : formCapacidad === 40
@@ -752,35 +835,35 @@ export default function FlotaDashboardPage() {
                     {Array.from({ length: formCapacidad }, (_, i) => (
                       <div
                         key={i}
-                        className="h-8 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center font-bold text-xs shadow-2xs"
+                        className="h-7 rounded bg-slate-50 border border-slate-200 text-slate-700 flex items-center justify-center font-medium text-xs"
                       >
                         {i + 1}
                       </div>
                     ))}
                   </div>
 
-                  <p className="text-[10px] text-center text-gray-400 font-medium mt-3">
+                  <p className="text-[10px] text-center text-slate-400 font-normal mt-2.5">
                     Vista previa de mapa generado automáticamente al guardar
                   </p>
                 </div>
               </div>
 
               {/* Footer de botones */}
-              <div className="pt-2 flex items-center justify-end gap-3">
+              <div className="pt-2 flex items-center justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-5 py-2.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-100 transition-colors cursor-pointer"
+                  className="px-3.5 py-2 rounded-lg border border-slate-200 text-slate-700 font-medium text-xs sm:text-sm hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={formSubmitting}
-                  className="px-6 py-2.5 rounded-2xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-sm transition-all hover:shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                  className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2"
                 >
                   {formSubmitting && (
-                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                   )}
                   {formSubmitting ? "Generando..." : "Confirmar y Generar Asientos"}
                 </button>
@@ -794,15 +877,15 @@ export default function FlotaDashboardPage() {
       {/* MODAL 2: VER CROQUIS DE ASIENTOS DE UNA UNIDAD EXISTENTE     */}
       {/* ============================================================ */}
       {showCroquisModal && selectedUnidad && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
-                  <Icon path={mdiCarSeat} size={0.8} className="text-primary" />
+                <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  <Icon path={mdiCarSeat} size={0.75} className="text-slate-700" />
                   Croquis - Unidad #{selectedUnidad.numeroUnidad}
                 </h3>
-                <p className="text-xs text-gray-500 font-medium mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Placa: {selectedUnidad.placa} | Modelo: {selectedUnidad.tipoUnidad?.nombre || "Estándar"}
                 </p>
               </div>
@@ -811,35 +894,35 @@ export default function FlotaDashboardPage() {
                   setShowCroquisModal(false);
                   setSelectedUnidad(null);
                 }}
-                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                <Icon path={mdiClose} size={0.8} />
+                <Icon path={mdiClose} size={0.7} />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-5 space-y-4">
               {/* Contenedor del autobús */}
-              <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 max-w-sm mx-auto">
-                <div className="flex items-center justify-between pb-3 mb-4 border-b border-gray-200">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-700">
-                    <Icon path={mdiSteering} size={0.8} className="text-gray-600" />
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 max-w-xs mx-auto">
+                <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-200">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-700">
+                    <Icon path={mdiSteering} size={0.65} className="text-slate-500" />
                     Cabina del Conductor
                   </div>
-                  <span className="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full">
+                  <span className="text-[10px] font-medium uppercase bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
                     Acceso
                   </span>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-4 gap-2">
                   {(selectedUnidad.asientos || []).map((asiento) => {
                     const isOcupado = asiento.estado === "OCUPADO";
                     return (
                       <div
                         key={asiento.idAsiento}
-                        className={`h-10 rounded-xl flex items-center justify-center font-black text-xs shadow-2xs border transition-all ${
+                        className={`h-8 rounded flex items-center justify-center font-semibold text-xs border transition-colors ${
                           isOcupado
                             ? "bg-red-50 border-red-200 text-red-700"
-                            : "bg-white border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                            : "bg-white border-slate-300 text-slate-800 hover:border-slate-400"
                         }`}
                       >
                         {asiento.numero}
@@ -850,25 +933,25 @@ export default function FlotaDashboardPage() {
               </div>
 
               {/* Leyenda */}
-              <div className="flex items-center justify-center gap-6 text-xs font-bold text-gray-500 pt-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 rounded-md bg-white border border-emerald-300"></span>
+              <div className="flex items-center justify-center gap-5 text-xs font-medium text-slate-500 pt-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded bg-white border border-slate-300"></span>
                   <span>Disponible</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 rounded-md bg-red-100 border border-red-300"></span>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded bg-red-50 border border-red-200"></span>
                   <span>Ocupado</span>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 bg-gray-50 border-t border-gray-100 text-center">
+            <div className="p-3.5 bg-slate-50 border-t border-slate-100 text-center">
               <button
                 onClick={() => {
                   setShowCroquisModal(false);
                   setSelectedUnidad(null);
                 }}
-                className="w-full py-2.5 rounded-2xl bg-gray-900 text-white font-bold text-sm hover:bg-black transition-colors cursor-pointer"
+                className="w-full py-2 rounded-lg bg-slate-900 text-white font-medium text-xs sm:text-sm hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Cerrar Visor
               </button>
@@ -881,39 +964,122 @@ export default function FlotaDashboardPage() {
       {/* MODAL 3: CONFIRMACIÓN PARA ELIMINAR / DAR DE BAJA            */}
       {/* ============================================================ */}
       {showDeleteModal && selectedUnidad && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden border border-gray-100 p-6 space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mx-auto">
-              <Icon path={mdiAlertCircle} size={1.2} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200 p-5 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-10 h-10 rounded-lg bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <Icon path={mdiAlertCircle} size={1} />
             </div>
 
             <div className="text-center">
-              <h3 className="text-lg font-black text-gray-900">¿Dar de baja esta unidad?</h3>
-              <p className="text-xs text-gray-500 font-medium mt-1">
+              <h3 className="text-base font-bold text-slate-900">¿Dar de baja esta unidad?</h3>
+              <p className="text-xs text-slate-500 mt-1">
                 Estás a punto de eliminar la Unidad #{selectedUnidad.numeroUnidad} (Placa: {selectedUnidad.placa}).
                 Esta acción removerá sus asientos asociados.
               </p>
             </div>
 
-            <div className="flex items-center gap-3 pt-2">
+            <div className="flex items-center gap-2.5 pt-1">
               <button
                 type="button"
                 onClick={() => {
                   setShowDeleteModal(false);
                   setSelectedUnidad(null);
                 }}
-                className="flex-1 py-2.5 rounded-2xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-100 transition-colors cursor-pointer"
+                className="flex-1 py-2 rounded-lg border border-slate-200 text-slate-700 font-medium text-xs sm:text-sm hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                className="flex-1 py-2.5 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-sm transition-colors cursor-pointer"
+                className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
               >
                 Sí, Eliminar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* MODAL: REGISTRAR NUEVO TIPO DE UNIDAD (CARROCERÍA)           */}
+      {/* ============================================================ */}
+      {showCreateTipoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  <Icon path={mdiTagOutline} size={0.75} className="text-primary" />
+                  Nuevo Tipo de Unidad
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Registra un modelo de carrocería en el catálogo de flota
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCreateTipoModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <Icon path={mdiClose} size={0.7} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTipoUnidad} className="p-5 space-y-4">
+              {tipoModalError && (
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2">
+                  <Icon path={mdiAlertCircle} size={0.7} className="text-red-500 shrink-0" />
+                  <span>{tipoModalError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Nombre del Tipo / Carrocería *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Microbús Toyota Coaster, Pullman Ejecutivo..."
+                  value={tipoNombre}
+                  onChange={(e) => setTipoNombre(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Descripción Operativa (Opcional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Ej: Distribución estándar para recorridos interurbanos directos..."
+                  value={tipoDescripcion}
+                  onChange={(e) => setTipoDescripcion(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-900 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors resize-none"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateTipoModal(false)}
+                  className="px-3.5 py-2 rounded-lg border border-slate-200 text-slate-700 font-medium text-xs sm:text-sm hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingTipo}
+                  className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                >
+                  {submittingTipo && (
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  )}
+                  {submittingTipo ? "Guardando..." : "Guardar Tipo de Unidad"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
