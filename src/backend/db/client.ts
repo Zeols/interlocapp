@@ -38,6 +38,15 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.pool = pool;
 
 const adapter = new PrismaPg(pool);
 
+// Invalidar instancia en memoria si se añadieron nuevos modelos en desarrollo
+if (
+  process.env.NODE_ENV !== 'production' &&
+  globalForPrisma.prisma &&
+  !('metodoPagoUsuario' in globalForPrisma.prisma)
+) {
+  globalForPrisma.prisma = undefined;
+}
+
 // Singleton para el cliente de Prisma
 export const prisma =
   globalForPrisma.prisma ??

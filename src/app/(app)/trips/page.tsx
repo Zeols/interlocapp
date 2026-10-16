@@ -19,9 +19,11 @@ import {
   getViajesDisponiblesAction,
   type ViajeDisponibleItem,
 } from "@/backend/actions/viajes";
+import { useCurrency } from "@/frontend/context/CurrencyContext";
 
 export default function TripsPage() {
   const router = useRouter();
+  const { formatPrice } = useCurrency();
 
   const [trips, setTrips] = useState<ViajeDisponibleItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -345,7 +347,7 @@ export default function TripsPage() {
                     <div className="w-full md:w-auto flex flex-row md:flex-col items-center justify-between shrink-0 gap-2.5">
                       <div className="text-left md:text-right">
                         <p className="text-lg sm:text-xl font-black text-gray-900">
-                          C$ {trip.price}.00
+                          {formatPrice(trip.price)}
                         </p>
                         <p className="text-[10px] font-medium text-gray-400">por boleto</p>
                       </div>

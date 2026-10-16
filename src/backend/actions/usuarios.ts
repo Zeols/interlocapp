@@ -266,3 +266,137 @@ export async function changePasswordAction(data: {
   }
 }
 
+// -------------------------------------------------------------
+// 4. DIRECTORIO DE PERSONAL OPERATIVO (CHOFERES Y AYUDANTES)
+// -------------------------------------------------------------
+
+export async function getPersonalOperativoAction() {
+  try {
+    const personal = await prisma.usuario.findMany({
+      where: {
+        rol: {
+          nombre: { in: ['CHOFER', 'AYUDANTE', 'ADMIN_COOP', 'TAQUILLERO'] },
+        },
+      },
+      include: {
+        rol: true,
+        cooperativa: true,
+        asignacionesAsignadas: {
+          where: {
+            estado: 'INICIADA',
+            fechaHFin: null,
+          },
+          include: {
+            unidad: true,
+          },
+          orderBy: { fechaHInicio: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: { nombre: 'asc' },
+    });
+
+    return { success: true, data: personal };
+  } catch (error) {
+    console.error('Error al consultar personal operativo:', error);
+    return { success: false, error: 'No se pudo consultar el directorio de personal.', data: [] };
+  }
+}
+
+export async function getRolesOperativosAction() {
+  try {
+    const roles = await prisma.rol.findMany({
+      where: {
+        nombre: { in: ['CHOFER', 'AYUDANTE', 'TAQUILLERO', 'ADMIN_COOP'] },
+        estado: 'ACTIVO',
+      },
+      orderBy: { nombre: 'asc' },
+    });
+    return { success: true, data: roles };
+  } catch (error) {
+    console.error('Error al consultar roles operativos:', error);
+    return { success: false, error: 'No se pudieron consultar los roles.', data: [] };
+  }
+}
+
+export async function createOperarioAction(data: UsuarioInput) {
+  try {
+    if (!data.nombre || !data.apellido || !data.usuario || !data.correo || !data.idRol) {
+      return {
+        success: false,
+        error: 'Nombre, apellido, usuario, correo y rol son campos obligatorios.',
+      };
+    }
+
+    // Default password if not provided
+    const rawPass = data.passwd || 'Chofer2026!';
+    const hashedPassword = await hashPassword(rawPass);
+
+    const nuevoOperario = await prisma.usuario.create({
+      data: {
+        idCooperativa: data.idCooperativa || null,
+        idRol: data.idRol,
+        nombre: data.nombre.trim(),
+        apellido: data.apellido.trim(),
+        usuario: data.usuario.trim().toLowerCase(),
+        passwd: hashedPassword,
+        telefono: data.telefono?.trim() || null,
+        correo: data.correo.trim().toLowerCase(),
+        direccion: data.direccion?.trim() || null,
+        estado: 'ACTIVO',
+      },
+      include: {
+        rol: true,
+        cooperativa: true,
+      },
+    });
+
+    revalidatePath('/dashboard/choferes');
+    return { success: true, data: nuevoOperario };
+  } catch (error: any) {
+    console.error('Error al registrar operario:', error);
+    if (error.code === 'P2002') {
+      return {
+        success: false,
+        error: 'El nombre de usuario o correo electrónico ya se encuentra en uso.',
+      };
+    }
+    return { success: false, error: 'No se pudo registrar el personal operativo.' };
+  }
+}
+
+export async function updateEstadoOperarioAction(
+  idUsuario: number,
+  estado: 'ACTIVO' | 'INACTIVO' | 'BLOQUEADO'
+) {
+  try {
+    const usuario = await prisma.usuario.update({
+      where: { idUsuario },
+      data: { estado },
+    });
+
+    revalidatePath('/dashboard/choferes');
+    return { success: true, data: usuario };
+  } catch (error) {
+    console.error('Error al actualizar estado de operario:', error);
+    return { success: false, error: 'No se pudo actualizar el estado del personal.' };
+  }
+}
+
+export async function deleteOperarioAction(idUsuario: number) {
+  try {
+    await prisma.usuario.delete({
+      where: { idUsuario },
+    });
+
+    revalidatePath('/dashboard/choferes');
+    return { success: true };
+  } catch (error) {
+    console.error('Error al eliminar operario:', error);
+    return {
+      success: false,
+      error: 'No se pudo eliminar el usuario. Si tiene viajes o asignaciones históricas, cámbielo a INACTIVO.',
+    };
+  }
+}
+

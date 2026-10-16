@@ -14,6 +14,7 @@ import {
   mdiArrowLeft,
   mdiCheckCircleOutline,
 } from "@mdi/js";
+import { useCurrency } from "@/frontend/context/CurrencyContext";
 
 interface TicketItem {
   id: string;
@@ -56,6 +57,7 @@ const MOCK_TICKETS: TicketItem[] = [
 ];
 
 export default function TicketsPage() {
+  const { formatPrice } = useCurrency();
   const [activeTab, setActiveTab] = useState<"activos" | "historial">("activos");
 
   const filteredTickets = MOCK_TICKETS.filter((t) =>
@@ -174,7 +176,7 @@ export default function TicketsPage() {
 
               <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
                 <span className="text-gray-500 font-mono text-[11px]">{ticket.codigoBoleto}</span>
-                <span className="font-extrabold text-gray-900 text-sm">C$ {ticket.precio}</span>
+                <span className="font-extrabold text-gray-900 text-sm">{formatPrice(ticket.precio)}</span>
               </div>
             </div>
           ))}

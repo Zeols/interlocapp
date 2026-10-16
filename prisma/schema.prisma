@@ -163,6 +163,7 @@ model Usuario {
 
   asignacionesAsignadas AsignacionUnidad[] @relation("UsuarioOperario")
   cierresJornada        CierreJornada[]
+  metodosPago           MetodoPagoUsuario[]
 
   @@map("usuarios")
 }
@@ -284,15 +285,29 @@ model Asiento {
 // 5. RUTAS, CHECKPOINTS Y TARIFAS
 // ==========================================
 
+model TipoRuta {
+  idTipoRuta  Int            @id @default(autoincrement())
+  nombre      String         @unique
+  descripcion String?
+  estado      EstadoCatalogo @default(ACTIVO)
+
+  // Relaciones
+  rutas Ruta[]
+
+  @@map("tipos_ruta")
+}
+
 model Ruta {
   idRuta        Int            @id @default(autoincrement())
   idCooperativa Int
+  idTipoRuta    Int?
   nombre        String
   descripcion   String?
   estado        EstadoCatalogo @default(ACTIVO)
 
   // Relaciones
   cooperativa Cooperativa @relation(fields: [idCooperativa], references: [idCooperativa], onDelete: Cascade)
+  tipoRuta    TipoRuta?   @relation(fields: [idTipoRuta], references: [idTipoRuta], onDelete: SetNull)
   puntosRuta  PuntoRuta[]
   tarifas     Tarifa[]
   viajes      Viaje[]
@@ -512,5 +527,37 @@ model CodigoVerificacion {
 
   @@index([correo, tipo])
   @@map("codigos_verificacion")
+}
+
+// ==========================================
+// 9. MÉTODOS DE PAGO DEL USUARIO (B2C)
+// ==========================================
+
+enum TipoMetodoPago {
+  TARJETA_DEBITO
+  TARJETA_CREDITO
+  BILLETERA_MOVIL
+  TRANSFERENCIA
+}
+
+model MetodoPagoUsuario {
+  idMetodoPago     Int            @id @default(autoincrement())
+  idUsuario        Int
+  tipo             TipoMetodoPago @default(TARJETA_DEBITO)
+  titular          String
+  marca            String         @default("VISA") // VISA, MASTERCARD, AMEX, BAC, BANPRO
+  ultimos4         String         @db.VarChar(4)
+  mesExpiracion    Int
+  anioExpiracion   Int
+  esPredeterminado Boolean        @default(false)
+  estado           EstadoCatalogo @default(ACTIVO)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  // Relaciones
+  usuario Usuario @relation(fields: [idUsuario], references: [idUsuario], onDelete: Cascade)
+
+  @@index([idUsuario])
+  @@map("metodos_pago_usuario")
 }
 

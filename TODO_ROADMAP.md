@@ -12,38 +12,41 @@
 | Fase | Título del Módulo | Estado | Progreso Estimado | Prioridad de Acción |
 | :---: | :--- | :---: | :---: | :---: |
 | **Fase 1** | Inicialización, Seguridad, Autenticación y Multi-Tenant | 🟢 Completada | **100%** | Finalizada |
-| **Fase 2** | Backoffice Administrativo (Flota, Asientos, Rutas y Personal) | 🟡 Parcial (Backend listo) | **65%** | **Prioridad 1** |
-| **Fase 3** | Programación de Salidas, Despacho y Monitoreo | 🟡 En progreso | **40%** | **Prioridad 2** |
-| **Fase 4** | Portal del Pasajero B2C, Croquis y "Mis Boletos" | 🟡 En progreso | **80%** | **Prioridad 3** |
-| **Fase 5** | Taquilla Física (POS) y Escáner Móvil de Abordaje | ⏳ Pendiente | **0%** | **Prioridad 4** |
-| **Fase 6** | Control Financiero, Gastos, Combustible y Cierres (Arqueos) | ⏳ Pendiente | **0%** | **Prioridad 5** |
-| **Fase 7** | Pasarela de Pagos y Notificaciones Transaccionales | 🟡 Parcial (Correo listo) | **35%** | **Prioridad 3 (Checkout)** |
-| **Fase 8** | Métricas Gerenciales en Vivo, Auditoría y Producción | 🟡 En progreso | **30%** | **Prioridad 6** |
+| **Fase 2** | Backoffice Administrativo (Flota, Asientos, Rutas y Personal) | 🟢 Completada | **100%** | Finalizada |
+| **Fase 3** | Programación de Salidas, Despacho y Monitoreo | 🟡 En progreso | **40%** | **Prioridad 1** |
+| **Fase 4** | Portal del Pasajero B2C, Croquis y "Mis Boletos" | 🟡 En progreso | **80%** | **Prioridad 2** |
+| **Fase 5** | Taquilla Física (POS) y Escáner Móvil de Abordaje | ⏳ Pendiente | **0%** | **Prioridad 3** |
+| **Fase 6** | Control Financiero, Gastos, Combustible y Cierres (Arqueos) | ⏳ Pendiente | **0%** | **Prioridad 4** |
+| **Fase 7** | Pasarela de Pagos y Notificaciones Transaccionales | 🟡 Parcial (Correo listo) | **35%** | **Prioridad 2 (Checkout)** |
+| **Fase 8** | Métricas Gerenciales en Vivo, Auditoría y Producción | 🟡 En progreso | **30%** | **Prioridad 5** |
 
 ---
 
 ## 2. To Do Priorizado y Detallado
 
-### Prioridad 1: Vistas Administrativas del Backoffice (Fase 2)
-> **Impacto:** Crítico. La lógica backend de unidades, rutas y personal ya está creada; se requieren las pantallas del Dashboard para que el administrador gestione la cooperativa desde la interfaz.
+### Backoffice Administrativo (Fase 2) - Completada
+> **Impacto:** Crítico. Las pantallas del Dashboard para gestión de flota con croquis interactivo, constructor de rutas con tarifas por tramo y directorio de colaboradores ya se encuentran conectadas y verificadas con PostgreSQL.
 
-- [ ] **TODO-2.1: Módulo de Flota de Unidades ([src/app/dashboard/flota/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/flota/page.tsx))**
-  - [ ] Tabla interactiva de autobuses con badges de estado operativo (`DISPONIBLE`, `EN_RUTA`, `MANTENIMIENTO`, `INOPERATIVA`), número de unidad, placa y tipo.
-  - [ ] Modal interactivo "Registrar Nueva Unidad":
+- [x] **TODO-2.1: Módulo de Flota de Unidades ([src/app/dashboard/flota/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/flota/page.tsx))**
+  - [x] Tabla interactiva de autobuses con badges de estado operativo (`DISPONIBLE`, `EN_RUTA`, `MANTENIMIENTO`, `INOPERATIVA`), número de unidad, placa y tipo.
+  - [x] Modal interactivo "Registrar Nueva Unidad":
     - Selector visual de carrocería (Microbús 15, Interlocal 20, Pullman 40).
     - Previsualización gráfica en vivo del croquis de asientos a generarse.
     - Conexión con Server Action `createUnidadWithAsientos` en [src/backend/actions/unidades.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/backend/actions/unidades.ts).
-  - [ ] Acción para cambiar estado operativo o dar de baja una unidad con confirmación.
+  - [x] Acción para cambiar estado operativo o dar de baja una unidad con confirmación.
+  - [x] Modal de visualización del croquis de asientos con estado disponible/ocupado.
 
-- [ ] **TODO-2.2: Constructor de Rutas y Matriz Tarifaria ([src/app/dashboard/rutas/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/rutas/page.tsx))**
-  - [ ] Lista interactiva para definir y secuenciar paradas intermedias de un trayecto (ej. Managua UCA -> Tipitapa -> Empalme Boaco -> Juigalpa).
-  - [ ] Matriz de doble entrada para fijar tarifas por tramo en Córdobas (C$) con validación de precios positivos.
-  - [ ] Conexión con Server Action `createRutaConPuntosYTarifasAction` en [src/backend/actions/rutas.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/backend/actions/rutas.ts).
+- [x] **TODO-2.2: Constructor de Rutas y Matriz Tarifaria ([src/app/dashboard/rutas/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/rutas/page.tsx))**
+  - [x] Lista interactiva para definir y secuenciar paradas intermedias de un trayecto (ej. Managua UCA -> Tipitapa -> Empalme Boaco -> Juigalpa).
+  - [x] Matriz de tarifas por tramo en Córdobas (C$) con validación de precios positivos.
+  - [x] Conexión con Server Action `createRutaConPuntosYTarifas` en [src/backend/actions/rutas.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/backend/actions/rutas.ts).
+  - [x] Modal visor de la matriz tarifaria completa por pares de estaciones.
 
-- [ ] **TODO-2.3: Directorio de Personal Operativo ([src/app/dashboard/choferes/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/choferes/page.tsx))**
-  - [ ] Catálogo de choferes y ayudantes de la cooperativa con foto/avatar, teléfono de contacto y estado de asignación en ruta.
-  - [ ] Modal rápido para dar de alta nuevo personal operativo con su rol (`CHOFER`, `AYUDANTE`) y credenciales de acceso vinculadas a la cooperativa.
-  - [ ] Conexión con Server Action `createOperarioAction` en [src/backend/actions/usuarios.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/backend/actions/usuarios.ts).
+- [x] **TODO-2.3: Directorio de Personal Operativo ([src/app/dashboard/choferes/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/choferes/page.tsx))**
+  - [x] Catálogo de choferes y ayudantes de la cooperativa con avatar, teléfono de contacto y estado de asignación en ruta.
+  - [x] Modal rápido para dar de alta nuevo personal operativo con su rol (`CHOFER`, `AYUDANTE`) y credenciales de acceso vinculadas a la cooperativa.
+  - [x] Conexión con Server Action `createOperarioAction` en [src/backend/actions/usuarios.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/backend/actions/usuarios.ts).
+  - [x] Cambio de estado de cuenta (`ACTIVO`, `INACTIVO`, `BLOQUEADO`) y retiro de personal con confirmación.
 
 ---
 
@@ -125,3 +128,6 @@
 - [x] **Seguridad Multi-Tenant:** Aislamiento de datos con `getCurrentTenant()` y middleware perimetral RBAC.
 - [x] **Servicio de Correos Transaccionales:** Configurado con Nodemailer, validado y con plantillas de correo con identidad visual InterlocApp.
 - [x] **Open Graph y Twitter Cards:** Previews enriquecidos con badges oficiales listos para compartir enlaces en WhatsApp y redes sociales.
+- [x] **Amenidad Regional: Motor de Traducción Oficial en Tiempo Real:** Integrado con script y selector de Google Translate para traducción instantánea de la plataforma a múltiples idiomas ([GoogleTranslateScript.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/frontend/components/ui/GoogleTranslateScript.tsx)).
+- [x] **Amenidad Financiera: Multidivisa en Tiempo Real (NIO / USD):** Contexto global de moneda con persistencia y tasa de cambio oficial BCN (1 USD = 36.62 C$), propagado reactivamente en Catálogo de Viajes, Home, Compra/Checkout y Mis Boletos ([CurrencyContext.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/frontend/context/CurrencyContext.tsx)).
+- [x] **Amenidad de Pagos: Métodos de Pago Persistidos en Base de Datos:** Modelo `MetodoPagoUsuario` en PostgreSQL, Server Actions de consulta, alta, asignación predeterminada y baja, junto con modal interactivo con previsualización dinámica de tarjeta en vivo ([metodos-pago.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/backend/actions/metodos-pago.ts), [settings/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/(app)/settings/page.tsx)).

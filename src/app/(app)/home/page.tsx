@@ -12,9 +12,11 @@ import {
 } from "@mdi/js";
 import { getCurrentUserAction } from "@/backend/actions/auth";
 import { getRutasActivas } from "@/backend/actions/rutas";
+import { useCurrency } from "@/frontend/context/CurrencyContext";
 
 export default function HomePage() {
   const router = useRouter();
+  const { formatPrice } = useCurrency();
   const [userName, setUserName] = useState("Pasajero");
   const [routes, setRoutes] = useState<
     {
@@ -142,7 +144,7 @@ export default function HomePage() {
                   <div className="w-9 h-9 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                     <Icon path={mdiBus} size={0.75} />
                   </div>
-                  <span className="text-base sm:text-lg font-extrabold text-gray-900">C$ {r.price}.00</span>
+                  <span className="text-base sm:text-lg font-extrabold text-gray-900">{formatPrice(r.price)}</span>
                 </div>
                 <p className="text-base sm:text-lg font-extrabold text-gray-900 tracking-tight mb-0.5">
                   {r.destination}
