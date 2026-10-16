@@ -19,6 +19,7 @@ import {
   mdiDotsVertical,
   mdiEyeOutline,
   mdiTagOutline,
+  mdiDomain,
 } from "@mdi/js";
 import {
   getAllUnidadesAction,
@@ -31,6 +32,7 @@ import {
 import { getCooperativas } from "@/backend/actions/cooperativas";
 import { TableSkeleton } from "@/frontend/components/ui/Skeleton";
 import { Pagination } from "@/frontend/components/ui/Pagination";
+import { useTenant } from "@/frontend/context/TenantContext";
 
 type EstadoUnidad = "DISPONIBLE" | "EN_RUTA" | "MANTENIMIENTO" | "INOPERATIVA";
 
@@ -75,6 +77,7 @@ interface CooperativaItem {
 }
 
 export default function FlotaDashboardPage() {
+  const { selectedCoopId, isSuperAdmin, selectedCoop } = useTenant();
   const [unidades, setUnidades] = useState<UnidadItem[]>([]);
   const [tiposUnidad, setTiposUnidad] = useState<TipoUnidadItem[]>([]);
   const [cooperativas, setCooperativas] = useState<CooperativaItem[]>([]);
@@ -196,23 +199,30 @@ export default function FlotaDashboardPage() {
     determinarCapacidadPorTipo(tipo.nombre);
   };
 
-  // Filtrado reactivo
+  // Unidades filtradas por tenant (cooperativa activa)
+  const tenantUnidades = useMemo(() => {
+    if (selectedCoopId === "ALL") return unidades;
+    return unidades.filter((u) => u.idCooperativa === Number(selectedCoopId));
+  }, [unidades, selectedCoopId]);
+
+  // Filtrado reactivo por texto y estado
   const filteredUnidades = useMemo(() => {
-    return unidades.filter((u) => {
+    return tenantUnidades.filter((u) => {
       const matchSearch =
         u.numeroUnidad.toLowerCase().includes(searchTerm.toLowerCase()) ||
         u.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (u.tipoUnidad?.nombre || "").toLowerCase().includes(searchTerm.toLowerCase());
+        (u.tipoUnidad?.nombre || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (u.cooperativa?.nombre || "").toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchStatus = statusFilter === "TODOS" || u.estado === statusFilter;
       return matchSearch && matchStatus;
     });
-  }, [unidades, searchTerm, statusFilter]);
+  }, [tenantUnidades, searchTerm, statusFilter]);
 
-  // Reset de página al cambiar filtros
+  // Reset de página al cambiar filtros o tenant
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, selectedCoopId]);
 
   const totalPages = Math.ceil(filteredUnidades.length / pageSize) || 1;
   const paginatedUnidades = useMemo(() => {
@@ -220,15 +230,15 @@ export default function FlotaDashboardPage() {
     return filteredUnidades.slice(start, start + pageSize);
   }, [filteredUnidades, currentPage, pageSize]);
 
-  // Contadores métricos
+  // Contadores métricos de la cooperativa activa
   const stats = useMemo(() => {
     return {
-      total: unidades.length,
-      disponibles: unidades.filter((u) => u.estado === "DISPONIBLE").length,
-      enRuta: unidades.filter((u) => u.estado === "EN_RUTA").length,
-      mantenimiento: unidades.filter((u) => u.estado === "MANTENIMIENTO" || u.estado === "INOPERATIVA").length,
+      total: tenantUnidades.length,
+      disponibles: tenantUnidades.filter((u) => u.estado === "DISPONIBLE").length,
+      enRuta: tenantUnidades.filter((u) => u.estado === "EN_RUTA").length,
+      mantenimiento: tenantUnidades.filter((u) => u.estado === "MANTENIMIENTO" || u.estado === "INOPERATIVA").length,
     };
-  }, [unidades]);
+  }, [tenantUnidades]);
 
   // Cambiar estado operativo en vivo
   const handleUpdateEstado = async (idUnidad: number, nuevoEstado: EstadoUnidad) => {
@@ -285,7 +295,8 @@ export default function FlotaDashboardPage() {
       setFormError("Por favor ingresa la placa de la unidad.");
       return;
     }
-    if (formCoopId === 0) {
+    const targetCoopId = selectedCoopId !== "ALL" ? Number(selectedCoopId) : formCoopId;
+    if (targetCoopId === 0) {
       setFormError("Debes seleccionar una cooperativa asignada.");
       return;
     }
@@ -297,7 +308,7 @@ export default function FlotaDashboardPage() {
     setFormSubmitting(true);
     try {
       const res = await createUnidadWithAsientos({
-        idCooperativa: formCoopId,
+        idCooperativa: targetCoopId,
         idTipoUnidad: formTipoId,
         numeroUnidad: formNumero.trim(),
         placa: formPlaca.trim().toUpperCase(),
@@ -336,6 +347,8 @@ export default function FlotaDashboardPage() {
     }
   };
 
+  const showCoopColumn = isSuperAdmin && selectedCoopId === "ALL";
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Cabecera y botón de acción */}
@@ -343,10 +356,12 @@ export default function FlotaDashboardPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <Icon path={mdiBus} size={0.9} className="text-primary" />
-            Flota de Unidades
+            Flota de Unidades {selectedCoop ? `(${selectedCoop.nombre})` : ""}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Gestión de autobuses registrados, asignación de carrocería y croquis de asientos.
+            {selectedCoop
+              ? `Gestión del parque vehicular registrado para ${selectedCoop.nombre}.`
+              : "Catálogo e inventario de unidades de todas las cooperativas vinculadas."}
           </p>
         </div>
 
@@ -367,6 +382,9 @@ export default function FlotaDashboardPage() {
           <button
             onClick={() => {
               setFormError(null);
+              if (selectedCoopId !== "ALL") {
+                setFormCoopId(Number(selectedCoopId));
+              }
               setShowCreateModal(true);
             }}
             className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
@@ -532,6 +550,7 @@ export default function FlotaDashboardPage() {
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                   <th className="py-3 px-4">Unidad</th>
+                  {showCoopColumn && <th className="py-3 px-4">Cooperativa</th>}
                   <th className="py-3 px-4">Placa Oficial</th>
                   <th className="py-3 px-4">Tipo y Carrocería</th>
                   <th className="py-3 px-4 text-center">Capacidad</th>
@@ -559,10 +578,24 @@ export default function FlotaDashboardPage() {
                             Unidad #{unidad.numeroUnidad}
                           </p>
                           <p className="text-[11px] font-normal text-slate-400 mt-0.5">
-                            {unidad.cooperativa?.nombre || "Cooperativa General"}
+                            {unidad.tipoUnidad?.nombre || "Estándar"}
                           </p>
                         </div>
                       </td>
+
+                      {/* Cooperativa vinculada (Vista Super Admin Global) */}
+                      {showCoopColumn && (
+                        <td className="py-3 px-4">
+                          {unidad.cooperativa ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                              <Icon path={mdiDomain} size={0.55} className="text-blue-500" />
+                              {unidad.cooperativa.nombre}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">Sin cooperativa</span>
+                          )}
+                        </td>
+                      )}
 
                       {/* Placa estilo nicaragüense */}
                       <td className="py-3 px-4 font-mono">
@@ -698,7 +731,17 @@ export default function FlotaDashboardPage() {
               )}
 
               {/* Cooperativa Asignada */}
-              {cooperativas.length > 1 && (
+              {selectedCoopId !== "ALL" ? (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Cooperativa Operadora
+                  </label>
+                  <div className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-100 text-xs sm:text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                    <Icon path={mdiDomain} size={0.55} className="text-slate-500" />
+                    {selectedCoop?.nombre || cooperativas.find((c) => c.idCooperativa === (selectedCoopId !== "ALL" ? Number(selectedCoopId) : formCoopId))?.nombre || "Cooperativa Asignada"}
+                  </div>
+                </div>
+              ) : cooperativas.length > 1 ? (
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                     Cooperativa Operadora
@@ -715,7 +758,7 @@ export default function FlotaDashboardPage() {
                     ))}
                   </select>
                 </div>
-              )}
+              ) : null}
 
               {/* Selector visual de tipo de carrocería */}
               <div>

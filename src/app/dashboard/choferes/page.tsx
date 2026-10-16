@@ -17,6 +17,7 @@ import {
   mdiBus,
   mdiKeyOutline,
   mdiBadgeAccountHorizontalOutline,
+  mdiDomain,
 } from "@mdi/js";
 import {
   getPersonalOperativoAction,
@@ -29,6 +30,7 @@ import { getCooperativas } from "@/backend/actions/cooperativas";
 import { getCurrentUserAction } from "@/backend/actions/auth";
 import { TableSkeleton } from "@/frontend/components/ui/Skeleton";
 import { Pagination } from "@/frontend/components/ui/Pagination";
+import { useTenant } from "@/frontend/context/TenantContext";
 
 type EstadoUsuario = "ACTIVO" | "INACTIVO" | "BLOQUEADO";
 
@@ -76,6 +78,7 @@ interface CooperativaItem {
 }
 
 export default function ChoferesDashboardPage() {
+  const { selectedCoopId, isSuperAdmin, selectedCoop } = useTenant();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [personal, setPersonal] = useState<OperarioItem[]>([]);
   const [roles, setRoles] = useState<RolItem[]>([]);
@@ -167,25 +170,32 @@ export default function ChoferesDashboardPage() {
     fetchData();
   }, []);
 
-  // Filtrado reactivo
+  // Personal filtrado por cooperativa (tenant activo)
+  const tenantPersonal = useMemo(() => {
+    if (selectedCoopId === "ALL") return personal;
+    return personal.filter((p) => p.cooperativa?.idCooperativa === Number(selectedCoopId));
+  }, [personal, selectedCoopId]);
+
+  // Filtrado reactivo por texto y rol
   const filteredPersonal = useMemo(() => {
-    return personal.filter((p) => {
+    return tenantPersonal.filter((p) => {
       const fullName = `${p.nombre} ${p.apellido}`.toLowerCase();
       const matchSearch =
         fullName.includes(searchTerm.toLowerCase()) ||
         p.usuario.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.correo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.telefono || "").includes(searchTerm);
+        (p.telefono || "").includes(searchTerm) ||
+        (p.cooperativa?.nombre || "").toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchRol = rolFilter === "TODOS" || p.rol.nombre === rolFilter;
       return matchSearch && matchRol;
     });
-  }, [personal, searchTerm, rolFilter]);
+  }, [tenantPersonal, searchTerm, rolFilter]);
 
-  // Reset de página al filtrar
+  // Reset de página al filtrar o cambiar de cooperativa
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, rolFilter]);
+  }, [searchTerm, rolFilter, selectedCoopId]);
 
   const totalPages = Math.ceil(filteredPersonal.length / pageSize) || 1;
   const paginatedPersonal = useMemo(() => {
@@ -193,21 +203,21 @@ export default function ChoferesDashboardPage() {
     return filteredPersonal.slice(start, start + pageSize);
   }, [filteredPersonal, currentPage, pageSize]);
 
-  // Contadores
+  // Contadores métricos de la cooperativa seleccionada o globales
   const stats = useMemo(() => {
-    const choferesCount = personal.filter((p) => p.rol.nombre === "CHOFER").length;
-    const ayudantesCount = personal.filter((p) => p.rol.nombre === "AYUDANTE").length;
-    const enRutaCount = personal.filter(
+    const choferesCount = tenantPersonal.filter((p) => p.rol.nombre === "CHOFER").length;
+    const ayudantesCount = tenantPersonal.filter((p) => p.rol.nombre === "AYUDANTE").length;
+    const enRutaCount = tenantPersonal.filter(
       (p) => p.asignacionesAsignadas && p.asignacionesAsignadas.length > 0
     ).length;
 
     return {
-      total: personal.length,
+      total: tenantPersonal.length,
       choferes: choferesCount,
       ayudantes: ayudantesCount,
       enRuta: enRutaCount,
     };
-  }, [personal]);
+  }, [tenantPersonal]);
 
   // Autogenerar usuario al tipear nombre y apellido
   const handleNombreChange = (val: string) => {
@@ -249,9 +259,10 @@ export default function ChoferesDashboardPage() {
     }
 
     setFormSubmitting(true);
+    const targetCoopId = selectedCoopId !== "ALL" ? Number(selectedCoopId) : formIdCoop;
     try {
       const res = await createOperarioAction({
-        idCooperativa: formIdCoop || undefined,
+        idCooperativa: targetCoopId || undefined,
         idRol: formIdRol,
         nombre: formNombre.trim(),
         apellido: formApellido.trim(),
@@ -335,6 +346,8 @@ export default function ChoferesDashboardPage() {
     }
   };
 
+  const showCoopColumn = isSuperAdmin && selectedCoopId === "ALL";
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Header */}
@@ -342,16 +355,21 @@ export default function ChoferesDashboardPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <Icon path={mdiAccountGroup} size={0.9} className="text-primary" />
-            Directorio de Personal
+            Directorio de Personal {selectedCoop ? `(${selectedCoop.nombre})` : ""}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Gestión de choferes y ayudantes de la cooperativa, teléfonos y asignaciones de viaje.
+            {selectedCoop
+              ? `Gestión del personal y choferes de ${selectedCoop.nombre}.`
+              : "Directorio global de personal operativo de todas las cooperativas registradas."}
           </p>
         </div>
 
         <button
           onClick={() => {
             setFormError(null);
+            if (selectedCoopId !== "ALL") {
+              setFormIdCoop(Number(selectedCoopId));
+            }
             setShowCreateModal(true);
           }}
           className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
@@ -515,6 +533,7 @@ export default function ChoferesDashboardPage() {
                 <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                   <th className="py-3 px-4">Personal</th>
                   <th className="py-3 px-4">Rol Operativo</th>
+                  {showCoopColumn && <th className="py-3 px-4">Cooperativa</th>}
                   <th className="py-3 px-4">Contacto y Teléfono</th>
                   <th className="py-3 px-4">Asignación</th>
                   <th className="py-3 px-4">Estado Cuenta</th>
@@ -566,6 +585,20 @@ export default function ChoferesDashboardPage() {
                           {operario.rol.nombre}
                         </span>
                       </td>
+
+                      {/* Cooperativa vinculada (Vista Super Admin Global) */}
+                      {showCoopColumn && (
+                        <td className="py-3 px-4">
+                          {operario.cooperativa ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                              <Icon path={mdiDomain} size={0.55} className="text-blue-500" />
+                              {operario.cooperativa.nombre}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">Global / Sin asignar</span>
+                          )}
+                        </td>
+                      )}
 
                       {/* Contacto */}
                       <td className="py-3 px-4">
@@ -774,9 +807,10 @@ export default function ChoferesDashboardPage() {
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                     Cooperativa
                   </label>
-                  {currentUser?.rolNombre === "ADMIN_COOP" && currentUser?.idCooperativa ? (
-                    <div className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-100 text-xs sm:text-sm font-semibold text-slate-700">
-                      {cooperativas.find((c) => c.idCooperativa === currentUser.idCooperativa)?.nombre || "Tu Cooperativa"}
+                  {selectedCoopId !== "ALL" || (currentUser?.rolNombre === "ADMIN_COOP" && currentUser?.idCooperativa) ? (
+                    <div className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-100 text-xs sm:text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                      <Icon path={mdiDomain} size={0.55} className="text-slate-500" />
+                      {selectedCoop?.nombre || cooperativas.find((c) => c.idCooperativa === (selectedCoopId !== "ALL" ? Number(selectedCoopId) : formIdCoop))?.nombre || "Cooperativa Asignada"}
                     </div>
                   ) : (
                     <select

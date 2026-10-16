@@ -25,7 +25,7 @@ import {
 import { Logo } from "@/frontend/components/ui/Logo";
 import {
   requestSignupCodeAction,
-  requestSignupCooperativaCodeAction,
+  solicitarRegistroCooperativaAction,
   verifySignupCodeAction,
   resendSignupCodeAction,
 } from "@/backend/actions/auth";
@@ -117,9 +117,8 @@ export default function SignUpPage() {
     }
 
     startTransition(async () => {
-      let response;
       if (accountType === "COOPERATIVA") {
-        response = await requestSignupCooperativaCodeAction({
+        const response = await solicitarRegistroCooperativaAction({
           cooperativaNombre: coopNombre.trim(),
           cooperativaTelefono: coopTelefono.trim() || undefined,
           cooperativaDireccion: coopDireccion.trim() || undefined,
@@ -130,16 +129,24 @@ export default function SignUpPage() {
           password,
           confirmPassword,
         });
-      } else {
-        response = await requestSignupCodeAction({
-          nombre,
-          apellido,
-          correo: email.trim().toLowerCase(),
-          telefono: telefono.trim() || undefined,
-          password,
-          confirmPassword,
-        });
+
+        if (!response.success) {
+          setErrorMessage(response.error || "No se pudo procesar la solicitud de la cooperativa.");
+          return;
+        }
+
+        router.push(response.data?.redirectUrl || "/login?pending=true");
+        return;
       }
+
+      const response = await requestSignupCodeAction({
+        nombre,
+        apellido,
+        correo: email.trim().toLowerCase(),
+        telefono: telefono.trim() || undefined,
+        password,
+        confirmPassword,
+      });
 
       if (!response.success) {
         setErrorMessage(response.error || "No se pudo procesar el registro.");
@@ -509,7 +516,7 @@ export default function SignUpPage() {
                     {isPending ? (
                       <>
                         <Icon path={mdiLoading} size={0.8} className="animate-spin" />
-                        <span>Enviando código...</span>
+                        <span>{accountType === "COOPERATIVA" ? "Registrando solicitud..." : "Enviando código..."}</span>
                       </>
                     ) : (
                       <span>

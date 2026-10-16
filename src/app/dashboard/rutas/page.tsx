@@ -19,6 +19,7 @@ import {
   mdiEyeOutline,
   mdiTagOutline,
   mdiBusDoubleDecker,
+  mdiDomain,
 } from "@mdi/js";
 import {
   getAllRutasAction,
@@ -33,6 +34,7 @@ import {
 import { getCooperativas } from "@/backend/actions/cooperativas";
 import { TableSkeleton } from "@/frontend/components/ui/Skeleton";
 import { Pagination } from "@/frontend/components/ui/Pagination";
+import { useTenant } from "@/frontend/context/TenantContext";
 
 interface TipoRutaItem {
   idTipoRuta: number;
@@ -82,6 +84,7 @@ interface RutaItem {
 }
 
 export default function RutasDashboardPage() {
+  const { selectedCoopId, isSuperAdmin, selectedCoop } = useTenant();
   const [rutas, setRutas] = useState<RutaItem[]>([]);
   const [catalogoPuntos, setCatalogoPuntos] = useState<PuntoItem[]>([]);
   const [tiposRuta, setTiposRuta] = useState<TipoRutaItem[]>([]);
@@ -162,22 +165,29 @@ export default function RutasDashboardPage() {
     fetchData();
   }, []);
 
+  // Rutas filtradas por tenant (cooperativa activa)
+  const tenantRutas = useMemo(() => {
+    if (selectedCoopId === "ALL") return rutas;
+    return rutas.filter((r) => r.idCooperativa === Number(selectedCoopId));
+  }, [rutas, selectedCoopId]);
+
   // Filtrado reactivo de rutas
   const filteredRutas = useMemo(() => {
-    return rutas.filter((r) => {
+    return tenantRutas.filter((r) => {
       const matchSearch =
         r.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (r.tipoRuta?.nombre || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (r.cooperativa?.nombre || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.puntosRuta.some((pr) => pr.punto.nombre.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchStatus = statusFilter === "TODOS" || r.estado === statusFilter;
       return matchSearch && matchStatus;
     });
-  }, [rutas, searchTerm, statusFilter]);
+  }, [tenantRutas, searchTerm, statusFilter]);
 
-  // Reset de página al cambiar filtros
+  // Reset de página al cambiar filtros o tenant
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, selectedCoopId]);
 
   const totalPages = Math.ceil(filteredRutas.length / pageSize) || 1;
   const paginatedRutas = useMemo(() => {
@@ -187,15 +197,15 @@ export default function RutasDashboardPage() {
 
   // Contadores
   const stats = useMemo(() => {
-    const totalTarifas = rutas.reduce((acc, r) => acc + (r.tarifas?.length || 0), 0);
+    const totalTarifas = tenantRutas.reduce((acc, r) => acc + (r.tarifas?.length || 0), 0);
     return {
-      total: rutas.length,
-      activas: rutas.filter((r) => r.estado === "ACTIVO").length,
+      total: tenantRutas.length,
+      activas: tenantRutas.filter((r) => r.estado === "ACTIVO").length,
       puntosCount: catalogoPuntos.length,
       tiposCount: tiposRuta.length,
       totalTarifas,
     };
-  }, [rutas, catalogoPuntos, tiposRuta]);
+  }, [tenantRutas, catalogoPuntos, tiposRuta]);
 
   // Manejo de secuencias de paradas en el constructor
   const handleAddPuntoToSecuencia = (idPunto: number) => {
@@ -325,7 +335,8 @@ export default function RutasDashboardPage() {
       setFormError("Debes secuenciar al menos 2 paradas (Origen y Destino).");
       return;
     }
-    if (formCoopId === 0) {
+    const targetCoopId = selectedCoopId !== "ALL" ? Number(selectedCoopId) : formCoopId;
+    if (targetCoopId === 0) {
       setFormError("Debes seleccionar una cooperativa operadora.");
       return;
     }
@@ -340,7 +351,7 @@ export default function RutasDashboardPage() {
     setFormSubmitting(true);
     try {
       const res = await createRutaConPuntosYTarifas({
-        idCooperativa: formCoopId,
+        idCooperativa: targetCoopId,
         idTipoRuta: formIdTipoRuta || undefined,
         nombre: formNombre.trim(),
         descripcion: formDescripcion.trim() || undefined,
@@ -422,10 +433,12 @@ export default function RutasDashboardPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <Icon path={mdiMapMarkerPath} size={0.9} className="text-primary" />
-            Constructor de Rutas y Tarifas
+            Constructor de Rutas y Tarifas {selectedCoop ? `(${selectedCoop.nombre})` : ""}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Definición secuencial de paradas intermedias, catálogo de modalidades y tarifas por tramo en Córdobas (C$).
+            {selectedCoop
+              ? `Diseño de itinerarios, tramos y cuadro tarifario de ${selectedCoop.nombre}.`
+              : "Definición secuencial de paradas intermedias, catálogo de modalidades y tarifas por tramo en Córdobas (C$)."}
           </p>
         </div>
 
@@ -446,6 +459,9 @@ export default function RutasDashboardPage() {
           <button
             onClick={() => {
               setFormError(null);
+              if (selectedCoopId !== "ALL") {
+                setFormCoopId(Number(selectedCoopId));
+              }
               setShowCreateModal(true);
             }}
             className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
@@ -635,9 +651,12 @@ export default function RutasDashboardPage() {
                           {ruta.estado === "ACTIVO" ? "Activa" : "Inactiva"}
                         </span>
 
-                        <span className="text-xs text-slate-400 font-normal">
-                          {ruta.cooperativa?.nombre || "Cooperativa"}
-                        </span>
+                        {ruta.cooperativa && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                            <Icon path={mdiDomain} size={0.5} className="text-blue-500" />
+                            {ruta.cooperativa.nombre}
+                          </span>
+                        )}
                       </div>
                       {ruta.descripcion && (
                         <p className="text-xs text-slate-500 font-normal mt-0.5">{ruta.descripcion}</p>
@@ -896,17 +915,24 @@ export default function RutasDashboardPage() {
                     <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                       Cooperativa
                     </label>
-                    <select
-                      value={formCoopId}
-                      onChange={(e) => setFormCoopId(Number(e.target.value))}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
-                    >
-                      {cooperativas.map((c) => (
-                        <option key={c.idCooperativa} value={c.idCooperativa}>
-                          {c.nombre}
-                        </option>
-                      ))}
-                    </select>
+                    {selectedCoopId !== "ALL" ? (
+                      <div className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-100 text-xs sm:text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                        <Icon path={mdiDomain} size={0.55} className="text-slate-500" />
+                        {selectedCoop?.nombre || cooperativas.find((c) => c.idCooperativa === (selectedCoopId !== "ALL" ? Number(selectedCoopId) : formCoopId))?.nombre || "Cooperativa Asignada"}
+                      </div>
+                    ) : (
+                      <select
+                        value={formCoopId}
+                        onChange={(e) => setFormCoopId(Number(e.target.value))}
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
+                      >
+                        {cooperativas.map((c) => (
+                          <option key={c.idCooperativa} value={c.idCooperativa}>
+                            {c.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </div>
 

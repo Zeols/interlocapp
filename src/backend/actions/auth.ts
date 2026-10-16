@@ -500,6 +500,115 @@ export async function requestSignupCooperativaCodeAction(
 }
 
 /**
+ * Registra directamente la solicitud de una cooperativa y su administrador en estado PENDIENTE_APROBACION,
+ * sin requerir código de verificación por correo (la verificación y activación la realiza el Super Admin al aprobar la solicitud).
+ */
+export async function solicitarRegistroCooperativaAction(
+  input: SignupCooperativaInput
+): Promise<ActionResponse<{ redirectUrl: string }>> {
+  try {
+    const validated = signupCooperativaSchema.safeParse(input);
+    if (!validated.success) {
+      const firstError = Object.values(validated.error.flatten().fieldErrors)[0]?.[0];
+      return {
+        success: false,
+        error: firstError || 'Por favor completa correctamente todos los campos.',
+        fieldErrors: validated.error.flatten().fieldErrors,
+      };
+    }
+
+    const {
+      cooperativaNombre,
+      cooperativaTelefono,
+      cooperativaDireccion,
+      nombre,
+      apellido,
+      correo,
+      telefono,
+      password,
+    } = validated.data;
+    const cleanEmail = correo.trim().toLowerCase();
+
+    // Validar que el correo no esté previamente registrado
+    const existingUser = await prisma.usuario.findUnique({
+      where: { correo: cleanEmail },
+    });
+
+    if (existingUser) {
+      return {
+        success: false,
+        error: 'Ya existe una cuenta registrada con este correo electrónico.',
+      };
+    }
+
+    // Hashear contraseña
+    const hashedPassword = await hashPassword(password);
+
+    // Generar username único
+    const baseUsername = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '');
+    let finalUsername = baseUsername;
+    let counter = 1;
+
+    while (await prisma.usuario.findUnique({ where: { usuario: finalUsername } })) {
+      finalUsername = `${baseUsername}_${counter}`;
+      counter++;
+    }
+
+    let rolAdmin = await prisma.rol.findFirst({
+      where: { nombre: 'ADMIN_COOP' },
+    });
+
+    if (!rolAdmin) {
+      rolAdmin = await prisma.rol.create({
+        data: {
+          nombre: 'ADMIN_COOP',
+          descripcion: 'Administrador de cooperativa de transporte',
+          estado: 'ACTIVO',
+        },
+      });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const nuevaCoop = await tx.cooperativa.create({
+        data: {
+          nombre: cooperativaNombre.trim(),
+          telefono: cooperativaTelefono?.trim() || null,
+          direccion: cooperativaDireccion?.trim() || null,
+          estado: 'PENDIENTE_APROBACION',
+        },
+      });
+
+      await tx.usuario.create({
+        data: {
+          idRol: rolAdmin.idRol,
+          idCooperativa: nuevaCoop.idCooperativa,
+          nombre: nombre.trim(),
+          apellido: apellido.trim(),
+          usuario: finalUsername,
+          correo: cleanEmail,
+          telefono: telefono?.trim() || null,
+          passwd: hashedPassword,
+          estado: 'PENDIENTE_APROBACION',
+        },
+      });
+    });
+
+    return {
+      success: true,
+      data: {
+        redirectUrl: '/login?pending=true',
+      },
+    };
+  } catch (error) {
+    console.error('Error en solicitarRegistroCooperativaAction:', error);
+    return {
+      success: false,
+      error: 'Error al procesar la solicitud de registro de la cooperativa.',
+    };
+  }
+}
+
+/**
  * Valida el código de 6 dígitos ingresado por el usuario y crea la cuenta definitivamente.
  */
 export async function verifySignupCodeAction(input: VerifyCodeInput): Promise<ActionResponse<{ redirectUrl: string }>> {

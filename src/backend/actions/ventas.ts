@@ -265,10 +265,13 @@ export async function procesarVentaBoletos(data: VentaInput) {
 // 4. MÉTRICAS REALES PARA EL PANEL ADMINISTRATIVO (SIN SLOP)
 // -------------------------------------------------------------
 
-export async function getDashboardStatsAction() {
+export async function getDashboardStatsAction(idCooperativa?: number) {
   try {
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const coopFilter = idCooperativa ? { idCooperativa } : {};
+    const tripCoopFilter = idCooperativa ? { viaje: { ruta: { idCooperativa } } } : {};
 
     const [
       ventasHoyAggregate,
@@ -287,19 +290,27 @@ export async function getDashboardStatsAction() {
         where: {
           fechaHora: { gte: startOfDay },
           estado: 'COMPLETADA',
+          ...tripCoopFilter,
         },
       }),
       // Ventas totales acumuladas
       prisma.venta.aggregate({
         _sum: { total: true },
-        where: { estado: 'COMPLETADA' },
+        where: {
+          estado: 'COMPLETADA',
+          ...tripCoopFilter,
+        },
       }),
       // Boletos emitidos en total
       prisma.boleto.count({
-        where: { estado: { in: ['PAGADO', 'ABORDADO'] } },
+        where: {
+          estado: { in: ['PAGADO', 'ABORDADO'] },
+          ...tripCoopFilter,
+        },
       }),
       // Unidades y disponibilidad
       prisma.unidad.findMany({
+        where: coopFilter,
         select: { idUnidad: true, estado: true },
       }),
       // Pasajeros registrados
@@ -309,6 +320,7 @@ export async function getDashboardStatsAction() {
       // Últimas 6 ventas reales
       prisma.venta.findMany({
         take: 6,
+        where: tripCoopFilter,
         orderBy: { fechaHora: 'desc' },
         include: {
           tipoVenta: true,
@@ -321,10 +333,15 @@ export async function getDashboardStatsAction() {
         },
       }),
       // Total de asientos instalados
-      prisma.asiento.count(),
+      prisma.asiento.count({
+        where: idCooperativa ? { unidad: { idCooperativa } } : {},
+      }),
       // Asientos ocupados en boletos activos
       prisma.boleto.count({
-        where: { estado: { in: ['PAGADO', 'RESERVADO'] } },
+        where: {
+          estado: { in: ['PAGADO', 'RESERVADO'] },
+          ...tripCoopFilter,
+        },
       }),
     ]);
 
