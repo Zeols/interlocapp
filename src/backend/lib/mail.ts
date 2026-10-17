@@ -284,12 +284,16 @@ export async function sendEmail({
   }
 }
 
-// Componentes de cabecera de marca ultra-ligeros (HTML/CSS puro, cero adjuntos binarios para entrega inmediata)
+// URL pública del logo oficial alojado en CDN/GitHub (cero adjuntos binarios para entrega instantánea)
+const REMOTE_LOGO_URL =
+  process.env.APP_LOGO_URL ||
+  'https://raw.githubusercontent.com/Zeols/ruta-corp/enrique/public/apple-touch-icon.png';
+
 const BRAND_LOGO_HTML = `
   <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px;">
     <tr>
       <td style="vertical-align: middle; padding-right: 12px;">
-        <div style="width: 36px; height: 36px; background-color: #FE7D22; border-radius: 10px; text-align: center; line-height: 36px; color: #FFFFFF; font-weight: 900; font-size: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; display: inline-block;">I</div>
+        <img src="${REMOTE_LOGO_URL}" width="38" height="38" alt="InterlocApp" style="display: block; width: 38px; height: 38px; border-radius: 9px; border: 0;" />
       </td>
       <td style="vertical-align: middle;">
         <span style="font-size: 20px; font-weight: 800; color: #0F172A; letter-spacing: -0.5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">InterlocApp</span>
@@ -302,7 +306,7 @@ const TICKET_BRAND_LOGO_HTML = `
   <table cellpadding="0" cellspacing="0" border="0">
     <tr>
       <td style="padding-right: 10px; vertical-align: middle;">
-        <div style="width: 30px; height: 30px; background-color: #FE7D22; border-radius: 8px; text-align: center; line-height: 30px; color: #FFFFFF; font-weight: 900; font-size: 17px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; display: inline-block;">I</div>
+        <img src="${REMOTE_LOGO_URL}" width="32" height="32" alt="InterlocApp" style="display: block; width: 32px; height: 32px; border-radius: 7px; border: 0;" />
       </td>
       <td style="vertical-align: middle;">
         <span style="font-size: 18px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">InterlocApp</span>
@@ -323,38 +327,45 @@ export async function sendWelcomeEmail({ to, name }: WelcomeEmailData) {
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>${subject}</title>
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 24px 12px; color: #0F172A; }
-        .card { max-width: 540px; margin: 0 auto; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-        .brand { font-size: 19px; font-weight: 800; color: #0F172A; letter-spacing: -0.5px; }
-        h1 { font-size: 22px; font-weight: 800; margin: 0 0 12px 0; color: #0F172A; line-height: 1.25; }
-        p { font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 16px 0; }
-        .highlight-box { background: #F1F5F9; border-radius: 12px; padding: 16px; margin: 20px 0; font-size: 13px; color: #334155; }
-        .btn { display: inline-block; background: #FE7D22; color: #FFFFFF !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 24px; border-radius: 10px; text-align: center; margin-top: 8px; }
-        .footer { text-align: center; font-size: 12px; color: #94A3B8; margin-top: 24px; }
-      </style>
     </head>
-    <body>
-      <div class="card">
-        ${BRAND_LOGO_HTML}
-        <h1>Hola ${name}, bienvenido a bordo</h1>
-        <p>Tu cuenta ha sido creada exitosamente. Ahora puedes explorar rutas interlocales, consultar horarios en tiempo real y reservar tus asientos de forma ágil y segura.</p>
-        
-        <div class="highlight-box">
-          <strong>¿Qué puedes hacer ahora?</strong><br>
-          • Buscar y reservar boletos de transporte.<br>
-          • Visualizar el mapa de asientos en tiempo real.<br>
-          • Gestionar tus viajes e historial desde tu perfil.
-        </div>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 0; color: #0F172A; width: 100% !important; -webkit-text-size-adjust: 100%;">
+      <!-- Preheader invisible -->
+      <div style="display: none; max-height: 0px; overflow: hidden; opacity: 0; font-size: 1px; line-height: 1px; color: #F8FAFC;">
+        Hola ${name}, tu cuenta en InterlocApp ha sido creada exitosamente. Explora rutas y viaja seguro.
+      </div>
 
-        <div style="text-align: center; margin-top: 24px;">
-          <a href="http://localhost:3000/home" class="btn" target="_blank">Explorar Viajes Disponibles</a>
-        </div>
-      </div>
-      <div class="footer">
-        InterlocApp: Sistema de Gestión de Transporte Interlocal.<br>
-        Este es un mensaje automático, por favor no respondas a este correo.
-      </div>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8FAFC; padding: 32px 12px; width: 100%;">
+        <tr>
+          <td align="center">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 520px; width: 100%; background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 36px 30px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);">
+              <tr>
+                <td>
+                  ${BRAND_LOGO_HTML}
+
+                  <h1 style="font-size: 22px; font-weight: 800; margin: 0 0 12px 0; color: #0F172A; line-height: 1.25; letter-spacing: -0.3px;">Hola ${name}, bienvenido a bordo</h1>
+                  <p style="font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 16px 0;">Tu cuenta ha sido creada exitosamente. Ahora puedes explorar rutas interlocales, consultar horarios en tiempo real y reservar tus asientos de forma ágil y segura.</p>
+
+                  <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; margin: 20px 0; font-size: 13px; color: #334155; line-height: 1.6;">
+                    <strong style="color: #0F172A;">¿Qué puedes hacer ahora?</strong><br>
+                    • Buscar y reservar boletos de microbús.<br>
+                    • Visualizar la disponibilidad de asientos.<br>
+                    • Gestionar tus viajes e historial desde tu perfil.
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 520px; width: 100%; margin-top: 24px; text-align: center;">
+              <tr>
+                <td style="font-size: 12px; color: #94A3B8; line-height: 1.5; text-align: center;">
+                  InterlocApp: Red de Transporte Interlocal.<br>
+                  Mensaje generado automáticamente.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     </body>
     </html>
   `;
@@ -376,87 +387,90 @@ export async function sendTicketEmail(data: TicketEmailData) {
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>${subject}</title>
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 24px 12px; color: #0F172A; }
-        .card { max-width: 560px; margin: 0 auto; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.04); }
-        .header { background: #0F172A; color: #FFFFFF; padding: 24px 28px; }
-        .badge { display: inline-block; background: #FE7D22; color: #FFFFFF; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .ticket-code { font-family: monospace; font-size: 13px; color: #94A3B8; margin-top: 4px; }
-        .route-title { font-size: 20px; font-weight: 800; margin: 4px 0 0 0; color: #FFFFFF; }
-        .content { padding: 28px; }
-        .section-label { font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-        .section-value { font-size: 15px; font-weight: 700; color: #0F172A; margin-bottom: 16px; }
-        .grid { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .grid td { padding: 8px 0; vertical-align: top; width: 50%; }
-        .ticket-box { background: #F8FAFC; border: 1.5px dashed #CBD5E1; border-radius: 12px; padding: 18px; margin: 18px 0; }
-        .total-amount { font-size: 22px; font-weight: 900; color: #0F172A; }
-        .notice { font-size: 12px; line-height: 1.5; color: #64748B; background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 8px; padding: 12px; margin-top: 18px; }
-        .footer { text-align: center; font-size: 12px; color: #94A3B8; margin-top: 24px; }
-      </style>
     </head>
-    <body>
-      <div class="card">
-        <div class="header">
-          <table cellpadding="0" cellspacing="0" border="0" style="width: 100%; margin-bottom: 12px;">
-            <tr>
-              <td style="vertical-align: middle;">
-                ${TICKET_BRAND_LOGO_HTML}
-              </td>
-              <td style="text-align: right; vertical-align: middle;">
-                <span class="badge">Boleto Confirmado</span>
-              </td>
-            </tr>
-          </table>
-          <div class="route-title">${data.origin} → ${data.destination}</div>
-          <div class="ticket-code">Boleto digital #${data.ticketCode}</div>
-        </div>
-
-        <div class="content">
-          <p style="font-size: 14px; color: #475569; margin: 0 0 18px 0;">
-            Estimado/a <strong>${data.passengerName}</strong>, tu compra ha sido procesada exitosamente. Presenta este comprobante o tu código al abordar la unidad.
-          </p>
-
-          <table class="grid">
-            <tr>
-              <td>
-                <div class="section-label">Fecha del Viaje</div>
-                <div class="section-value">${data.departureDate}</div>
-              </td>
-              <td>
-                <div class="section-label">Hora de Salida</div>
-                <div class="section-value">${data.departureTime}</div>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <div class="section-label">Asientos Asignados</div>
-                <div class="section-value" style="color: #FE7D22; font-size: 17px;">#${seatsList}</div>
-              </td>
-              <td>
-                <div class="section-label">Unidad / Autobús</div>
-                <div class="section-value">${data.unitPlate || 'Asignada en terminal'}</div>
-              </td>
-            </tr>
-          </table>
-
-          <div class="ticket-box">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 13px; font-weight: 700; color: #475569;">Total Abonado</span>
-              <span class="total-amount">C$ ${data.totalAmount.toFixed(2)}</span>
-            </div>
-          </div>
-
-          <div class="notice">
-            <strong>Recomendación para el abordaje:</strong><br>
-            Te recomendamos presentarte en la terminal con al menos 15 minutos de anticipación al horario estipulado de salida.
-          </div>
-        </div>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 0; color: #0F172A; width: 100% !important; -webkit-text-size-adjust: 100%;">
+      <!-- Preheader invisible -->
+      <div style="display: none; max-height: 0px; overflow: hidden; opacity: 0; font-size: 1px; line-height: 1px; color: #F8FAFC;">
+        Comprobante de abordaje para tu viaje ${data.origin} - ${data.destination}. Código: ${data.ticketCode}.
       </div>
 
-      <div class="footer">
-        InterlocApp: Red de Transporte Interlocal.<br>
-        Comprobante electrónico de abordaje generado automáticamente.
-      </div>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8FAFC; padding: 32px 12px; width: 100%;">
+        <tr>
+          <td align="center">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 540px; width: 100%; background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.04);">
+              <tr>
+                <td style="background-color: #0F172A; color: #FFFFFF; padding: 24px 28px;">
+                  <table cellpadding="0" cellspacing="0" border="0" style="width: 100%; margin-bottom: 12px;">
+                    <tr>
+                      <td style="vertical-align: middle;">
+                        ${TICKET_BRAND_LOGO_HTML}
+                      </td>
+                      <td style="text-align: right; vertical-align: middle;">
+                        <span style="display: inline-block; background-color: #FE7D22; color: #FFFFFF; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Boleto Confirmado</span>
+                      </td>
+                    </tr>
+                  </table>
+                  <div style="font-size: 20px; font-weight: 800; margin: 4px 0 0 0; color: #FFFFFF;">${data.origin} → ${data.destination}</div>
+                  <div style="font-family: monospace; font-size: 13px; color: #94A3B8; margin-top: 4px;">Boleto digital #${data.ticketCode}</div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 28px;">
+                  <p style="font-size: 14px; color: #475569; margin: 0 0 18px 0; line-height: 1.5;">
+                    Estimado/a <strong>${data.passengerName}</strong>, tu compra ha sido procesada exitosamente. Presenta este comprobante o tu código al abordar la unidad.
+                  </p>
+
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 20px;">
+                    <tr>
+                      <td style="padding: 8px 0; vertical-align: top; width: 50%;">
+                        <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Fecha del Viaje</div>
+                        <div style="font-size: 15px; font-weight: 700; color: #0F172A; margin-bottom: 16px;">${data.departureDate}</div>
+                      </td>
+                      <td style="padding: 8px 0; vertical-align: top; width: 50%;">
+                        <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Hora de Salida</div>
+                        <div style="font-size: 15px; font-weight: 700; color: #0F172A; margin-bottom: 16px;">${data.departureTime}</div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; vertical-align: top; width: 50%;">
+                        <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Asientos Asignados</div>
+                        <div style="color: #FE7D22; font-size: 17px; font-weight: 800;">#${seatsList}</div>
+                      </td>
+                      <td style="padding: 8px 0; vertical-align: top; width: 50%;">
+                        <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Unidad / Microbús</div>
+                        <div style="font-size: 15px; font-weight: 700; color: #0F172A;">${data.unitPlate || 'Asignada en terminal'}</div>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <div style="background-color: #F8FAFC; border: 1.5px dashed #CBD5E1; border-radius: 12px; padding: 18px; margin: 18px 0;">
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="font-size: 13px; font-weight: 700; color: #475569;">Total Abonado</td>
+                        <td style="text-align: right; font-size: 22px; font-weight: 900; color: #0F172A;">C$ ${data.totalAmount.toFixed(2)}</td>
+                      </tr>
+                    </table>
+                  </div>
+
+                  <div style="font-size: 12px; line-height: 1.5; color: #64748B; background-color: #FEF3C7; border: 1px solid #FDE68A; border-radius: 8px; padding: 12px; margin-top: 18px;">
+                    <strong>Recomendación para el abordaje:</strong><br>
+                    Te sugerimos presentarte en la terminal con al menos 15 minutos de anticipación al horario estipulado de salida.
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 540px; width: 100%; margin-top: 24px; text-align: center;">
+              <tr>
+                <td style="font-size: 12px; color: #94A3B8; line-height: 1.5; text-align: center;">
+                  InterlocApp: Red de Transporte Interlocal.<br>
+                  Comprobante electrónico de abordaje generado automáticamente.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     </body>
     </html>
   `;
@@ -483,43 +497,51 @@ export async function sendVerificationCodeEmail({ to, name, code, expiresMinutes
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>${subject}</title>
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 24px 12px; color: #0F172A; }
-        .card { max-width: 520px; margin: 0 auto; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-        .brand { font-size: 19px; font-weight: 800; color: #0F172A; letter-spacing: -0.5px; }
-        h1 { font-size: 22px; font-weight: 800; margin: 0 0 12px 0; color: #0F172A; line-height: 1.25; }
-        p { font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 16px 0; }
-        .code-box { background: #0F172A; border: 1px solid #1E293B; border-radius: 12px; padding: 22px; text-align: center; margin: 24px 0; }
-        .code-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #94A3B8; font-weight: 700; margin-bottom: 8px; }
-        .code-digits { font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 900; letter-spacing: 8px; color: #FE7D22; }
-        .notice { font-size: 12px; color: #64748B; background: #F1F5F9; border-radius: 8px; padding: 12px; line-height: 1.5; margin-top: 20px; }
-        .footer { text-align: center; font-size: 12px; color: #94A3B8; margin-top: 24px; }
-      </style>
     </head>
-    <body>
-      <div class="card">
-        ${BRAND_LOGO_HTML}
-
-        <h1>Verifica tu cuenta</h1>
-        <p>Hola ${name}, gracias por registrarte en InterlocApp. Usa el siguiente código de 6 dígitos para completar la creación de tu cuenta:</p>
-        
-        <div class="code-box">
-          <div class="code-title">Código de verificación</div>
-          <div class="code-digits">${code}</div>
-        </div>
-
-        <p style="font-size: 13px; color: #64748B;">
-          Este código es válido durante <strong>${expiresMinutes} minutos</strong>. Por seguridad, no compartas este código con nadie.
-        </p>
-
-        <div class="notice">
-          Si tú no solicitaste crear una cuenta en InterlocApp, puedes desestimar este mensaje con total seguridad.
-        </div>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 0; color: #0F172A; width: 100% !important; -webkit-text-size-adjust: 100%;">
+      <!-- Preheader para vista previa limpia y evitar recorte en Gmail -->
+      <div style="display: none; max-height: 0px; overflow: hidden; opacity: 0; font-size: 1px; line-height: 1px; color: #F8FAFC;">
+        Tu código de verificación de InterlocApp es ${code}. Válido durante ${expiresMinutes} minutos.
       </div>
-      <div class="footer">
-        InterlocApp: Sistema de Transporte Interlocal.<br>
-        Mensaje de seguridad generado automáticamente.
-      </div>
+
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8FAFC; padding: 32px 12px; width: 100%;">
+        <tr>
+          <td align="center">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 520px; width: 100%; background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 36px 30px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);">
+              <tr>
+                <td>
+                  ${BRAND_LOGO_HTML}
+
+                  <h1 style="font-size: 22px; font-weight: 800; margin: 0 0 12px 0; color: #0F172A; line-height: 1.25; letter-spacing: -0.3px;">Verifica tu cuenta</h1>
+                  <p style="font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 16px 0;">Hola <strong>${name}</strong>, gracias por registrarte en InterlocApp. Usa el siguiente código de 6 dígitos para completar la creación de tu cuenta:</p>
+
+                  <div style="background-color: #0F172A; border: 1px solid #1E293B; border-radius: 14px; padding: 22px; text-align: center; margin: 24px 0;">
+                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #94A3B8; font-weight: 700; margin-bottom: 8px;">Código de verificación</div>
+                    <div style="font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 900; letter-spacing: 8px; color: #FE7D22;">${code}</div>
+                  </div>
+
+                  <p style="font-size: 13px; color: #64748B; margin: 0 0 16px 0;">
+                    Este código es válido durante <strong>${expiresMinutes} minutos</strong>. Por seguridad, no compartas este código con nadie.
+                  </p>
+
+                  <div style="font-size: 12px; color: #64748B; background-color: #F1F5F9; border-radius: 10px; padding: 14px; line-height: 1.5; border: 1px solid #E2E8F0;">
+                    Si tú no solicitaste crear una cuenta en InterlocApp, puedes desestimar este mensaje con total seguridad.
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 520px; width: 100%; margin-top: 24px; text-align: center;">
+              <tr>
+                <td style="font-size: 12px; color: #94A3B8; line-height: 1.5; text-align: center;">
+                  InterlocApp: Red de Transporte Interlocal.<br>
+                  Mensaje de seguridad generado automáticamente.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     </body>
     </html>
   `;
@@ -539,43 +561,51 @@ export async function sendPasswordResetCodeEmail({ to, name, code, expiresMinute
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>${subject}</title>
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 24px 12px; color: #0F172A; }
-        .card { max-width: 520px; margin: 0 auto; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-        .brand { font-size: 19px; font-weight: 800; color: #0F172A; letter-spacing: -0.5px; }
-        h1 { font-size: 22px; font-weight: 800; margin: 0 0 12px 0; color: #0F172A; line-height: 1.25; }
-        p { font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 16px 0; }
-        .code-box { background: #0F172A; border: 1px solid #1E293B; border-radius: 12px; padding: 22px; text-align: center; margin: 24px 0; }
-        .code-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #94A3B8; font-weight: 700; margin-bottom: 8px; }
-        .code-digits { font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 900; letter-spacing: 8px; color: #FE7D22; }
-        .alert-box { background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 8px; padding: 12px; font-size: 12px; color: #92400E; line-height: 1.5; margin-top: 18px; }
-        .footer { text-align: center; font-size: 12px; color: #94A3B8; margin-top: 24px; }
-      </style>
     </head>
-    <body>
-      <div class="card">
-        ${BRAND_LOGO_HTML}
-
-        <h1>Recuperación de contraseña</h1>
-        <p>Hola ${name}, recibimos una solicitud para restablecer la contraseña de tu cuenta en InterlocApp. Ingresa este código único en la aplicación para crear tu nueva contraseña:</p>
-        
-        <div class="code-box">
-          <div class="code-title">Código de recuperación</div>
-          <div class="code-digits">${code}</div>
-        </div>
-
-        <p style="font-size: 13px; color: #64748B;">
-          El código expirará en <strong>${expiresMinutes} minutos</strong>.
-        </p>
-
-        <div class="alert-box">
-          <strong>Aviso de seguridad:</strong> Si no solicitaste restablecer tu contraseña, desestima este correo. Tu cuenta continúa protegida y nadie puede acceder sin este código.
-        </div>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 0; color: #0F172A; width: 100% !important; -webkit-text-size-adjust: 100%;">
+      <!-- Preheader invisible -->
+      <div style="display: none; max-height: 0px; overflow: hidden; opacity: 0; font-size: 1px; line-height: 1px; color: #F8FAFC;">
+        Tu código para restablecer la contraseña en InterlocApp es ${code}.
       </div>
-      <div class="footer">
-        InterlocApp: Red de Transporte Interlocal.<br>
-        Notificación de seguridad enviada automáticamente.
-      </div>
+
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8FAFC; padding: 32px 12px; width: 100%;">
+        <tr>
+          <td align="center">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 520px; width: 100%; background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 36px 30px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);">
+              <tr>
+                <td>
+                  ${BRAND_LOGO_HTML}
+
+                  <h1 style="font-size: 22px; font-weight: 800; margin: 0 0 12px 0; color: #0F172A; line-height: 1.25; letter-spacing: -0.3px;">Recuperación de contraseña</h1>
+                  <p style="font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 16px 0;">Hola <strong>${name}</strong>, recibimos una solicitud para restablecer la contraseña de tu cuenta en InterlocApp. Ingresa este código único en la aplicación para crear tu nueva contraseña:</p>
+
+                  <div style="background-color: #0F172A; border: 1px solid #1E293B; border-radius: 14px; padding: 22px; text-align: center; margin: 24px 0;">
+                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #94A3B8; font-weight: 700; margin-bottom: 8px;">Código de recuperación</div>
+                    <div style="font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 900; letter-spacing: 8px; color: #FE7D22;">${code}</div>
+                  </div>
+
+                  <p style="font-size: 13px; color: #64748B; margin: 0 0 16px 0;">
+                    El código expirará en <strong>${expiresMinutes} minutos</strong>.
+                  </p>
+
+                  <div style="background-color: #FEF3C7; border: 1px solid #FDE68A; border-radius: 10px; padding: 14px; font-size: 12px; color: #92400E; line-height: 1.5;">
+                    <strong>Aviso de seguridad:</strong> Si no solicitaste restablecer tu contraseña, desestima este correo. Tu cuenta continúa protegida.
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 520px; width: 100%; margin-top: 24px; text-align: center;">
+              <tr>
+                <td style="font-size: 12px; color: #94A3B8; line-height: 1.5; text-align: center;">
+                  InterlocApp: Red de Transporte Interlocal.<br>
+                  Notificación de seguridad enviada automáticamente.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     </body>
     </html>
   `;
@@ -602,41 +632,50 @@ export async function sendCooperativaAprobadaEmail(data: CooperativaAprobadaEmai
     <html lang="es">
     <head>
       <meta charset="utf-8">
-      <title>Cooperativa Aprobada</title>
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #F8FAFC; margin: 0; padding: 24px; color: #1E293B; }
-        .card { max-width: 520px; margin: 0 auto; background: #FFFFFF; border-radius: 16px; border: 1px solid #E2E8F0; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-        .brand { font-size: 19px; font-weight: 800; color: #0F172A; }
-        h1 { font-size: 20px; font-weight: 800; color: #0F172A; margin: 0 0 12px 0; }
-        p { font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 16px 0; }
-        .highlight-box { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 12px; padding: 18px; margin: 20px 0; }
-        .highlight-title { font-size: 13px; font-weight: 700; color: #166534; margin-bottom: 4px; }
-        .highlight-desc { font-size: 13px; color: #15803D; margin: 0; }
-        .btn-wrap { text-align: center; margin: 28px 0 12px 0; }
-        .btn { display: inline-block; background: #FE7D22; color: #FFFFFF; font-weight: 700; font-size: 14px; padding: 12px 28px; border-radius: 8px; text-decoration: none; box-shadow: 0 2px 4px rgba(254, 125, 34, 0.25); }
-        .footer { text-align: center; font-size: 12px; color: #94A3B8; margin-top: 24px; }
-      </style>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${subject}</title>
     </head>
-    <body>
-      <div class="card">
-        ${BRAND_LOGO_HTML}
-        <h1>¡Cooperativa Verificada y Aprobada!</h1>
-        <p>Estimado(a) <strong>${adminName}</strong>,</p>
-        <p>Nos complace informarte que la solicitud de registro para tu cooperativa <strong>"${cooperativaName}"</strong> ha sido verificada satisfactoriamente por el equipo de supervisión de InterlocApp.</p>
-        
-        <div class="highlight-box">
-          <div class="highlight-title">✓ Acceso Administrativo Habilitado</div>
-          <p class="highlight-desc">Tu cuenta como Administrador de Cooperativa ya está activa. Puedes ingresar al panel administrativo, registrar tu flota de microbuses, añadir tus rutas y registrar a tu personal operativo (choferes y ayudantes).</p>
-        </div>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 0; color: #1E293B; width: 100% !important; -webkit-text-size-adjust: 100%;">
+      <!-- Preheader invisible -->
+      <div style="display: none; max-height: 0px; overflow: hidden; opacity: 0; font-size: 1px; line-height: 1px; color: #F8FAFC;">
+        ¡Buenas noticias! Tu cooperativa "${cooperativaName}" ha sido aprobada por el equipo de InterlocApp.
+      </div>
 
-        <div class="btn-wrap">
-          <a href="${loginUrl}" class="btn">Ingresar al Panel Administrativo</a>
-        </div>
-      </div>
-      <div class="footer">
-        InterlocApp: Red Nacional de Transporte Interlocal.<br>
-        Mensaje corporativo generado automáticamente.
-      </div>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8FAFC; padding: 32px 12px; width: 100%;">
+        <tr>
+          <td align="center">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 520px; width: 100%; background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 36px 30px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);">
+              <tr>
+                <td>
+                  ${BRAND_LOGO_HTML}
+
+                  <h1 style="font-size: 20px; font-weight: 800; color: #0F172A; margin: 0 0 12px 0; letter-spacing: -0.3px;">¡Cooperativa Verificada y Aprobada!</h1>
+                  <p style="font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 16px 0;">Estimado(a) <strong>${adminName}</strong>,</p>
+                  <p style="font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 16px 0;">Nos complace informarte que la solicitud de registro para tu cooperativa <strong>"${cooperativaName}"</strong> ha sido verificada satisfactoriamente por el equipo de supervisión de InterlocApp.</p>
+
+                  <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 12px; padding: 18px; margin: 20px 0;">
+                    <div style="font-size: 13px; font-weight: 700; color: #166534; margin-bottom: 4px;">✓ Acceso Administrativo Habilitado</div>
+                    <p style="font-size: 13px; color: #15803D; margin: 0; line-height: 1.5;">Tu cuenta como Administrador de Cooperativa ya está activa. Puedes ingresar al panel administrativo, registrar tu flota de microbuses, añadir tus rutas y registrar a tu personal operativo.</p>
+                  </div>
+
+                  <div style="text-align: center; margin: 28px 0 12px 0;">
+                    <a href="${loginUrl}" style="display: inline-block; background-color: #FE7D22; color: #FFFFFF; font-weight: 700; font-size: 14px; padding: 12px 28px; border-radius: 8px; text-decoration: none; box-shadow: 0 2px 4px rgba(254, 125, 34, 0.25);">Ingresar al Panel Administrativo</a>
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 520px; width: 100%; margin-top: 24px; text-align: center;">
+              <tr>
+                <td style="font-size: 12px; color: #94A3B8; line-height: 1.5; text-align: center;">
+                  InterlocApp: Red Nacional de Transporte Interlocal.<br>
+                  Mensaje corporativo generado automáticamente.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     </body>
     </html>
   `;
