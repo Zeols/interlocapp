@@ -8,10 +8,11 @@ async function test() {
   console.log('Connection result:', conn);
 
   if (conn.success) {
-    console.log(`Sending optimized verification email template to ${targetEmail}...`);
+    const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(`Sending fresh unclipped verification email to ${targetEmail} (Code: ${randomCode})...`);
     const sendRes = await sendVerificationCodeEmail({
       to: targetEmail,
-      code: '772109',
+      code: randomCode,
       name: 'Enrique',
       expiresMinutes: 15,
     });
