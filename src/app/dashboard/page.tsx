@@ -40,7 +40,7 @@ interface DashboardMetrics {
 
 export default function DashboardHome() {
   const { formatPrice } = useCurrency();
-  const { selectedCoopId, selectedCoop } = useTenant();
+  const { selectedCoopId, selectedCoop, isSuperAdmin } = useTenant();
   const [data, setData] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -63,6 +63,8 @@ export default function DashboardHome() {
     fetchMetrics();
   }, [selectedCoopId]);
 
+  const showPasajerosCount = isSuperAdmin && (!selectedCoopId || selectedCoopId === "ALL");
+
   const stats = [
     {
       title: "Ventas de Hoy",
@@ -82,12 +84,16 @@ export default function DashboardHome() {
       subtext: "Unidades en servicio activo",
       icon: mdiBusDoubleDecker,
     },
-    {
-      title: "Pasajeros Registrados",
-      value: data ? `${data.pasajerosCount}` : "0",
-      subtext: "Cuentas registradas en sistema",
-      icon: mdiAccountGroup,
-    },
+    ...(showPasajerosCount
+      ? [
+          {
+            title: "Pasajeros Registrados",
+            value: data ? `${data.pasajerosCount}` : "0",
+            subtext: "Cuentas registradas en sistema",
+            icon: mdiAccountGroup,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -127,25 +133,39 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      {/* Tarjetas de Métricas Sobrias */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {stats.map((stat, i) => (
-          <div
-            key={i}
-            className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between"
-          >
-            <div>
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{stat.title}</p>
-              <p className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5 tabular-nums">
-                {loading ? "..." : stat.value}
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">{stat.subtext}</p>
-            </div>
-            <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0">
-              <Icon path={stat.icon} size={0.8} />
-            </div>
-          </div>
-        ))}
+      {/* Tarjetas de Métricas Sobrias con Skeleton */}
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${showPasajerosCount ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-3`}>
+        {loading
+          ? Array.from({ length: showPasajerosCount ? 4 : 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between"
+              >
+                <div className="space-y-2">
+                  <div className="h-3 w-24 bg-slate-200 animate-pulse rounded" />
+                  <div className="h-7 w-28 bg-slate-200 animate-pulse rounded" />
+                  <div className="h-3 w-36 bg-slate-100 animate-pulse rounded" />
+                </div>
+                <div className="w-9 h-9 rounded-lg bg-slate-100 animate-pulse shrink-0" />
+              </div>
+            ))
+          : stats.map((stat, i) => (
+              <div
+                key={i}
+                className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between"
+              >
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{stat.title}</p>
+                  <p className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5 tabular-nums">
+                    {stat.value}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">{stat.subtext}</p>
+                </div>
+                <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0">
+                  <Icon path={stat.icon} size={0.8} />
+                </div>
+              </div>
+            ))}
       </div>
 
       {/* Sección Inferior: Transacciones Recientes y Ocupación */}
@@ -172,9 +192,16 @@ export default function DashboardHome() {
 
             <div className="p-4 sm:p-5 flex-1">
               {loading ? (
-                <div className="py-14 flex flex-col items-center justify-center text-slate-400">
-                  <div className="w-6 h-6 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin mb-2"></div>
-                  <p className="text-xs font-medium text-slate-500">Consultando registros contables...</p>
+                <div className="space-y-3 py-2">
+                  {Array.from({ length: 4 }).map((_, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50/60">
+                      <div className="space-y-1.5">
+                        <div className="h-4 w-44 bg-slate-200 animate-pulse rounded" />
+                        <div className="h-3 w-28 bg-slate-100 animate-pulse rounded" />
+                      </div>
+                      <div className="h-5 w-20 bg-slate-200 animate-pulse rounded" />
+                    </div>
+                  ))}
                 </div>
               ) : !data || data.ultimasVentas.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-6">

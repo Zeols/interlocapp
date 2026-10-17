@@ -138,6 +138,7 @@ export function Navbar() {
                   email={user.email}
                   avatarUrl={user.avatarUrl}
                   isCoopUser={isCoopUser}
+                  rolNombre={user.rolNombre}
                 />
               </>
             );

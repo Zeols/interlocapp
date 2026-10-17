@@ -14,11 +14,13 @@ export function UserChip({
   email,
   avatarUrl,
   isCoopUser,
+  rolNombre,
 }: {
   name: string;
   email: string;
   avatarUrl?: string | null;
   isCoopUser?: boolean;
+  rolNombre?: string;
 }) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -27,6 +29,7 @@ export function UserChip({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const displayChar = (name?.trim() || email?.trim() || "?").charAt(0).toUpperCase();
   const hasValidPhoto = Boolean(avatarUrl && avatarUrl.trim() !== "" && !imgFailed);
+  const isOperativeBusRole = ['CHOFER', 'AYUDANTE', 'TAQUILLERO'].includes(rolNombre || '');
 
   useEffect(() => {
     setImgFailed(false);
@@ -61,19 +64,29 @@ export function UserChip({
         aria-expanded={isOpen}
         title={name || "Perfil de usuario"}
       >
-        {hasValidPhoto ? (
-          <img
-            key={avatarUrl!}
-            src={avatarUrl!}
-            alt={name || "Usuario"}
-            onError={() => setImgFailed(true)}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-primary/20 shadow-2xs"
-          />
-        ) : (
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 text-primary">
-            <span className="text-xs sm:text-sm font-extrabold text-primary select-none">{displayChar}</span>
-          </div>
-        )}
+        <div className="relative">
+          {hasValidPhoto ? (
+            <img
+              key={avatarUrl!}
+              src={avatarUrl!}
+              alt={name || "Usuario"}
+              onError={() => setImgFailed(true)}
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-primary/20 shadow-2xs"
+            />
+          ) : (
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 text-primary">
+              <span className="text-xs sm:text-sm font-extrabold text-primary select-none">{displayChar}</span>
+            </div>
+          )}
+          {isOperativeBusRole && (
+            <span
+              className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-slate-900 text-white border border-white flex items-center justify-center shadow-xs"
+              title={`Rol operativo: ${rolNombre}`}
+            >
+              <Icon path={mdiBus} size={0.35} />
+            </span>
+          )}
+        </div>
         <Icon 
           path={mdiChevronDown} 
           size={0.65} 
@@ -91,20 +104,37 @@ export function UserChip({
             className="absolute top-[calc(100%+0.5rem)] right-0 w-64 bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-2 z-[100] origin-top-right"
           >
             <div className="flex items-center gap-3 px-3 py-2.5">
-              {hasValidPhoto ? (
-                <img
-                  key={avatarUrl!}
-                  src={avatarUrl!}
-                  alt={name || "Usuario"}
-                  className="w-10 h-10 rounded-full object-cover border border-primary/20 shrink-0"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 text-primary font-black text-sm shrink-0">
-                  {displayChar}
-                </div>
-              )}
+              <div className="relative shrink-0">
+                {hasValidPhoto ? (
+                  <img
+                    key={avatarUrl!}
+                    src={avatarUrl!}
+                    alt={name || "Usuario"}
+                    className="w-10 h-10 rounded-full object-cover border border-primary/20 shrink-0"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 text-primary font-black text-sm shrink-0">
+                    {displayChar}
+                  </div>
+                )}
+                {isOperativeBusRole && (
+                  <span
+                    className="absolute -bottom-1 -right-1 w-4.5 h-4.5 rounded-full bg-slate-900 text-white border border-white flex items-center justify-center shadow-xs"
+                    title={`Rol: ${rolNombre}`}
+                  >
+                    <Icon path={mdiBus} size={0.4} />
+                  </span>
+                )}
+              </div>
               <div className="min-w-0 flex-1">
-                <p className="font-extrabold text-gray-900 text-sm tracking-tight truncate">{name}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="font-extrabold text-gray-900 text-sm tracking-tight truncate">{name}</p>
+                  {isOperativeBusRole && (
+                    <span className="p-0.5 rounded bg-slate-100 text-slate-700 shrink-0" title={`Rol operativo: ${rolNombre}`}>
+                      <Icon path={mdiBus} size={0.55} />
+                    </span>
+                  )}
+                </div>
                 <p className="text-gray-500 text-xs truncate">{email}</p>
               </div>
             </div>

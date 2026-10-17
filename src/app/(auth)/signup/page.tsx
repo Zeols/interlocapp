@@ -107,9 +107,15 @@ export default function SignUpPage() {
       return;
     }
 
-    const nameParts = fullName.trim().split(" ");
+    const trimmedFullName = fullName.trim();
+    if (!trimmedFullName || trimmedFullName.length < 2) {
+      setErrorMessage("Por favor ingresa tu nombre completo.");
+      return;
+    }
+
+    const nameParts = trimmedFullName.split(/\s+/);
     const nombre = nameParts[0] || (accountType === "COOPERATIVA" ? "Admin" : "Pasajero");
-    const apellido = nameParts.slice(1).join(" ") || "Registrado";
+    const apellido = nameParts.slice(1).join(" ").trim();
 
     if (accountType === "COOPERATIVA" && !coopNombre.trim()) {
       setErrorMessage("El nombre de la cooperativa o empresa es obligatorio.");
@@ -555,6 +561,13 @@ export default function SignUpPage() {
                     Hemos enviado un código de 6 dígitos a{" "}
                     <strong className="text-gray-900 font-bold">{email}</strong>. Ingresa el código para activar tu cuenta.
                   </p>
+
+                  <div className="mt-3.5 p-3 rounded-xl bg-amber-50 border border-amber-200/90 text-amber-900 text-xs flex items-start gap-2.5">
+                    <Icon path={mdiAlertCircleOutline} size={0.75} className="text-amber-600 shrink-0 mt-0.5" />
+                    <span className="leading-snug">
+                      ¿No lo ves en tu bandeja de entrada? <strong>Revisa tu carpeta de Spam o Correo no deseado</strong>. A veces los correos con códigos de verificación pueden filtrarse allí.
+                    </span>
+                  </div>
                 </div>
 
                 <AnimatePresence>

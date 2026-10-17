@@ -30,6 +30,8 @@ export default function HomePage() {
     }[]
   >([]);
 
+  const [loadingRoutes, setLoadingRoutes] = useState(true);
+
   useEffect(() => {
     getCurrentUserAction().then((session) => {
       if (session?.nombre) {
@@ -41,6 +43,7 @@ export default function HomePage() {
       if (res.success && res.data) {
         setRoutes(res.data);
       }
+      setLoadingRoutes(false);
     });
   }, []);
 
@@ -116,7 +119,7 @@ export default function HomePage() {
       </div>
 
       {/* Rutas Disponibles */}
-      {routes.length > 0 && (
+      {(loadingRoutes || routes.length > 0) && (
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-12">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3.5 mb-7">
             <div>
@@ -134,28 +137,45 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {routes.map((r) => (
-              <button
-                key={r.id}
-                onClick={goTrips}
-                className="bg-white border border-gray-100 p-5 rounded-2xl text-left hover:border-primary/40 hover:shadow-md hover:shadow-orange-950/5 transition-all group cursor-pointer"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-9 h-9 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                    <Icon path={mdiBus} size={0.75} />
+            {loadingRoutes ? (
+              [1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="bg-white border border-gray-100 p-5 rounded-2xl animate-pulse"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-9 h-9 bg-gray-100 rounded-xl" />
+                    <div className="h-5 w-16 bg-gray-100 rounded-md" />
                   </div>
-                  <span className="text-base sm:text-lg font-extrabold text-gray-900">{formatPrice(r.price)}</span>
+                  <div className="h-5 w-32 bg-gray-200 rounded-md mb-2" />
+                  <div className="h-3 w-20 bg-gray-100 rounded mb-4" />
+                  <div className="h-3 w-16 bg-gray-100 rounded" />
                 </div>
-                <p className="text-base sm:text-lg font-extrabold text-gray-900 tracking-tight mb-0.5">
-                  {r.destination}
-                </p>
-                <p className="text-xs text-gray-400 mb-3.5 font-medium">desde {r.origin}</p>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
-                  <Icon path={mdiClockOutline} size={0.6} />
-                  {r.duration}
-                </div>
-              </button>
-            ))}
+              ))
+            ) : (
+              routes.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={goTrips}
+                  className="bg-white border border-gray-100 p-5 rounded-2xl text-left hover:border-primary/40 hover:shadow-md hover:shadow-orange-950/5 transition-all group cursor-pointer"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-9 h-9 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                      <Icon path={mdiBus} size={0.75} />
+                    </div>
+                    <span className="text-base sm:text-lg font-extrabold text-gray-900">{formatPrice(r.price)}</span>
+                  </div>
+                  <p className="text-base sm:text-lg font-extrabold text-gray-900 tracking-tight mb-0.5">
+                    {r.destination}
+                  </p>
+                  <p className="text-xs text-gray-400 mb-3.5 font-medium">desde {r.origin}</p>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+                    <Icon path={mdiClockOutline} size={0.6} />
+                    {r.duration}
+                  </div>
+                </button>
+              ))
+            )}
           </div>
         </div>
       )}

@@ -15,6 +15,8 @@ import {
   mdiMenu,
   mdiClose,
   mdiChevronDown,
+  mdiBus,
+  mdiAccountMultiple,
 } from "@mdi/js";
 import { Logo } from "@/frontend/components/ui/Logo";
 import { getCurrentUserAction, logoutAction } from "@/backend/actions/auth";
@@ -69,6 +71,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       : []),
     { name: "Flota", path: "/dashboard/flota", icon: mdiBusDoubleDecker },
     { name: "Personal", path: "/dashboard/choferes", icon: mdiAccountGroup },
+    { name: "Usuarios", path: "/dashboard/usuarios", icon: mdiAccountMultiple },
     { name: "Rutas", path: "/dashboard/rutas", icon: mdiMapMarkerPath },
   ];
 
@@ -247,11 +250,25 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                 className="flex items-center gap-2 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer text-left"
               >
                 <div className="text-right hidden sm:block">
-                  <p className="text-xs font-semibold text-slate-900 leading-none">{userName}</p>
+                  <div className="flex items-center justify-end gap-1.5">
+                    {['CHOFER', 'AYUDANTE', 'TAQUILLERO'].includes(session?.rolNombre || '') && (
+                      <span className="p-0.5 rounded bg-primary/10 text-primary" title={`Rol operativo: ${session?.rolNombre}`}>
+                        <Icon path={mdiBus} size={0.55} />
+                      </span>
+                    )}
+                    <p className="text-xs font-semibold text-slate-900 leading-none">{userName}</p>
+                  </div>
                   <p className="text-[11px] text-slate-400 mt-0.5 max-w-[140px] truncate">{userEmail}</p>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-xs">
-                  {userInitial}
+                <div className="relative">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-xs">
+                    {userInitial}
+                  </div>
+                  {['CHOFER', 'AYUDANTE', 'TAQUILLERO'].includes(session?.rolNombre || '') && (
+                    <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-slate-900 text-white rounded-full flex items-center justify-center border border-white shadow-xs">
+                      <Icon path={mdiBus} size={0.35} />
+                    </span>
+                  )}
                 </div>
                 <Icon path={mdiChevronDown} size={0.6} className="text-slate-400 hidden sm:block" />
               </button>

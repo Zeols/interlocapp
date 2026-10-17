@@ -2,12 +2,15 @@
 
 import { prisma } from '../db';
 import { hashPassword, verifyPassword } from '../lib/crypto';
+import { decodeJwt } from 'jose';
 import {
   createSessionToken,
   setSessionCookie,
   destroySession,
   getSession,
   SessionPayload,
+  createBiometricToken,
+  verifyBiometricToken,
 } from '../lib/session';
 import {
   loginSchema,
@@ -205,8 +208,8 @@ export async function registerAction(input: SignupInput): Promise<ActionResponse
       data: {
         idRol: rolPasajero.idRol,
         idCooperativa: null,
-        nombre,
-        apellido,
+        nombre: nombre.trim(),
+        apellido: (apellido || '').trim(),
         usuario: finalUsername,
         correo,
         telefono: telefono?.trim() || null,
@@ -222,7 +225,7 @@ export async function registerAction(input: SignupInput): Promise<ActionResponse
       idRol: rolPasajero.idRol,
       rolNombre: 'PASAJERO',
       correo: nuevoUsuario.correo,
-      nombre: `${nuevoUsuario.nombre} ${nuevoUsuario.apellido}`.trim(),
+      nombre: [nuevoUsuario.nombre, nuevoUsuario.apellido].filter(Boolean).join(' ').trim(),
       usuario: nuevoUsuario.usuario,
     };
 
@@ -358,7 +361,7 @@ export async function requestSignupCodeAction(input: SignupInput): Promise<Actio
         expiraEn: expiresAt,
         datosTemp: JSON.stringify({
           nombre: nombre.trim(),
-          apellido: apellido.trim(),
+          apellido: (apellido || '').trim(),
           telefono: telefono?.trim() || null,
           hashedPassword,
         }),
@@ -470,7 +473,7 @@ export async function requestSignupCooperativaCodeAction(
           },
           admin: {
             nombre: nombre.trim(),
-            apellido: apellido.trim(),
+            apellido: (apellido || '').trim(),
             telefono: telefono?.trim() || null,
             hashedPassword,
           },
@@ -592,7 +595,7 @@ export async function solicitarRegistroCooperativaAction(
           idRol: rolAdmin.idRol,
           idCooperativa: nuevaCoop.idCooperativa,
           nombre: nombre.trim(),
-          apellido: apellido.trim(),
+          apellido: (apellido || '').trim(),
           usuario: finalUsername,
           correo: cleanEmail,
           telefono: telefono?.trim() || null,
@@ -717,7 +720,7 @@ export async function verifySignupCodeAction(input: VerifyCodeInput): Promise<Ac
             idRol: rolAdmin.idRol,
             idCooperativa: nuevaCoop.idCooperativa,
             nombre: admin.nombre,
-            apellido: admin.apellido,
+            apellido: (admin.apellido || '').trim(),
             usuario: finalUsername,
             correo: cleanEmail,
             telefono: admin.telefono,
@@ -769,7 +772,7 @@ export async function verifySignupCodeAction(input: VerifyCodeInput): Promise<Ac
           idRol: rolPasajero.idRol,
           idCooperativa: null,
           nombre: userData.nombre,
-          apellido: userData.apellido,
+          apellido: (userData.apellido || '').trim(),
           usuario: finalUsername,
           correo: cleanEmail,
           telefono: userData.telefono,
@@ -786,7 +789,7 @@ export async function verifySignupCodeAction(input: VerifyCodeInput): Promise<Ac
       idRol: rolPasajero.idRol,
       rolNombre: 'PASAJERO',
       correo: nuevoUsuario.correo,
-      nombre: `${nuevoUsuario.nombre} ${nuevoUsuario.apellido}`.trim(),
+      nombre: [nuevoUsuario.nombre, nuevoUsuario.apellido].filter(Boolean).join(' ').trim(),
       usuario: nuevoUsuario.usuario,
     };
 
@@ -1145,4 +1148,316 @@ export async function resetPasswordWithCodeAction(input: ResetPasswordInput): Pr
     };
   }
 }
+
+// ==========================================
+// AUTENTICACIÓN GOOGLE Y BIOMÉTRICA (HUELLA)
+// ==========================================
+
+export interface GoogleLoginInput {
+  credential?: string; // JWT token de Google Identity Services
+  email?: string;
+  name?: string;
+  givenName?: string;
+  familyName?: string;
+  picture?: string;
+  sub?: string;
+}
+
+/**
+ * Autentica o registra un usuario pasajero a través de su cuenta de Google.
+ */
+export async function loginWithGoogleAction(
+  input: GoogleLoginInput
+): Promise<ActionResponse<{ redirectUrl: string; user: SessionPayload }>> {
+  try {
+    let email = input.email?.trim().toLowerCase();
+    let name = input.name?.trim();
+    let picture = input.picture?.trim();
+
+    // Si viene un token JWT de Google Identity Services (GSI), decodificar su payload seguro
+    if (input.credential) {
+      try {
+        const decoded = decodeJwt(input.credential);
+        if (decoded.email && typeof decoded.email === 'string') {
+          email = decoded.email.trim().toLowerCase();
+        }
+        if (decoded.name && typeof decoded.name === 'string') {
+          name = decoded.name.trim();
+        }
+        if (decoded.picture && typeof decoded.picture === 'string') {
+          picture = decoded.picture.trim();
+        }
+      } catch (err) {
+        console.warn('No se pudo decodificar el token de Google:', err);
+      }
+    }
+
+    if (!email) {
+      return {
+        success: false,
+        error: 'No se pudo obtener el correo de la cuenta de Google.',
+      };
+    }
+
+    // Buscar si el usuario ya está registrado en la base de datos
+    let user = await prisma.usuario.findFirst({
+      where: {
+        correo: { equals: email, mode: 'insensitive' },
+      },
+      include: {
+        rol: true,
+      },
+    });
+
+    if (user) {
+      // Validaciones de estado
+      if (user.estado === 'PENDIENTE_APROBACION') {
+        return {
+          success: false,
+          error: 'Tu cuenta se encuentra en proceso de revisión por la administración central.',
+        };
+      }
+      if (user.estado === 'INACTIVO') {
+        return {
+          success: false,
+          error: 'Esta cuenta se encuentra inactiva. Comunícate con la administración.',
+        };
+      }
+      if (user.estado === 'BLOQUEADO') {
+        return {
+          success: false,
+          error: 'Tu cuenta ha sido bloqueada temporalmente por motivos de seguridad.',
+        };
+      }
+
+      // Si el usuario no tiene foto y Google nos provee una, actualizarla
+      if (!user.foto && picture) {
+        try {
+          await prisma.usuario.update({
+            where: { idUsuario: user.idUsuario },
+            data: { foto: picture },
+          });
+        } catch {
+          // No crítico
+        }
+      }
+    } else {
+      // Obtener el rol PASAJERO por defecto
+      const rolPasajero = await prisma.rol.findFirst({
+        where: { nombre: 'PASAJERO' },
+      });
+
+      if (!rolPasajero) {
+        return {
+          success: false,
+          error: 'No se pudo asignar el rol de pasajero. Contacte a soporte.',
+        };
+      }
+
+      // Derivar nombre y apellido
+      const fullName = (name || email.split('@')[0]).trim();
+      const parts = fullName.split(' ');
+      const userNombre = input.givenName || parts[0] || 'Usuario';
+      const userApellido = input.familyName || parts.slice(1).join(' ') || 'Pasajero';
+
+      // Generar usuario único basado en el email
+      const baseUser = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').toLowerCase().slice(0, 15);
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      const uniqueUsername = `${baseUser || 'user'}_${randomSuffix}`;
+
+      // Generar una contraseña aleatoria segura hasheada
+      const dummyPass = Math.random().toString(36).slice(-10) + Date.now().toString(36);
+      const hashedPassword = await hashPassword(dummyPass);
+
+      user = await prisma.usuario.create({
+        data: {
+          idRol: rolPasajero.idRol,
+          idCooperativa: null,
+          nombre: userNombre,
+          apellido: userApellido,
+          usuario: uniqueUsername,
+          passwd: hashedPassword,
+          correo: email,
+          foto: picture || null,
+          estado: 'ACTIVO',
+        },
+        include: {
+          rol: true,
+        },
+      });
+
+      // Enviar correo de bienvenida asíncrono
+      sendWelcomeEmail({
+        to: email,
+        name: userNombre,
+      }).catch((err) => console.error('Error enviando correo de bienvenida de Google:', err));
+    }
+
+    // Construir sesión
+    const sessionPayload: SessionPayload = {
+      idUsuario: user.idUsuario,
+      idCooperativa: user.idCooperativa,
+      idRol: user.idRol,
+      rolNombre: user.rol.nombre,
+      correo: user.correo,
+      nombre: `${user.nombre} ${user.apellido}`.trim(),
+      usuario: user.usuario,
+    };
+
+    const token = await createSessionToken(sessionPayload);
+    await setSessionCookie(token);
+
+    let redirectUrl = '/home';
+    if (['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO'].includes(user.rol.nombre)) {
+      redirectUrl = '/dashboard';
+    } else if (['CHOFER', 'AYUDANTE'].includes(user.rol.nombre)) {
+      redirectUrl = '/validar-boleto';
+    }
+
+    return {
+      success: true,
+      data: {
+        redirectUrl,
+        user: sessionPayload,
+      },
+    };
+  } catch (error) {
+    console.error('Error en loginWithGoogleAction:', error);
+    return {
+      success: false,
+      error: 'Ocurrió un error al iniciar sesión con Google. Intenta nuevamente.',
+    };
+  }
+}
+
+/**
+ * Registra y emite un token seguro firmado para el dispositivo biométrico (huella digital) del usuario.
+ */
+export async function registerBiometricDeviceAction(input: {
+  credentialId: string;
+  deviceName: string;
+}): Promise<ActionResponse<{ deviceToken: string }>> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return {
+        success: false,
+        error: 'Debes tener una sesión activa para vincular tu huella digital.',
+      };
+    }
+
+    if (!input.credentialId) {
+      return {
+        success: false,
+        error: 'Identificador biométrico no válido.',
+      };
+    }
+
+    const deviceToken = await createBiometricToken({
+      idUsuario: session.idUsuario,
+      credentialId: input.credentialId,
+      email: session.correo,
+      deviceName: input.deviceName || 'Dispositivo biométrico',
+    });
+
+    return {
+      success: true,
+      data: {
+        deviceToken,
+      },
+    };
+  } catch (error) {
+    console.error('Error en registerBiometricDeviceAction:', error);
+    return {
+      success: false,
+      error: 'Error al registrar el dispositivo biométrico.',
+    };
+  }
+}
+
+/**
+ * Inicia sesión verificando el token del dispositivo biométrico y la credencial de huella digital.
+ */
+export async function loginWithBiometricsAction(input: {
+  credentialId: string;
+  deviceToken: string;
+}): Promise<ActionResponse<{ redirectUrl: string; user: SessionPayload }>> {
+  try {
+    if (!input.credentialId || !input.deviceToken) {
+      return {
+        success: false,
+        error: 'Datos biométricos incompletos.',
+      };
+    }
+
+    const payload = await verifyBiometricToken(input.deviceToken);
+    if (!payload) {
+      return {
+        success: false,
+        error: 'El token biométrico del dispositivo ha expirado o no es auténtico. Por favor ingresa con tu contraseña para volver a sincronizarlo.',
+      };
+    }
+
+    if (payload.credentialId !== input.credentialId) {
+      return {
+        success: false,
+        error: 'La credencial de huella digital no coincide con este dispositivo.',
+      };
+    }
+
+    const user = await prisma.usuario.findUnique({
+      where: { idUsuario: payload.idUsuario },
+      include: { rol: true },
+    });
+
+    if (!user) {
+      return {
+        success: false,
+        error: 'Usuario asociado a la huella digital no encontrado.',
+      };
+    }
+
+    if (user.estado !== 'ACTIVO') {
+      return {
+        success: false,
+        error: 'La cuenta no se encuentra activa para acceso biométrico.',
+      };
+    }
+
+    const sessionPayload: SessionPayload = {
+      idUsuario: user.idUsuario,
+      idCooperativa: user.idCooperativa,
+      idRol: user.idRol,
+      rolNombre: user.rol.nombre,
+      correo: user.correo,
+      nombre: `${user.nombre} ${user.apellido}`.trim(),
+      usuario: user.usuario,
+    };
+
+    const token = await createSessionToken(sessionPayload);
+    await setSessionCookie(token);
+
+    let redirectUrl = '/home';
+    if (['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO'].includes(user.rol.nombre)) {
+      redirectUrl = '/dashboard';
+    } else if (['CHOFER', 'AYUDANTE'].includes(user.rol.nombre)) {
+      redirectUrl = '/validar-boleto';
+    }
+
+    return {
+      success: true,
+      data: {
+        redirectUrl,
+        user: sessionPayload,
+      },
+    };
+  } catch (error) {
+    console.error('Error en loginWithBiometricsAction:', error);
+    return {
+      success: false,
+      error: 'Error al iniciar sesión con huella digital.',
+    };
+  }
+}
+
 

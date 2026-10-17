@@ -255,9 +255,55 @@ export default function TripsPage() {
           </div>
 
           {loading ? (
-            <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center shadow-xs">
-              <Icon path={mdiLoading} size={1.2} className="animate-spin text-primary mx-auto mb-2" />
-              <p className="text-xs font-bold text-gray-600">Consultando viajes disponibles...</p>
+            <div className="space-y-3.5 animate-pulse">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="bg-white border border-gray-100 rounded-2xl p-5 shadow-2xs"
+                >
+                  <div className="flex flex-col md:flex-row items-center gap-3.5 md:gap-0">
+                    <div className="flex-1 flex flex-row items-center w-full justify-between">
+                      {/* Origen skeleton */}
+                      <div className="flex flex-col items-center w-16 md:w-24 shrink-0 gap-1.5">
+                        <div className="h-6 w-14 bg-gray-200 rounded-md" />
+                        <div className="h-3 w-10 bg-gray-100 rounded" />
+                        <div className="h-3 w-16 bg-gray-100 rounded" />
+                      </div>
+
+                      {/* Duración y línea skeleton */}
+                      <div className="flex-1 flex flex-col items-center px-2 md:px-4 min-w-[60px] md:min-w-[120px] gap-1.5">
+                        <div className="h-3 w-12 bg-gray-100 rounded" />
+                        <div className="w-full h-1 bg-gray-100 rounded" />
+                      </div>
+
+                      {/* Destino skeleton */}
+                      <div className="flex flex-col items-center w-16 md:w-24 shrink-0 gap-1.5">
+                        <div className="h-6 w-14 bg-gray-200 rounded-md" />
+                        <div className="h-3 w-10 bg-gray-100 rounded" />
+                        <div className="h-3 w-16 bg-gray-100 rounded" />
+                      </div>
+                    </div>
+
+                    {/* Separador vertical */}
+                    <div className="w-full h-px md:w-px md:h-12 bg-gray-100 md:mx-6 shrink-0" />
+
+                    {/* Disponibilidad y botón skeleton */}
+                    <div className="flex items-center justify-between md:justify-end gap-4 w-full md:w-auto shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-gray-100 shrink-0" />
+                      <div className="flex flex-col items-end gap-1.5">
+                        <div className="h-5 w-16 bg-gray-200 rounded-md" />
+                        <div className="h-8 w-24 bg-gray-200 rounded-xl" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer card skeleton */}
+                  <div className="mt-3.5 pt-3.5 border-t border-gray-100 flex items-center justify-between">
+                    <div className="h-3 w-32 bg-gray-100 rounded" />
+                    <div className="h-3 w-20 bg-gray-100 rounded" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : filtered.length === 0 ? (
             <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center shadow-xs">
