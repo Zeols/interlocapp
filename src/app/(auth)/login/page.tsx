@@ -404,7 +404,7 @@ function LoginFormContent() {
               </div>
 
               <h3 className="text-lg font-extrabold text-gray-900 text-center mb-2">
-                Huella Digital / Biometría
+                Huella Digital
               </h3>
               <p className="text-xs text-gray-600 text-center leading-relaxed mb-5">
                 Para ingresar con huella o Face ID en este dispositivo, primero inicia sesión con tu usuario y contraseña. Al entrar, la app te ofrecerá activarla con un solo toque.
