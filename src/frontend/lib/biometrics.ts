@@ -73,12 +73,12 @@ export function getFriendlyDeviceName(): string {
   if (typeof window === 'undefined') return 'Dispositivo Web';
   const ua = navigator.userAgent;
 
-  if (/iPhone|iPad|iPod/.test(ua)) return 'iPhone / iPad (Touch ID / Face ID)';
-  if (/Android/.test(ua)) return 'Dispositivo Android (Huella / Biometría)';
-  if (/Windows/.test(ua)) return 'PC Windows (Windows Hello)';
-  if (/Macintosh/.test(ua)) return 'Mac (Touch ID)';
+  if (/iPhone|iPad|iPod/.test(ua)) return 'iPhone / iPad';
+  if (/Android/.test(ua)) return 'Dispositivo Android';
+  if (/Windows/.test(ua)) return 'PC Windows';
+  if (/Macintosh/.test(ua)) return 'Mac';
   if (/Linux/.test(ua)) return 'Dispositivo Linux';
-  return 'Navegador Web Seguro';
+  return 'Navegador Web';
 }
 
 /**
