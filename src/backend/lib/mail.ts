@@ -209,10 +209,17 @@ export async function sendEmail({
       const sendPromise = client.sendMail({
         from: config.from,
         to,
+        replyTo: config.user,
         subject,
         html,
         text: cleanText,
         attachments: finalAttachments,
+        priority: 'high',
+        headers: {
+          'X-Priority': '1',
+          'X-MSMail-Priority': 'High',
+          'Importance': 'high',
+        },
       });
 
       // Timeout de protección de 8 segundos
@@ -240,10 +247,17 @@ export async function sendEmail({
         const fallbackPromise = fallbackTransporter.sendMail({
           from: config.from,
           to,
+          replyTo: config.user,
           subject,
           html,
           text: cleanText,
           attachments: finalAttachments,
+          priority: 'high',
+          headers: {
+            'X-Priority': '1',
+            'X-MSMail-Priority': 'High',
+            'Importance': 'high',
+          },
         });
 
         info = await Promise.race([
