@@ -82,10 +82,6 @@ export async function processAvatarImage(
     throw new Error("No se ha seleccionado ningún archivo de imagen.");
   }
 
-  if (file.size === 0) {
-    throw new Error("El archivo de imagen está vacío o el permiso de acceso fue denegado por el teléfono.");
-  }
-
   // Comprobar si el archivo es imagen considerando que algunos móviles no reportan MIME type explícito
   const isImageMime = file.type ? file.type.startsWith("image/") : true;
   const isImageExt = /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif|svg)$/i.test(file.name || "");
@@ -98,12 +94,33 @@ export async function processAvatarImage(
     throw new Error("La imagen es demasiado pesada. El tamaño máximo permitido es 15 MB.");
   }
 
+  // 1. Leer inmediatamente el archivo a memoria para evitar desconexión del descriptor en Android/iOS
+  let safeBlob: Blob = file;
+  try {
+    const buffer = await file.arrayBuffer();
+    if (buffer && buffer.byteLength > 0) {
+      safeBlob = new Blob([buffer], { type: file.type || "image/jpeg" });
+    } else if (file.size === 0) {
+      throw new Error("El archivo de imagen no contiene datos o el permiso fue cancelado por el teléfono.");
+    }
+  } catch (err: any) {
+    if (err?.message?.includes("permiso fue cancelado")) {
+      throw err;
+    }
+    safeBlob = file;
+  }
+
   // -------------------------------------------------------------
   // ESTRATEGIA 1: createImageBitmap (Moderno, rápido y corrige rotación EXIF móvil)
   // -------------------------------------------------------------
   if (typeof window !== "undefined" && typeof window.createImageBitmap === "function") {
     try {
-      const bitmap = await window.createImageBitmap(file);
+      let bitmap: ImageBitmap;
+      try {
+        bitmap = await window.createImageBitmap(safeBlob, { imageOrientation: "from-image" as any });
+      } catch {
+        bitmap = await window.createImageBitmap(safeBlob);
+      }
       const result = drawCropAndExport(
         bitmap,
         bitmap.width,
@@ -126,7 +143,7 @@ export async function processAvatarImage(
       const result = await new Promise<string>((resolve, reject) => {
         let objectUrl: string | null = null;
         try {
-          objectUrl = window.URL.createObjectURL(file);
+          objectUrl = window.URL.createObjectURL(safeBlob);
         } catch (e) {
           reject(e);
           return;
@@ -134,13 +151,6 @@ export async function processAvatarImage(
 
         const img = new Image();
         img.onload = () => {
-          if (objectUrl) {
-            try {
-              window.URL.revokeObjectURL(objectUrl);
-            } catch {
-              // ignore
-            }
-          }
           try {
             const dataUrl = drawCropAndExport(
               img,
@@ -152,6 +162,14 @@ export async function processAvatarImage(
             resolve(dataUrl);
           } catch (err: any) {
             reject(err);
+          } finally {
+            if (objectUrl) {
+              try {
+                window.URL.revokeObjectURL(objectUrl);
+              } catch {
+                // ignore
+              }
+            }
           }
         };
 
@@ -210,6 +228,6 @@ export async function processAvatarImage(
       img.src = reader.result as string;
     };
 
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(safeBlob);
   });
 }

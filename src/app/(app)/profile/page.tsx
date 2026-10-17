@@ -279,6 +279,15 @@ export default function ProfilePage() {
     });
   };
 
+  const triggerPhotoPicker = () => {
+    if (processingImage) return;
+    if (fileInputRef.current) {
+      // Limpiar previamente para garantizar que el evento onChange siempre dispare incluso al seleccionar el mismo archivo
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  };
+
   const handleFileSelect = async (file: File) => {
     try {
       setPersonalFeedback(null);
@@ -292,30 +301,34 @@ export default function ProfilePage() {
       setFotoError(false);
 
       // Auto-guardar la foto de inmediato en la base de datos
-      if (nombre) {
-        const res = await updateUserProfileAction({
-          nombre,
-          apellido,
-          telefono,
-          direccion,
-          foto: webpDataUrl,
-        });
-        if (res.success) {
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(
-              new CustomEvent("profile-updated", {
-                detail: { foto: webpDataUrl },
-              })
-            );
-          }
-          router.refresh();
+      const res = await updateUserProfileAction({
+        nombre: nombre?.trim() || "Usuario",
+        apellido: apellido?.trim() || "",
+        telefono: telefono?.trim() || "",
+        direccion: direccion?.trim() || "",
+        foto: webpDataUrl,
+      });
 
-          setPersonalFeedback({
-            type: "success",
-            message: "Foto de perfil actualizada exitosamente.",
-          });
-          setTimeout(() => setPersonalFeedback(null), 4000);
+      if (res.success) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("profile-updated", {
+              detail: { foto: webpDataUrl },
+            })
+          );
         }
+        router.refresh();
+
+        setPersonalFeedback({
+          type: "success",
+          message: "Foto de perfil actualizada exitosamente.",
+        });
+        setTimeout(() => setPersonalFeedback(null), 4000);
+      } else {
+        setPersonalFeedback({
+          type: "error",
+          message: res.error || "No se pudo guardar la nueva foto en el servidor.",
+        });
       }
     } catch (err: any) {
       setPersonalFeedback({
@@ -332,7 +345,6 @@ export default function ProfilePage() {
     if (file) {
       handleFileSelect(file);
     }
-    e.target.value = "";
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -517,36 +529,40 @@ export default function ProfilePage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/jpg"
+                  accept="image/*"
                   onChange={handleFileInputChange}
-                  className="sr-only"
+                  className="hidden"
                   id="avatar-file-upload"
+                  aria-hidden="true"
                 />
 
-                <label
-                  htmlFor="avatar-file-upload"
+                {/* Contenedor circular principal táctil */}
+                <button
+                  type="button"
+                  onClick={triggerPhotoPicker}
+                  disabled={processingImage}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-white ring-4 shadow-md border-2 shrink-0 flex items-center justify-center relative cursor-pointer transition-all duration-200 select-none touch-manipulation ${
-                    processingImage ? "pointer-events-none opacity-80" : ""
-                  } ${
+                  className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-white ring-4 shadow-md border-2 shrink-0 flex items-center justify-center relative cursor-pointer transition-all duration-200 select-none touch-manipulation disabled:opacity-80 active:scale-95 ${
                     isDragOver
                       ? "ring-primary border-primary scale-105"
                       : "ring-white border-gray-100 group-hover:ring-primary/20"
                   }`}
                   title="Toca para cambiar tu foto de perfil"
+                  aria-label="Cambiar foto de perfil"
                 >
                   {foto && foto.trim() !== "" && !fotoError ? (
                     <img
                       key={foto}
                       src={foto}
                       alt={fullName}
+                      draggable={false}
                       onError={() => setFotoError(true)}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 pointer-events-none select-none"
                     />
                   ) : (
-                    <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary font-black text-3xl sm:text-4xl select-none">
+                    <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary font-black text-3xl sm:text-4xl select-none pointer-events-none">
                       {displayChar}
                     </div>
                   )}
@@ -561,24 +577,28 @@ export default function ProfilePage() {
 
                   {/* Estado de carga */}
                   {processingImage && (
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center text-white z-20">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center text-white z-20 pointer-events-none">
                       <Icon path={mdiLoading} size={1} className="animate-spin text-primary" />
                       <span className="text-[9px] font-bold mt-1">Guardando...</span>
                     </div>
                   )}
-                </label>
+                </button>
 
-                {/* Botón flotante: Cambiar fotografía (Cámara) con hitbox táctil ampliado */}
-                <label
-                  htmlFor="avatar-file-upload"
-                  className={`absolute bottom-0 right-0 w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-md border-2 border-white flex items-center justify-center transition-transform hover:scale-110 active:scale-95 cursor-pointer z-10 touch-manipulation ${
-                    processingImage ? "pointer-events-none opacity-70" : ""
-                  }`}
+                {/* Botón flotante: Cambiar fotografía (Cámara) con hitbox táctil amplio de 40x40px */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    triggerPhotoPicker();
+                  }}
+                  disabled={processingImage}
+                  className={`absolute -bottom-1 -right-1 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-md border-2 border-white flex items-center justify-center transition-transform hover:scale-110 active:scale-90 cursor-pointer z-10 touch-manipulation disabled:opacity-70`}
                   title="Cambiar fotografía"
                   aria-label="Cambiar fotografía"
                 >
                   <Icon path={mdiCameraOutline} size={0.7} />
-                </label>
+                </button>
 
                 {/* Botón flotante: Eliminar foto (abre modal de confirmación) */}
                 {foto && foto.trim() !== "" && (

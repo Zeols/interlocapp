@@ -89,16 +89,50 @@ export default function AdminProfilePage() {
     loadProfile();
   }, []);
 
-  // Manejar selección de foto
+  // Manejar selección de foto con botón táctil directo
+  const triggerPhotoPicker = () => {
+    if (processingImage) return;
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  };
+
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setProcessingImage(true);
+    setFeedback(null);
     try {
       const processed = await processAvatarImage(file);
       setFoto(processed);
-      setFeedback({ type: "success", text: "Foto cargada. Recuerda guardar los cambios." });
+
+      // Auto-guardar la foto de inmediato en la base de datos
+      if (nombre.trim()) {
+        const res = await updateUserProfileAction({
+          nombre: nombre.trim(),
+          apellido: apellido.trim() || undefined,
+          telefono: telefono.trim() || undefined,
+          direccion: direccion.trim() || undefined,
+          foto: processed,
+        });
+
+        if (res.success) {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("profile-updated", {
+                detail: { foto: processed },
+              })
+            );
+          }
+          setFeedback({ type: "success", text: "Foto de perfil actualizada exitosamente." });
+        } else {
+          setFeedback({ type: "error", text: res.error || "No se pudo guardar la foto en el servidor." });
+        }
+      } else {
+        setFeedback({ type: "success", text: "Foto cargada. Recuerda guardar los cambios." });
+      }
     } catch (err: any) {
       setFeedback({ type: "error", text: err.message || "Error al procesar la imagen." });
     } finally {
@@ -220,34 +254,42 @@ export default function AdminProfilePage() {
               ref={fileInputRef}
               type="file"
               id="admin-avatar-upload"
-              accept="image/jpeg,image/png,image/webp,image/jpg"
+              accept="image/*"
               onChange={handlePhotoSelect}
-              className="sr-only"
+              className="hidden"
+              aria-hidden="true"
             />
-            <label
-              htmlFor="admin-avatar-upload"
-              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center font-bold text-2xl shadow-2xs cursor-pointer select-none touch-manipulation block ${
+            <button
+              type="button"
+              onClick={triggerPhotoPicker}
+              disabled={processingImage}
+              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center font-bold text-2xl shadow-2xs cursor-pointer select-none touch-manipulation disabled:opacity-80 active:scale-95 block ${
                 processingImage ? "pointer-events-none opacity-80" : ""
               }`}
               title="Toca para cambiar foto de perfil"
+              aria-label="Cambiar foto de perfil"
             >
               {foto ? (
-                <img src={foto} alt={nombre} className="w-full h-full object-cover" />
+                <img src={foto} alt={nombre} draggable={false} className="w-full h-full object-cover pointer-events-none select-none" />
               ) : (
-                <span className="flex items-center justify-center w-full h-full">{initials}</span>
+                <span className="flex items-center justify-center w-full h-full pointer-events-none select-none">{initials}</span>
               )}
-            </label>
+            </button>
 
-            <label
-              htmlFor="admin-avatar-upload"
-              className={`absolute bottom-0 right-0 w-8.5 h-8.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center transition-transform hover:scale-110 active:scale-95 shadow-2xs cursor-pointer border-2 border-white touch-manipulation ${
-                processingImage ? "pointer-events-none opacity-70" : ""
-              }`}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                triggerPhotoPicker();
+              }}
+              disabled={processingImage}
+              className={`absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center transition-transform hover:scale-110 active:scale-90 shadow-2xs cursor-pointer border-2 border-white touch-manipulation disabled:opacity-70`}
               title="Cambiar foto de perfil"
               aria-label="Cambiar foto de perfil"
             >
               <Icon path={mdiCameraOutline} size={0.7} />
-            </label>
+            </button>
           </div>
 
           {/* Información principal */}
