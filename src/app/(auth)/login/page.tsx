@@ -279,17 +279,29 @@ function LoginFormContent() {
               type="button"
               onClick={handleBiometricLogin}
               disabled={isPending || isBiometricLoading}
-              className="w-full bg-emerald-50/90 hover:bg-emerald-100/90 border border-emerald-200/90 text-emerald-800 font-semibold text-xs sm:text-sm py-3 px-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-2xs hover:border-emerald-300 disabled:opacity-60 cursor-pointer"
-              title={savedDevice ? `Ingresar usando ${savedDevice.deviceName}` : "Acceder con huella digital"}
+              className="w-full bg-emerald-50/90 hover:bg-emerald-100/90 border border-emerald-200/90 text-emerald-950 py-2.5 sm:py-3 px-3.5 sm:px-4 rounded-2xl flex items-center gap-3 transition-all shadow-2xs hover:border-emerald-300 disabled:opacity-60 cursor-pointer text-left active:scale-[0.99]"
+              title={savedDevice ? `Ingresar con biometría vinculada a ${savedDevice.userEmail || savedDevice.deviceName}` : "Acceder con biometría"}
             >
-              {isBiometricLoading ? (
-                <Icon path={mdiLoading} size={0.7} className="animate-spin text-emerald-700" />
-              ) : (
-                <FingerprintPattern className="w-4 h-4 text-emerald-700" />
-              )}
-              <span>
-                {savedDevice ? `Ingresar con Huella (${savedDevice.deviceName})` : "Ingresar con Huella Digital"}
-              </span>
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-100/80 border border-emerald-200/80 text-emerald-700 flex items-center justify-center shrink-0">
+                {isBiometricLoading ? (
+                  <Icon path={mdiLoading} size={0.75} className="animate-spin text-emerald-700" />
+                ) : (
+                  <FingerprintPattern className="w-5 h-5 text-emerald-700" />
+                )}
+              </div>
+
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="font-bold text-xs sm:text-sm text-emerald-950 leading-tight">
+                  Ingresar con Biometría (Huella / Face ID)
+                </span>
+                <span className="text-[11px] font-medium text-emerald-700/90 leading-tight mt-0.5 truncate">
+                  {savedDevice
+                    ? (savedDevice.userName
+                        ? `${savedDevice.userName} • ${savedDevice.userEmail}`
+                        : savedDevice.userEmail || "Dispositivo vinculado")
+                    : "Acceso instantáneo con sensor biométrico"}
+                </span>
+              </div>
             </button>
           </div>
 
@@ -404,7 +416,7 @@ function LoginFormContent() {
               </div>
 
               <h3 className="text-lg font-extrabold text-gray-900 text-center mb-2">
-                Huella Digital / Biometría
+                Huella Digital
               </h3>
               <p className="text-xs text-gray-600 text-center leading-relaxed mb-5">
                 Para ingresar con huella o Face ID en este dispositivo, primero inicia sesión con tu usuario y contraseña. Al entrar, la app te ofrecerá activarla con un solo toque.

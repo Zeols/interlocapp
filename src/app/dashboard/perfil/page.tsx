@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Icon from "@mdi/react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   mdiAccount,
   mdiKeyOutline,
@@ -17,6 +18,8 @@ import {
   mdiEyeOffOutline,
   mdiClose,
   mdiDomain,
+  mdiCheck,
+  mdiLoading,
 } from "@mdi/js";
 import {
   getUserProfileAction,
@@ -49,9 +52,13 @@ export default function AdminProfilePage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Subida de imagen
+  // Subida de imagen y modales de gestión
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [processingImage, setProcessingImage] = useState(false);
+  const [showPhotoActionsModal, setShowPhotoActionsModal] = useState(false);
+  const [newPhotoPreview, setNewPhotoPreview] = useState<string | null>(null);
+  const [savingNewPhoto, setSavingNewPhoto] = useState(false);
+  const [showDeletePhotoModal, setShowDeletePhotoModal] = useState(false);
 
   // Feedback con auto-descarte tras 6 segundos
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -91,7 +98,7 @@ export default function AdminProfilePage() {
 
   // Manejar selección de foto con botón táctil directo
   const triggerPhotoPicker = () => {
-    if (processingImage) return;
+    if (processingImage || savingNewPhoto) return;
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
       fileInputRef.current.click();
@@ -106,33 +113,8 @@ export default function AdminProfilePage() {
     setFeedback(null);
     try {
       const processed = await processAvatarImage(file);
-      setFoto(processed);
-
-      // Auto-guardar la foto de inmediato en la base de datos
-      if (nombre.trim()) {
-        const res = await updateUserProfileAction({
-          nombre: nombre.trim(),
-          apellido: apellido.trim() || undefined,
-          telefono: telefono.trim() || undefined,
-          direccion: direccion.trim() || undefined,
-          foto: processed,
-        });
-
-        if (res.success) {
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(
-              new CustomEvent("profile-updated", {
-                detail: { foto: processed },
-              })
-            );
-          }
-          setFeedback({ type: "success", text: "Foto de perfil actualizada exitosamente." });
-        } else {
-          setFeedback({ type: "error", text: res.error || "No se pudo guardar la foto en el servidor." });
-        }
-      } else {
-        setFeedback({ type: "success", text: "Foto cargada. Recuerda guardar los cambios." });
-      }
+      // Abrir modal de vista previa antes de guardar
+      setNewPhotoPreview(processed);
     } catch (err: any) {
       setFeedback({ type: "error", text: err.message || "Error al procesar la imagen." });
     } finally {
@@ -140,9 +122,75 @@ export default function AdminProfilePage() {
     }
   };
 
+  const confirmSaveNewPhoto = async () => {
+    if (!newPhotoPreview) return;
+    try {
+      setSavingNewPhoto(true);
+      setFeedback(null);
+      const res = await updateUserProfileAction({
+        nombre: nombre.trim() || "Administrador",
+        apellido: apellido.trim() || undefined,
+        telefono: telefono.trim() || undefined,
+        direccion: direccion.trim() || undefined,
+        foto: newPhotoPreview,
+      });
+
+      if (res.success) {
+        setFoto(newPhotoPreview);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("profile-updated", {
+              detail: { foto: newPhotoPreview },
+            })
+          );
+        }
+        setFeedback({ type: "success", text: "Foto de perfil actualizada exitosamente." });
+        setNewPhotoPreview(null);
+      } else {
+        setFeedback({ type: "error", text: res.error || "No se pudo guardar la foto en el servidor." });
+      }
+    } catch {
+      setFeedback({ type: "error", text: "Error al comunicarse con el servidor al guardar la foto." });
+    } finally {
+      setSavingNewPhoto(false);
+    }
+  };
+
+  const confirmDeletePhoto = async () => {
+    try {
+      setProcessingImage(true);
+      setFeedback(null);
+      const res = await updateUserProfileAction({
+        nombre: nombre.trim() || "Administrador",
+        apellido: apellido.trim() || undefined,
+        telefono: telefono.trim() || undefined,
+        direccion: direccion.trim() || undefined,
+        foto: "",
+      });
+
+      if (res.success) {
+        setFoto(null);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("profile-updated", {
+              detail: { foto: null },
+            })
+          );
+        }
+        setFeedback({ type: "success", text: "Foto de perfil eliminada." });
+      } else {
+        setFeedback({ type: "error", text: res.error || "No se pudo eliminar la foto." });
+      }
+    } catch {
+      setFeedback({ type: "error", text: "Error al eliminar la foto de perfil." });
+    } finally {
+      setProcessingImage(false);
+      setShowDeletePhotoModal(false);
+    }
+  };
+
   const handleRemovePhoto = () => {
-    setFoto(null);
-    setFeedback({ type: "success", text: "Foto removida. Recuerda guardar los cambios." });
+    setShowDeletePhotoModal(true);
   };
 
   // Guardar datos personales
@@ -261,13 +309,13 @@ export default function AdminProfilePage() {
             />
             <button
               type="button"
-              onClick={triggerPhotoPicker}
+              onClick={() => setShowPhotoActionsModal(true)}
               disabled={processingImage}
               className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center font-bold text-2xl shadow-2xs cursor-pointer select-none touch-manipulation disabled:opacity-80 active:scale-95 block ${
                 processingImage ? "pointer-events-none opacity-80" : ""
               }`}
-              title="Toca para cambiar foto de perfil"
-              aria-label="Cambiar foto de perfil"
+              title="Toca para gestionar foto de perfil"
+              aria-label="Gestionar foto de perfil"
             >
               {foto ? (
                 <img src={foto} alt={nombre} draggable={false} className="w-full h-full object-cover pointer-events-none select-none" />
@@ -281,12 +329,12 @@ export default function AdminProfilePage() {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                triggerPhotoPicker();
+                setShowPhotoActionsModal(true);
               }}
               disabled={processingImage}
               className={`absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center transition-transform hover:scale-110 active:scale-90 shadow-2xs cursor-pointer border-2 border-white touch-manipulation disabled:opacity-70`}
-              title="Cambiar foto de perfil"
-              aria-label="Cambiar foto de perfil"
+              title="Gestionar foto de perfil"
+              aria-label="Gestionar foto de perfil"
             >
               <Icon path={mdiCameraOutline} size={0.7} />
             </button>
@@ -533,6 +581,230 @@ export default function AdminProfilePage() {
           </div>
         </form>
       )}
+
+      {/* MODAL 1: MENÚ DE ACCIONES AL TOCAR EL AVATAR */}
+      <AnimatePresence>
+        {showPhotoActionsModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowPhotoActionsModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-xs cursor-pointer"
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 12 }}
+              transition={{ type: "spring", duration: 0.28 }}
+              className="relative w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 text-center z-10 overflow-hidden"
+            >
+              <button
+                type="button"
+                onClick={() => setShowPhotoActionsModal(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+                aria-label="Cerrar"
+              >
+                <Icon path={mdiClose} size={0.7} />
+              </button>
+
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden mx-auto mb-4 ring-4 ring-primary/20 border-2 border-white shadow-md bg-slate-100 flex items-center justify-center text-slate-800 font-bold text-2xl sm:text-3xl">
+                {foto ? (
+                  <img src={foto} alt={nombre} className="w-full h-full object-cover" />
+                ) : (
+                  initials
+                )}
+              </div>
+
+              <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight mb-1">
+                Foto de perfil
+              </h3>
+              <p className="text-xs text-slate-500 leading-relaxed mb-5">
+                {foto ? "¿Qué deseas hacer con tu foto de perfil actual?" : "Sube una fotografía para personalizar tu panel administrativo."}
+              </p>
+
+              <div className="space-y-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPhotoActionsModal(false);
+                    triggerPhotoPicker();
+                  }}
+                  className="w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 active:scale-98 transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Icon path={mdiCameraOutline} size={0.7} />
+                  <span>{foto ? "Cambiar por otra foto" : "Subir foto"}</span>
+                </button>
+
+                {foto && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPhotoActionsModal(false);
+                      setShowDeletePhotoModal(true);
+                    }}
+                    className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Icon path={mdiDeleteOutline} size={0.65} />
+                    <span>Quitar foto actual</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setShowPhotoActionsModal(false)}
+                  className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 2: CONFIRMACIÓN Y VISTA PREVIA: "¿QUIERES CAMBIAR LA FOTO?" */}
+      <AnimatePresence>
+        {newPhotoPreview && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                if (!savingNewPhoto) setNewPhotoPreview(null);
+              }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-xs cursor-pointer"
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 15 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="relative w-full max-w-sm bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100 text-center z-10 overflow-hidden"
+            >
+              {!savingNewPhoto && (
+                <button
+                  type="button"
+                  onClick={() => setNewPhotoPreview(null)}
+                  className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+                  aria-label="Cerrar modal"
+                >
+                  <Icon path={mdiClose} size={0.7} />
+                </button>
+              )}
+
+              <div className="relative mx-auto mb-4 w-28 h-28 sm:w-32 sm:h-32">
+                <div className="w-full h-full rounded-full overflow-hidden ring-4 ring-emerald-500/30 border-3 border-white shadow-xl bg-slate-100">
+                  <img
+                    src={newPhotoPreview}
+                    alt="Vista previa"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md border-2 border-white">
+                  <Icon path={mdiCheck} size={0.65} />
+                </div>
+              </div>
+
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-100/70 px-2.5 py-0.5 rounded-full inline-block mb-1.5">
+                Vista previa
+              </span>
+
+              <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight mb-1.5">
+                ¿Quieres cambiar tu foto?
+              </h3>
+
+              <p className="text-xs sm:text-sm text-slate-500 leading-relaxed mb-6">
+                Así se verá tu nueva foto de perfil en el panel y encabezados de InterlocApp.
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setNewPhotoPreview(null)}
+                  disabled={savingNewPhoto}
+                  className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={confirmSaveNewPhoto}
+                  disabled={savingNewPhoto}
+                  className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 active:scale-98 transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+                >
+                  {savingNewPhoto ? (
+                    <>
+                      <Icon path={mdiLoading} size={0.65} className="animate-spin text-white" />
+                      <span>Guardando...</span>
+                    </>
+                  ) : (
+                    <span>Sí, cambiar</span>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 3: CONFIRMACIÓN PARA QUITAR FOTO */}
+      <AnimatePresence>
+        {showDeletePhotoModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowDeletePhotoModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-xs cursor-pointer"
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 text-center z-10"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 border border-red-100 flex items-center justify-center mx-auto mb-4">
+                <Icon path={mdiDeleteOutline} size={1.1} />
+              </div>
+
+              <h3 className="text-lg font-black text-slate-900 tracking-tight mb-2">
+                ¿Quitar foto de perfil?
+              </h3>
+              
+              <p className="text-xs text-slate-500 leading-relaxed mb-6">
+                Tu foto actual será eliminada de tu cuenta y volverás a ver tus iniciales predeterminadas.
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowDeletePhotoModal(false)}
+                  disabled={processingImage}
+                  className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeletePhoto}
+                  disabled={processingImage}
+                  className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+                >
+                  {processingImage ? "Quitando..." : "Sí, quitar"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
