@@ -20,7 +20,9 @@ import {
 } from "@mdi/js";
 import { Logo } from "@/frontend/components/ui/Logo";
 import { getCurrentUserAction, logoutAction } from "@/backend/actions/auth";
+import { getUserProfileAction } from "@/backend/actions/usuarios";
 import { LogoutModal } from "@/frontend/components/ui/LogoutModal";
+import { BiometricPromptModal } from "@/frontend/components/ui/BiometricPromptModal";
 import { TenantProvider, useTenant } from "@/frontend/context/TenantContext";
 
 interface SessionData {
@@ -41,6 +43,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [session, setSession] = useState<SessionData | null>(null);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [userFoto, setUserFoto] = useState<string | null>(null);
 
   const {
     selectedCoopId,
@@ -57,11 +60,24 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         if (user) {
           setSession(user);
         }
+        const profileRes = await getUserProfileAction();
+        if (profileRes.success && profileRes.data) {
+          setUserFoto(profileRes.data.foto || null);
+        }
       } catch (err) {
         console.error("Error al cargar sesión en layout:", err);
       }
     }
     initLayout();
+
+    const handleProfileUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ foto?: string | null }>;
+      if (customEvent.detail && customEvent.detail.foto !== undefined) {
+        setUserFoto(customEvent.detail.foto);
+      }
+    };
+    window.addEventListener("profile-updated", handleProfileUpdate);
+    return () => window.removeEventListener("profile-updated", handleProfileUpdate);
   }, []);
 
   const menuItems = [
@@ -261,9 +277,17 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                   <p className="text-[11px] text-slate-400 mt-0.5 max-w-[140px] truncate">{userEmail}</p>
                 </div>
                 <div className="relative">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-xs">
-                    {userInitial}
-                  </div>
+                  {userFoto ? (
+                    <img
+                      src={userFoto}
+                      alt={userName}
+                      className="w-8 h-8 rounded-full object-cover border border-primary/20 shadow-2xs"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-xs">
+                      {userInitial}
+                    </div>
+                  )}
                   {['CHOFER', 'AYUDANTE', 'TAQUILLERO'].includes(session?.rolNombre || '') && (
                     <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-slate-900 text-white rounded-full flex items-center justify-center border border-white shadow-xs">
                       <Icon path={mdiBus} size={0.35} />
@@ -318,6 +342,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         onConfirm={handleConfirmLogout}
         userName={userName}
       />
+
+      {/* Sugerencia para activar huella digital si el dispositivo la soporta */}
+      <BiometricPromptModal />
     </div>
   );
 }

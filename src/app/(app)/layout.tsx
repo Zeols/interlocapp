@@ -1,6 +1,7 @@
 import React from "react";
 import { Navbar } from "@/frontend/components/layout/Navbar";
 import { Footer } from "@/frontend/components/layout/Footer";
+import { BiometricPromptModal } from "@/frontend/components/ui/BiometricPromptModal";
 
 export default function AppLayout({
   children,
@@ -14,6 +15,8 @@ export default function AppLayout({
         {children}
       </main>
       <Footer />
+      <BiometricPromptModal />
     </div>
   );
 }
+
