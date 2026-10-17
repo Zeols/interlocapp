@@ -7,3 +7,4 @@ export * from './ventas';
 export * from './viajes';
 export * from './mail';
 export * from './metodos-pago';
+export * from './boletos';

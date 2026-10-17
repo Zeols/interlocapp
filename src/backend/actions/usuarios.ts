@@ -58,10 +58,10 @@ export async function getRoles() {
 
 export async function createUsuario(data: UsuarioInput) {
   try {
-    if (!data.nombre || !data.apellido || !data.usuario || !data.correo || !data.idRol) {
+    if (!data.nombre || !data.usuario || !data.correo || !data.idRol) {
       return {
         success: false,
-        error: 'Nombre, apellido, usuario, correo y rol son campos obligatorios.',
+        error: 'Nombre, usuario, correo y rol son campos obligatorios.',
       };
     }
 
@@ -72,7 +72,7 @@ export async function createUsuario(data: UsuarioInput) {
         idCooperativa: data.idCooperativa || null,
         idRol: data.idRol,
         nombre: data.nombre.trim(),
-        apellido: data.apellido.trim(),
+        apellido: (data.apellido || '').trim(),
         usuario: data.usuario.trim(),
         passwd: hashedPassword,
         telefono: data.telefono?.trim() || null,
@@ -113,6 +113,192 @@ export async function getUsuariosByCooperativa(idCooperativa: number) {
   } catch (error) {
     console.error('Error al obtener usuarios:', error);
     return { success: false, error: 'No se pudieron cargar los usuarios.' };
+  }
+}
+
+export async function getUsuariosAdminAction(params?: {
+  idCooperativa?: number;
+  idRol?: number;
+  busqueda?: string;
+}) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: 'No autorizado.', data: [] };
+    }
+
+    const isSuperAdmin = session.rolNombre === 'SUPER_ADMIN';
+    const isAdminCoop = session.rolNombre === 'ADMIN_COOP';
+
+    if (!isSuperAdmin && !isAdminCoop) {
+      return { success: false, error: 'No tienes permisos para ver usuarios.', data: [] };
+    }
+
+    // Aislamiento Multi-Tenant:
+    // Si no es Super Admin, se fuerza estrictamente a su propia cooperativa
+    const coopFilter = isSuperAdmin
+      ? params?.idCooperativa
+        ? { idCooperativa: params.idCooperativa }
+        : {}
+      : { idCooperativa: session.idCooperativa ?? -1 };
+
+    const rolFilter = params?.idRol ? { idRol: params.idRol } : {};
+
+    const searchFilter = params?.busqueda?.trim()
+      ? {
+          OR: [
+            { nombre: { contains: params.busqueda.trim(), mode: 'insensitive' as const } },
+            { apellido: { contains: params.busqueda.trim(), mode: 'insensitive' as const } },
+            { correo: { contains: params.busqueda.trim(), mode: 'insensitive' as const } },
+            { usuario: { contains: params.busqueda.trim(), mode: 'insensitive' as const } },
+          ],
+        }
+      : {};
+
+    const usuarios = await prisma.usuario.findMany({
+      where: {
+        ...coopFilter,
+        ...rolFilter,
+        ...searchFilter,
+      },
+      include: {
+        rol: true,
+        cooperativa: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      success: true,
+      data: usuarios.map((u) => ({
+        idUsuario: u.idUsuario,
+        idCooperativa: u.idCooperativa,
+        cooperativaNombre: u.cooperativa?.nombre || 'Global / Sin Cooperativa',
+        idRol: u.idRol,
+        rolNombre: u.rol.nombre,
+        nombre: u.nombre,
+        apellido: u.apellido,
+        nombreCompleto: [u.nombre, u.apellido].filter(Boolean).join(' '),
+        usuario: u.usuario,
+        correo: u.correo,
+        telefono: u.telefono,
+        direccion: u.direccion,
+        estado: u.estado,
+        createdAt: u.createdAt.toISOString(),
+      })),
+    };
+  } catch (error) {
+    console.error('Error en getUsuariosAdminAction:', error);
+    return { success: false, error: 'Error al consultar usuarios.', data: [] };
+  }
+}
+
+export async function createUsuarioByAdminAction(input: {
+  nombre: string;
+  apellido?: string;
+  correo: string;
+  telefono?: string;
+  usuario?: string;
+  password?: string;
+  idRol: number;
+  idCooperativa?: number | null;
+}) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: 'No autorizado.' };
+    }
+
+    const isSuperAdmin = session.rolNombre === 'SUPER_ADMIN';
+    const isAdminCoop = session.rolNombre === 'ADMIN_COOP';
+
+    if (!isSuperAdmin && !isAdminCoop) {
+      return { success: false, error: 'Permisos insuficientes para registrar usuarios.' };
+    }
+
+    // Verificar rol a asignar
+    const rol = await prisma.rol.findUnique({
+      where: { idRol: input.idRol },
+    });
+
+    if (!rol) {
+      return { success: false, error: 'El rol especificado no existe.' };
+    }
+
+    // Si es ADMIN_COOP:
+    // 1. No puede crear SUPER_ADMIN
+    // 2. Por defecto se asigna obligatoriamente a SU propia cooperativa
+    let finalCoopId: number | null = null;
+    if (isAdminCoop) {
+      if (rol.nombre === 'SUPER_ADMIN') {
+        return { success: false, error: 'Un administrador de cooperativa no puede crear cuentas de Super Administrador.' };
+      }
+      if (!session.idCooperativa) {
+        return { success: false, error: 'Tu usuario no tiene una cooperativa asignada.' };
+      }
+      finalCoopId = session.idCooperativa;
+    } else if (isSuperAdmin) {
+      finalCoopId = input.idCooperativa || null;
+    }
+
+    const cleanEmail = input.correo.trim().toLowerCase();
+    const existing = await prisma.usuario.findFirst({
+      where: { correo: cleanEmail },
+    });
+
+    if (existing) {
+      return { success: false, error: 'Ya existe una cuenta con este correo electrónico.' };
+    }
+
+    // Generar username único si no fue suministrado
+    let finalUsername = input.usuario?.trim().toLowerCase().replace(/[^a-z0-9_]/g, '') || cleanEmail.split('@')[0].replace(/[^a-z0-9_]/g, '');
+    let counter = 1;
+    const baseUsername = finalUsername;
+    while (await prisma.usuario.findUnique({ where: { usuario: finalUsername } })) {
+      finalUsername = `${baseUsername}_${counter}`;
+      counter++;
+    }
+
+    const defaultPass = input.password?.trim() || 'RutaCorp2026!';
+    const hashedPassword = await hashPassword(defaultPass);
+
+    const nuevoUsuario = await prisma.usuario.create({
+      data: {
+        idCooperativa: finalCoopId,
+        idRol: input.idRol,
+        nombre: input.nombre.trim(),
+        apellido: (input.apellido || '').trim(),
+        usuario: finalUsername,
+        correo: cleanEmail,
+        telefono: input.telefono?.trim() || null,
+        passwd: hashedPassword,
+        estado: 'ACTIVO',
+      },
+      include: {
+        rol: true,
+        cooperativa: true,
+      },
+    });
+
+    revalidatePath('/dashboard/usuarios');
+    revalidatePath('/dashboard/choferes');
+
+    return {
+      success: true,
+      data: {
+        idUsuario: nuevoUsuario.idUsuario,
+        nombre: nuevoUsuario.nombre,
+        usuario: nuevoUsuario.usuario,
+        correo: nuevoUsuario.correo,
+        rolNombre: nuevoUsuario.rol.nombre,
+      },
+    };
+  } catch (error: any) {
+    console.error('Error en createUsuarioByAdminAction:', error);
+    if (error?.code === 'P2002') {
+      return { success: false, error: 'El nombre de usuario o correo ya se encuentra registrado.' };
+    }
+    return { success: false, error: 'No se pudo crear el usuario.' };
   }
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Icon from "@mdi/react";
 import {
@@ -15,52 +15,28 @@ import {
   mdiCheckCircleOutline,
 } from "@mdi/js";
 import { useCurrency } from "@/frontend/context/CurrencyContext";
-
-interface TicketItem {
-  id: string;
-  codigoBoleto: string;
-  origen: string;
-  destino: string;
-  fecha: string;
-  horaSalida: string;
-  asientoNumero: string;
-  cooperativa: string;
-  precio: number;
-  estado: "ACTIVO" | "UTILIZADO" | "CANCELADO";
-}
-
-const MOCK_TICKETS: TicketItem[] = [
-  {
-    id: "t-1",
-    codigoBoleto: "BOLETO-782910",
-    origen: "Managua (UCA)",
-    destino: "Juigalpa",
-    fecha: "Hoy, 15 Oct 2026",
-    horaSalida: "06:30 AM",
-    asientoNumero: "14",
-    cooperativa: "COOTRANSTEL R.L.",
-    precio: 120,
-    estado: "ACTIVO",
-  },
-  {
-    id: "t-2",
-    codigoBoleto: "BOLETO-645120",
-    origen: "Managua (UCA)",
-    destino: "León",
-    fecha: "10 Oct 2026",
-    horaSalida: "08:00 AM",
-    asientoNumero: "05",
-    cooperativa: "COOTRANSTEL R.L.",
-    precio: 85,
-    estado: "UTILIZADO",
-  },
-];
+import { getMisBoletosAction, type MiBoletoItem } from "@/backend/actions/boletos";
 
 export default function TicketsPage() {
   const { formatPrice } = useCurrency();
   const [activeTab, setActiveTab] = useState<"activos" | "historial">("activos");
+  const [tickets, setTickets] = useState<MiBoletoItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredTickets = MOCK_TICKETS.filter((t) =>
+  useEffect(() => {
+    setLoading(true);
+    getMisBoletosAction().then((res) => {
+      if (res.success && res.data && res.data.length > 0) {
+        setTickets(res.data);
+      } else {
+        // Si no hay boletos en BD todavía, mostramos lista vacía
+        setTickets([]);
+      }
+      setLoading(false);
+    });
+  }, []);
+
+  const filteredTickets = tickets.filter((t) =>
     activeTab === "activos" ? t.estado === "ACTIVO" : t.estado !== "ACTIVO"
   );
 
@@ -100,7 +76,7 @@ export default function TicketsPage() {
               : "border-transparent text-gray-400 hover:text-gray-700"
           }`}
         >
-          Próximos viajes ({MOCK_TICKETS.filter((t) => t.estado === "ACTIVO").length})
+          Próximos viajes ({tickets.filter((t) => t.estado === "ACTIVO").length})
         </button>
         <button
           onClick={() => setActiveTab("historial")}
@@ -110,12 +86,45 @@ export default function TicketsPage() {
               : "border-transparent text-gray-400 hover:text-gray-700"
           }`}
         >
-          Historial pasado ({MOCK_TICKETS.filter((t) => t.estado !== "ACTIVO").length})
+          Historial pasado ({tickets.filter((t) => t.estado !== "ACTIVO").length})
         </button>
       </div>
 
       {/* List */}
-      {filteredTickets.length === 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-pulse">
+          {[1, 2].map((i) => (
+            <div
+              key={i}
+              className="bg-white rounded-3xl border border-gray-100 p-6 shadow-xs relative overflow-hidden"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="space-y-2">
+                  <div className="h-4 w-28 bg-gray-200 rounded-md" />
+                  <div className="h-5 w-48 bg-gray-200 rounded-md" />
+                </div>
+                <div className="h-6 w-16 bg-gray-200 rounded-full" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 my-4 p-3.5 bg-gray-50/80 rounded-2xl">
+                <div className="space-y-1.5">
+                  <div className="h-3 w-16 bg-gray-200 rounded" />
+                  <div className="h-4 w-24 bg-gray-200 rounded" />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="h-3 w-16 bg-gray-200 rounded" />
+                  <div className="h-4 w-24 bg-gray-200 rounded" />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <div className="h-4 w-20 bg-gray-200 rounded" />
+                <div className="h-8 w-28 bg-gray-200 rounded-xl" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredTickets.length === 0 ? (
         <div className="bg-white rounded-3xl border border-gray-100 p-12 text-center shadow-xs">
           <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
             <Icon path={mdiTicketConfirmationOutline} size={1.2} />

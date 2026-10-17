@@ -76,3 +76,40 @@ export async function destroySession(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
 }
+
+export interface BiometricTokenPayload {
+  type: 'biometric_device';
+  idUsuario: number;
+  credentialId: string;
+  email: string;
+  deviceName: string;
+}
+
+/**
+ * Genera un token JWT firmado de 365 días para vincular un dispositivo biométrico a un usuario.
+ */
+export async function createBiometricToken(payload: Omit<BiometricTokenPayload, 'type'>): Promise<string> {
+  return new SignJWT({ ...payload, type: 'biometric_device' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('365d')
+    .sign(key);
+}
+
+/**
+ * Verifica la autenticidad del token biométrico del dispositivo.
+ */
+export async function verifyBiometricToken(token: string): Promise<BiometricTokenPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, key, {
+      algorithms: ['HS256'],
+    });
+    if ((payload as unknown as BiometricTokenPayload).type !== 'biometric_device') {
+      return null;
+    }
+    return payload as unknown as BiometricTokenPayload;
+  } catch {
+    return null;
+  }
+}
+

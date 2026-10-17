@@ -17,7 +17,7 @@ export const loginSchema = z.object({
 export const signupSchema = z
   .object({
     nombre: z.string().min(2, 'El nombre debe contener al menos 2 caracteres.').trim(),
-    apellido: z.string().min(2, 'El apellido debe contener al menos 2 caracteres.').trim(),
+    apellido: z.string().trim().default('').optional().or(z.literal('')),
     correo: z.string().email('Por favor ingresa un correo electrónico válido.').trim().toLowerCase(),
     telefono: z
       .string()
@@ -69,7 +69,7 @@ export const signupCooperativaSchema = z
       .or(z.literal('')),
     cooperativaDireccion: z.string().min(5, 'Ingresa la dirección o terminal de la cooperativa.').optional().or(z.literal('')),
     nombre: z.string().min(2, 'El nombre del administrador debe contener al menos 2 caracteres.').trim(),
-    apellido: z.string().min(2, 'El apellido del administrador debe contener al menos 2 caracteres.').trim(),
+    apellido: z.string().trim().default('').optional().or(z.literal('')),
     correo: z.string().email('Por favor ingresa un correo electrónico válido.').trim().toLowerCase(),
     telefono: z
       .string()

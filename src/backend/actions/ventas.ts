@@ -275,11 +275,20 @@ export async function procesarVentaBoletos(data: VentaInput) {
 
 export async function getDashboardStatsAction(idCooperativa?: number) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: 'No autorizado.' };
+    }
+
+    const isSuperAdmin = session.rolNombre === 'SUPER_ADMIN';
+    // Si no es Super Admin, se fuerza la cooperativa asignada a su sesión
+    const targetCoopId = isSuperAdmin ? idCooperativa : (session.idCooperativa ?? undefined);
+
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    const coopFilter = idCooperativa ? { idCooperativa } : {};
-    const tripCoopFilter = idCooperativa ? { viaje: { ruta: { idCooperativa } } } : {};
+    const coopFilter = targetCoopId ? { idCooperativa: targetCoopId } : {};
+    const tripCoopFilter = targetCoopId ? { viaje: { ruta: { idCooperativa: targetCoopId } } } : {};
 
     const [
       ventasHoyAggregate,
@@ -321,10 +330,12 @@ export async function getDashboardStatsAction(idCooperativa?: number) {
         where: coopFilter,
         select: { idUnidad: true, estado: true },
       }),
-      // Pasajeros registrados
-      prisma.usuario.count({
-        where: { rol: { nombre: 'PASAJERO' } },
-      }),
+      // Pasajeros registrados (solo accesible globalmente para Super Admin)
+      isSuperAdmin && !targetCoopId
+        ? prisma.usuario.count({
+            where: { rol: { nombre: 'PASAJERO' } },
+          })
+        : Promise.resolve(0),
       // Últimas 6 ventas reales
       prisma.venta.findMany({
         take: 6,

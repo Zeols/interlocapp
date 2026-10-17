@@ -14,8 +14,8 @@ const PUBLIC_ROUTES = ['/', '/login', '/signup', '/forgot'];
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Permitir endpoints de API webhooks o recursos internos
-  if (pathname.startsWith('/api/webhooks')) {
+  // Permitir endpoints de autenticación pública y webhooks
+  if (pathname.startsWith('/api/webhooks') || pathname.startsWith('/api/auth')) {
     return NextResponse.next();
   }
 
@@ -28,11 +28,11 @@ export async function middleware(request: NextRequest) {
   // -------------------------------------------------------------
   if (pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/forgot')) {
     if (isAuthenticated) {
-      if (ADMIN_ROLES.includes(session.rolNombre)) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
-      }
       if (['CHOFER', 'AYUDANTE'].includes(session.rolNombre)) {
         return NextResponse.redirect(new URL('/validar-boleto', request.url));
+      }
+      if (ADMIN_ROLES.includes(session.rolNombre)) {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
       }
       return NextResponse.redirect(new URL('/home', request.url));
     }
@@ -60,9 +60,24 @@ export async function middleware(request: NextRequest) {
   // 3. RESTRICCIONES DE ROL (RBAC) PARA USUARIOS AUTENTICADOS
   // -------------------------------------------------------------
 
+  // Portal de Pasajeros (Home, Trips, Tickets, Compra): Exclusivo para PASAJERO
+  const PASSENGER_PORTAL_ROUTES = ['/home', '/trips', '/tickets', '/compra'];
+  if (PASSENGER_PORTAL_ROUTES.some((route) => pathname.startsWith(route))) {
+    if (session.rolNombre !== 'PASAJERO') {
+      if (['CHOFER', 'AYUDANTE'].includes(session.rolNombre)) {
+        return NextResponse.redirect(new URL('/validar-boleto', request.url));
+      }
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+    return NextResponse.next();
+  }
+
   // Protección de /dashboard/* (Solo administradores y taquilleros)
   if (pathname.startsWith('/dashboard')) {
     if (!ADMIN_ROLES.includes(session.rolNombre)) {
+      if (['CHOFER', 'AYUDANTE'].includes(session.rolNombre)) {
+        return NextResponse.redirect(new URL('/validar-boleto', request.url));
+      }
       return NextResponse.redirect(new URL('/home', request.url));
     }
     return NextResponse.next();
