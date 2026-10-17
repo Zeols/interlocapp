@@ -181,24 +181,8 @@ export async function sendEmail({
       };
     }
 
-    // Adjuntar automáticamente el logo con Content-ID (CID) si la plantilla lo referencia
+    // Envío de adjuntos solo si se especificaron explícitamente (sin archivos pesados embebidos para acelerar la entrega)
     const finalAttachments = [...attachments];
-    const hasLogoCid = html.includes('cid:logo@interlocapp');
-    if (hasLogoCid && !finalAttachments.some((a) => a.cid === 'logo@interlocapp')) {
-      try {
-        const logoPath = path.join(process.cwd(), 'public', 'apple-touch-icon.png');
-        if (fs.existsSync(logoPath)) {
-          const logoBuffer = fs.readFileSync(logoPath);
-          finalAttachments.push({
-            filename: 'interlocapp-logo.png',
-            content: logoBuffer,
-            cid: 'logo@interlocapp',
-          });
-        }
-      } catch (logoErr) {
-        console.warn('[MailService] No se pudo cargar el logo adjunto:', logoErr);
-      }
-    }
 
     const config = getMailConfig();
     let info;
@@ -300,6 +284,33 @@ export async function sendEmail({
   }
 }
 
+// Componentes de cabecera de marca ultra-ligeros (HTML/CSS puro, cero adjuntos binarios para entrega inmediata)
+const BRAND_LOGO_HTML = `
+  <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px;">
+    <tr>
+      <td style="vertical-align: middle; padding-right: 12px;">
+        <div style="width: 36px; height: 36px; background-color: #FE7D22; border-radius: 10px; text-align: center; line-height: 36px; color: #FFFFFF; font-weight: 900; font-size: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; display: inline-block;">I</div>
+      </td>
+      <td style="vertical-align: middle;">
+        <span style="font-size: 20px; font-weight: 800; color: #0F172A; letter-spacing: -0.5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">InterlocApp</span>
+      </td>
+    </tr>
+  </table>
+`;
+
+const TICKET_BRAND_LOGO_HTML = `
+  <table cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td style="padding-right: 10px; vertical-align: middle;">
+        <div style="width: 30px; height: 30px; background-color: #FE7D22; border-radius: 8px; text-align: center; line-height: 30px; color: #FFFFFF; font-weight: 900; font-size: 17px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; display: inline-block;">I</div>
+      </td>
+      <td style="vertical-align: middle;">
+        <span style="font-size: 18px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">InterlocApp</span>
+      </td>
+    </tr>
+  </table>
+`;
+
 /**
  * Plantilla de Bienvenida a InterlocApp
  */
@@ -325,16 +336,7 @@ export async function sendWelcomeEmail({ to, name }: WelcomeEmailData) {
     </head>
     <body>
       <div class="card">
-        <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px;">
-          <tr>
-            <td style="vertical-align: middle; padding-right: 12px;">
-              <img src="cid:logo@interlocapp" width="38" height="38" alt="Logo InterlocApp" style="display: block; width: 38px; height: 38px; border-radius: 8px;" />
-            </td>
-            <td style="vertical-align: middle;">
-              <span class="brand">InterlocApp</span>
-            </td>
-          </tr>
-        </table>
+        ${BRAND_LOGO_HTML}
         <h1>Hola ${name}, bienvenido a bordo</h1>
         <p>Tu cuenta ha sido creada exitosamente. Ahora puedes explorar rutas interlocales, consultar horarios en tiempo real y reservar tus asientos de forma ágil y segura.</p>
         
@@ -398,16 +400,7 @@ export async function sendTicketEmail(data: TicketEmailData) {
           <table cellpadding="0" cellspacing="0" border="0" style="width: 100%; margin-bottom: 12px;">
             <tr>
               <td style="vertical-align: middle;">
-                <table cellpadding="0" cellspacing="0" border="0">
-                  <tr>
-                    <td style="padding-right: 10px; vertical-align: middle;">
-                      <img src="cid:logo@interlocapp" width="32" height="32" alt="Logo InterlocApp" style="display: block; width: 32px; height: 32px; border-radius: 6px;" />
-                    </td>
-                    <td style="vertical-align: middle;">
-                      <span style="font-size: 18px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.5px;">InterlocApp</span>
-                    </td>
-                  </tr>
-                </table>
+                ${TICKET_BRAND_LOGO_HTML}
               </td>
               <td style="text-align: right; vertical-align: middle;">
                 <span class="badge">Boleto Confirmado</span>
@@ -505,16 +498,7 @@ export async function sendVerificationCodeEmail({ to, name, code, expiresMinutes
     </head>
     <body>
       <div class="card">
-        <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px;">
-          <tr>
-            <td style="vertical-align: middle; padding-right: 12px;">
-              <img src="cid:logo@interlocapp" width="38" height="38" alt="Logo InterlocApp" style="display: block; width: 38px; height: 38px; border-radius: 8px;" />
-            </td>
-            <td style="vertical-align: middle;">
-              <span class="brand">InterlocApp</span>
-            </td>
-          </tr>
-        </table>
+        ${BRAND_LOGO_HTML}
 
         <h1>Verifica tu cuenta</h1>
         <p>Hola ${name}, gracias por registrarte en InterlocApp. Usa el siguiente código de 6 dígitos para completar la creación de tu cuenta:</p>
@@ -570,16 +554,7 @@ export async function sendPasswordResetCodeEmail({ to, name, code, expiresMinute
     </head>
     <body>
       <div class="card">
-        <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px;">
-          <tr>
-            <td style="vertical-align: middle; padding-right: 12px;">
-              <img src="cid:logo@interlocapp" width="38" height="38" alt="Logo InterlocApp" style="display: block; width: 38px; height: 38px; border-radius: 8px;" />
-            </td>
-            <td style="vertical-align: middle;">
-              <span class="brand">InterlocApp</span>
-            </td>
-          </tr>
-        </table>
+        ${BRAND_LOGO_HTML}
 
         <h1>Recuperación de contraseña</h1>
         <p>Hola ${name}, recibimos una solicitud para restablecer la contraseña de tu cuenta en InterlocApp. Ingresa este código único en la aplicación para crear tu nueva contraseña:</p>
@@ -644,16 +619,7 @@ export async function sendCooperativaAprobadaEmail(data: CooperativaAprobadaEmai
     </head>
     <body>
       <div class="card">
-        <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px;">
-          <tr>
-            <td style="vertical-align: middle; padding-right: 12px;">
-              <img src="cid:logo@interlocapp" width="38" height="38" alt="Logo InterlocApp" style="display: block; width: 38px; height: 38px; border-radius: 8px;" />
-            </td>
-            <td style="vertical-align: middle;">
-              <span class="brand">InterlocApp</span>
-            </td>
-          </tr>
-        </table>
+        ${BRAND_LOGO_HTML}
         <h1>¡Cooperativa Verificada y Aprobada!</h1>
         <p>Estimado(a) <strong>${adminName}</strong>,</p>
         <p>Nos complace informarte que la solicitud de registro para tu cooperativa <strong>"${cooperativaName}"</strong> ha sido verificada satisfactoriamente por el equipo de supervisión de InterlocApp.</p>
