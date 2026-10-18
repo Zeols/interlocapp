@@ -1166,12 +1166,10 @@ export default function ProfilePage() {
               <div>
                 <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2.5">
                   <FingerprintPattern className="w-5 h-5 text-emerald-600" />
-                  {bioInfo.isFaceId ? "Face ID y Llaves de Acceso" : "Huella Digital y Passkeys"}
+                  Huella Digital y Passkeys
                 </h2>
                 <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                  {bioInfo.isFaceId
-                    ? "Accede a InterlocApp instantáneamente utilizando Face ID en tu iPhone o iPad sin necesidad de escribir tu contraseña."
-                    : "Accede a InterlocApp instantáneamente utilizando el sensor de huella, Face ID o Windows Hello de tu dispositivo."}
+                  Accede a InterlocApp instantáneamente utilizando el sensor de huella, Face ID o Windows Hello de tu dispositivo.
                 </p>
               </div>
 
