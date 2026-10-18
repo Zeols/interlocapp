@@ -46,16 +46,9 @@ function base64UrlToBuffer(base64url: string): ArrayBuffer {
 export async function isBiometricsAvailable(): Promise<{
   supported: boolean;
   hasPlatformAuthenticator: boolean;
-  isSecure: boolean;
 }> {
   if (typeof window === 'undefined' || !window.PublicKeyCredential) {
-    return { supported: false, hasPlatformAuthenticator: false, isSecure: false };
-  }
-
-  // WebAuthn requiere obligatoriamente un contexto seguro (HTTPS o localhost).
-  const isSecure = window.isSecureContext ?? (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-  if (!isSecure) {
-    return { supported: false, hasPlatformAuthenticator: false, isSecure: false };
+    return { supported: false, hasPlatformAuthenticator: false };
   }
 
   let hasPlatformAuthenticator = false;
@@ -70,7 +63,6 @@ export async function isBiometricsAvailable(): Promise<{
   return {
     supported: true,
     hasPlatformAuthenticator,
-    isSecure: true,
   };
 }
 
@@ -151,8 +143,8 @@ export function removeStoredBiometricDevice(): void {
  * Solicita al sistema operativo registrar una nueva huella digital / Face ID / passkey
  * a través de `navigator.credentials.create`.
  * 
- * Diseñado con compatibilidad universal para iOS Safari / WebKit (Face ID / Touch ID),
- * evitando bloqueos de NotAllowedError y permitiendo la captura biométrica nativa de Apple.
+ * Configurado exactamente con authenticatorAttachment: 'platform' para activar el sensor
+ * biométrico local del dispositivo (Face ID en iPhone / Windows Hello / Huella Android).
  */
 export async function createBiometricCredential(
   userEmail: string,
@@ -163,52 +155,35 @@ export async function createBiometricCredential(
       return { success: false, error: 'Tu navegador no soporta autenticación biométrica WebAuthn.' };
     }
 
-    const isSecure = window.isSecureContext ?? (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-    if (!isSecure) {
-      return {
-        success: false,
-        error: 'Face ID / Biometría requiere una conexión segura (HTTPS). En pruebas móviles, accede mediante la URL con HTTPS.',
-      };
-    }
-
-    // Generar un challenge criptográfico seguro de 32 bytes
+    // Generar un challenge aleatorio criptográfico de 32 bytes
     const challenge = new Uint8Array(32);
     crypto.getRandomValues(challenge);
 
-    // Asegurar que el userId no sea una cadena vacía (WebAuthn exige entre 1 y 64 bytes)
+    // Identificador de usuario único
     const validEmail = (userEmail || '').trim() || 'usuario@interlocapp.com';
     const validName = (userName || '').trim() || validEmail;
     const userIdBuffer = new TextEncoder().encode(validEmail);
 
-    // Omitir rp.id para que el navegador resuelva automáticamente el origen efectivo.
-    // Esto garantiza 100% de compatibilidad en Safari sin riesgo de SecurityError ni NotAllowedError.
-    const rp: { name: string } = {
-      name: 'InterlocApp Transporte',
-    };
-
-    // Parámetros de algoritmos de clave pública compatibles
-    // ES256 (-7): Estándar nativo para Apple Secure Enclave (Face ID / Touch ID)
-    // RS256 (-257): Compatibilidad con Windows Hello y TPM
-    const pubKeyCredParams: PublicKeyCredentialParameters[] = [
-      { alg: -7, type: 'public-key' },
-      { alg: -257, type: 'public-key' },
-    ];
-
-    // Omitir authenticatorAttachment para no forzar restricciones que causen NotAllowedError en iOS.
-    // En iPhone/iPad, Safari presentará automáticamente la hoja nativa de Face ID / Passkey.
     const credential = (await navigator.credentials.create({
       publicKey: {
         challenge,
-        rp,
+        rp: {
+          name: 'InterlocApp Transporte',
+          id: window.location.hostname,
+        },
         user: {
           id: userIdBuffer,
           name: validEmail,
           displayName: validName,
         },
-        pubKeyCredParams,
+        pubKeyCredParams: [
+          { alg: -7, type: 'public-key' },  // ES256 (Nativo Apple Secure Enclave Face ID / Touch ID)
+          { alg: -257, type: 'public-key' }, // RS256 (Windows Hello)
+        ],
         authenticatorSelection: {
-          residentKey: 'preferred',
-          userVerification: 'preferred',
+          authenticatorAttachment: 'platform', // Fuerza el sensor biométrico local (Face ID / Touch ID / Huella)
+          userVerification: 'required',        // Requiere autenticación biométrica inmediata
+          requireResidentKey: false,
         },
         timeout: 60000,
         attestation: 'none',
@@ -216,7 +191,7 @@ export async function createBiometricCredential(
     })) as PublicKeyCredential | null;
 
     if (!credential) {
-      return { success: false, error: 'No se completó el registro de Face ID / datos biométricos.' };
+      return { success: false, error: 'No se completó el registro de los datos biométricos.' };
     }
 
     const credentialId = bufferToBase64Url(credential.rawId);
@@ -226,7 +201,7 @@ export async function createBiometricCredential(
     if (error.name === 'NotAllowedError') {
       return {
         success: false,
-        error: 'Registro cancelado o no autorizado. En iPhone, verifica en Configuración > Face ID y código (y Contraseñas) que el acceso esté permitido.',
+        error: 'Operación cancelada o permiso biométrico denegado en el dispositivo.',
       };
     }
     if (error.name === 'SecurityError') {
@@ -235,7 +210,7 @@ export async function createBiometricCredential(
     if (error.name === 'NotSupportedError') {
       return { success: false, error: 'Tu dispositivo o navegador no soporta el método biométrico solicitado.' };
     }
-    return { success: false, error: error.message || 'Error al registrar Face ID / datos biométricos.' };
+    return { success: false, error: error.message || 'Error al registrar datos biométricos.' };
   }
 }
 
@@ -261,17 +236,16 @@ export async function verifyBiometricCredential(
           {
             id: base64UrlToBuffer(credentialId),
             type: 'public-key',
-            // En iOS y passkeys sincronizados, permitir tanto local como iCloud Keychain
-            transports: ['internal', 'hybrid'],
+            transports: ['internal'],
           },
         ],
-        userVerification: 'preferred',
+        userVerification: 'required',
         timeout: 60000,
       },
     });
 
     if (!assertion) {
-      return { success: false, error: 'No se pudo verificar la biometría en el dispositivo.' };
+      return { success: false, error: 'No se pudo verificar la huella digital / Face ID.' };
     }
 
     return { success: true };

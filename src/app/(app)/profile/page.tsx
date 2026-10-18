@@ -201,22 +201,8 @@ export default function ProfilePage() {
 
     try {
       const friendlyName = getFriendlyDeviceName();
-      let userEmail = (correo || "").trim();
-      let userFull = `${nombre} ${apellido}`.trim();
-
-      // Si aún no ha cargado el correo del estado, obtenerlo de la sesión activa
-      if (!userEmail) {
-        const sessionUser = await getCurrentUserAction();
-        if (sessionUser?.correo) {
-          userEmail = sessionUser.correo;
-          userFull = userFull || sessionUser.nombre || userEmail;
-        } else {
-          userEmail = "usuario@interlocapp.com";
-          userFull = userFull || "Usuario";
-        }
-      } else if (!userFull) {
-        userFull = userEmail;
-      }
+      const userEmail = (correo || "").trim() || "usuario@interlocapp.com";
+      const userFull = `${nombre} ${apellido}`.trim() || userEmail;
       
       const resCred = await createBiometricCredential(userEmail, userFull);
       if (!resCred.success || !resCred.credentialId) {
