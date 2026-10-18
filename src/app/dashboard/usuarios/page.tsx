@@ -18,12 +18,15 @@ import {
   mdiAlertCircleOutline,
   mdiBus,
   mdiTicketConfirmationOutline,
+  mdiDeleteOutline,
 } from "@mdi/js";
 import {
   getUsuariosAdminAction,
   createUsuarioByAdminAction,
   getRoles,
+  deleteUsuarioAction,
 } from "@/backend/actions/usuarios";
+import { getCurrentUserAction } from "@/backend/actions/auth";
 import { useTenant } from "@/frontend/context/TenantContext";
 
 interface UsuarioItem {
@@ -55,6 +58,26 @@ export default function UsuariosPage() {
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Estados para Eliminación de Usuario
+  const [currentUser, setCurrentUser] = useState<{ idUsuario: number; rolNombre: string } | null>(null);
+  const [deleteModalUser, setDeleteModalUser] = useState<UsuarioItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Cargar usuario en sesión activa
+  useEffect(() => {
+    async function loadCurrent() {
+      try {
+        const u = await getCurrentUserAction();
+        if (u) {
+          setCurrentUser({ idUsuario: u.idUsuario, rolNombre: u.rolNombre });
+        }
+      } catch (err) {
+        console.error("Error al cargar usuario actual:", err);
+      }
+    }
+    loadCurrent();
+  }, []);
 
   // Campos del formulario
   const [nombre, setNombre] = useState("");
@@ -109,6 +132,34 @@ export default function UsuariosPage() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     fetchData();
+  };
+
+  // Manejador para eliminar usuario definitivamente
+  const handleDeleteUsuario = async () => {
+    if (!deleteModalUser) return;
+    setDeleting(true);
+    setFeedback(null);
+    try {
+      const res = await deleteUsuarioAction(deleteModalUser.idUsuario);
+      if (res.success) {
+        if (res.error) {
+          setFeedback({ type: "success", text: res.error });
+        } else {
+          setFeedback({
+            type: "success",
+            text: `El usuario "${deleteModalUser.nombreCompleto}" (@${deleteModalUser.usuario}) fue eliminado correctamente.`,
+          });
+        }
+        setDeleteModalUser(null);
+        await fetchData();
+      } else {
+        setFeedback({ type: "error", text: res.error || "No se pudo eliminar el usuario." });
+      }
+    } catch {
+      setFeedback({ type: "error", text: "Error de conexión al eliminar usuario." });
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleOpenModal = () => {
@@ -320,7 +371,8 @@ export default function UsuariosPage() {
                   <th className="py-3 px-4">Cooperativa Asignada</th>
                   <th className="py-3 px-4">Contacto</th>
                   <th className="py-3 px-4">Estado</th>
-                  <th className="py-3 px-4 text-right">Registro</th>
+                  <th className="py-3 px-4 text-center">Registro</th>
+                  <th className="py-3 px-4 text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -403,12 +455,28 @@ export default function UsuariosPage() {
                         </span>
                       </td>
 
-                      <td className="py-3 px-4 text-right text-slate-400 text-[11px]">
+                      <td className="py-3 px-4 text-center text-slate-400 text-[11px]">
                         {new Date(u.createdAt).toLocaleDateString("es-NI", {
                           day: "numeric",
                           month: "short",
                           year: "numeric",
                         })}
+                      </td>
+
+                      <td className="py-3 px-4 text-center">
+                        {currentUser?.idUsuario === u.idUsuario ? (
+                          <span className="text-[10px] text-slate-400 font-medium italic">Tú</span>
+                        ) : (!isSuperAdmin && u.rolNombre === "SUPER_ADMIN") ? null : (
+                          <button
+                            type="button"
+                            onClick={() => setDeleteModalUser(u)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all cursor-pointer inline-flex items-center justify-center"
+                            title={`Eliminar usuario @${u.usuario}`}
+                            aria-label="Eliminar usuario"
+                          >
+                            <Icon path={mdiDeleteOutline} size={0.7} />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -576,6 +644,54 @@ export default function UsuariosPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* MODAL DE CONFIRMACIÓN PARA ELIMINAR USUARIO */}
+      {deleteModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-2xs animate-fadeIn">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0 border border-red-100">
+                <Icon path={mdiDeleteOutline} size={1} />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">¿Eliminar Usuario?</h3>
+                <p className="text-xs text-slate-500">
+                  Esta acción eliminará de forma permanente el acceso de este usuario.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-xs space-y-1.5">
+              <p className="font-bold text-slate-900 text-sm">{deleteModalUser.nombreCompleto}</p>
+              <p className="font-mono text-slate-500 text-[11px]">@{deleteModalUser.usuario} • {deleteModalUser.correo}</p>
+              <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-600">
+                <span className="px-2 py-0.5 rounded bg-slate-200/80 font-semibold">{deleteModalUser.rolNombre}</span>
+                <span>•</span>
+                <span>{deleteModalUser.cooperativaNombre}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteModalUser(null)}
+                disabled={deleting}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={handleDeleteUsuario}
+                className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {deleting && <Icon path={mdiLoading} size={0.65} className="animate-spin" />}
+                <span>{deleting ? "Eliminando..." : "Eliminar Cuenta"}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

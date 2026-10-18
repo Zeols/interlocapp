@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { getCurrentUserAction } from "@/backend/actions/auth";
 import { getCooperativasActivasAction } from "@/backend/actions/cooperativas";
+import { getUserProfileAction } from "@/backend/actions/usuarios";
 
 export interface CooperativaTenant {
   idCooperativa: number;
@@ -16,6 +17,7 @@ interface TenantContextType {
   cooperativas: CooperativaTenant[];
   isSuperAdmin: boolean;
   userCoopId: number | null;
+  userCoopName: string | null;
   loading: boolean;
 }
 
@@ -26,6 +28,7 @@ const TenantContext = createContext<TenantContextType>({
   cooperativas: [],
   isSuperAdmin: false,
   userCoopId: null,
+  userCoopName: null,
   loading: true,
 });
 
@@ -36,6 +39,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [cooperativas, setCooperativas] = useState<CooperativaTenant[]>([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [userCoopId, setUserCoopId] = useState<number | null>(null);
+  const [userCoopName, setUserCoopName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Inicializar sesión y catálogo de cooperativas
@@ -63,8 +67,14 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
               }
             }
           } else if (user.idCooperativa) {
-            // Si es ADMIN_COOP u otro rol, forzar el tenant a su cooperativa
+            // Si es ADMIN_COOP u otro rol, forzar el tenant a su cooperativa y obtener su nombre
             setSelectedCoopIdState(user.idCooperativa.toString());
+            const profileRes = await getUserProfileAction();
+            if (profileRes.success && profileRes.data?.cooperativaNombre) {
+              const coopNombre = profileRes.data.cooperativaNombre;
+              setUserCoopName(coopNombre);
+              setCooperativas([{ idCooperativa: user.idCooperativa, nombre: coopNombre }]);
+            }
           }
         }
       } catch (err) {
@@ -83,10 +93,13 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const selectedCoop =
+  const selectedCoop: CooperativaTenant | null =
     selectedCoopId === "ALL"
       ? null
-      : cooperativas.find((c) => c.idCooperativa.toString() === selectedCoopId) || null;
+      : cooperativas.find((c) => c.idCooperativa.toString() === selectedCoopId) ||
+        (userCoopId && userCoopName
+          ? { idCooperativa: userCoopId, nombre: userCoopName }
+          : null);
 
   return (
     <TenantContext.Provider
@@ -97,6 +110,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         cooperativas,
         isSuperAdmin,
         userCoopId,
+        userCoopName,
         loading,
       }}
     >
