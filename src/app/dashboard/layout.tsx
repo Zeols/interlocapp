@@ -22,7 +22,6 @@ import { Logo } from "@/frontend/components/ui/Logo";
 import { getCurrentUserAction, logoutAction } from "@/backend/actions/auth";
 import { getUserProfileAction } from "@/backend/actions/usuarios";
 import { LogoutModal } from "@/frontend/components/ui/LogoutModal";
-import { BiometricPromptModal } from "@/frontend/components/ui/BiometricPromptModal";
 import { TenantProvider, useTenant } from "@/frontend/context/TenantContext";
 
 interface SessionData {
@@ -363,9 +362,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         onConfirm={handleConfirmLogout}
         userName={userName}
       />
-
-      {/* Sugerencia para activar huella digital si el dispositivo la soporta */}
-      <BiometricPromptModal />
     </div>
   );
 }

@@ -21,7 +21,6 @@ import {
 import Link from "next/link";
 import { validarBoletoAction, getManifiestoViajeAction, ResultadoValidacionBoleto } from "@/backend/actions/boletos";
 import { getCurrentUserAction } from "@/backend/actions/auth";
-import { BiometricPromptModal } from "@/frontend/components/ui/BiometricPromptModal";
 
 interface ManifiestoData {
   idViaje: number;
@@ -464,8 +463,6 @@ export default function ValidarBoletoPage() {
           </div>
         )}
       </div>
-
-      <BiometricPromptModal />
     </div>
   );
 }
