@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { sendCooperativaAprobadaEmail } from '../lib/mail';
 import { hashPassword } from '../lib/crypto';
 import { ActionResponse } from '../lib/validations/auth';
+import { getSession } from '../lib/session';
 
 export interface CooperativaInput {
   nombre: string;
@@ -234,4 +235,121 @@ export async function updateCooperativa(
     return { success: false, error: 'Error al actualizar la cooperativa.' };
   }
 }
+
+// 8. Eliminar cooperativa (exclusivo para SUPER_ADMIN)
+export async function deleteCooperativaAction(idCooperativa: number): Promise<ActionResponse<boolean>> {
+  try {
+    const session = await getSession();
+    if (!session || session.rolNombre !== 'SUPER_ADMIN') {
+      return { success: false, error: 'Acción no autorizada. Solo un Super Administrador puede eliminar cooperativas.' };
+    }
+
+    const coop = await prisma.cooperativa.findUnique({
+      where: { idCooperativa },
+      include: {
+        _count: {
+          select: {
+            unidades: true,
+            rutas: true,
+            usuarios: true,
+            cierresJornada: true,
+          },
+        },
+      },
+    });
+
+    if (!coop) {
+      return { success: false, error: 'La cooperativa no existe o ya fue eliminada.' };
+    }
+
+    // Verificar si existen viajes o ventas asociadas a las rutas de esta cooperativa
+    const viajesAsociados = await prisma.viaje.count({
+      where: {
+        ruta: {
+          idCooperativa,
+        },
+      },
+    });
+
+    if (viajesAsociados > 0 || (coop._count?.cierresJornada ?? 0) > 0) {
+      // Si tiene historial financiero/viajes, marcar como INACTIVO para proteger auditoría y contabilidad
+      await prisma.$transaction([
+        prisma.cooperativa.update({
+          where: { idCooperativa },
+          data: { estado: 'INACTIVO' },
+        }),
+        prisma.usuario.updateMany({
+          where: { idCooperativa },
+          data: { estado: 'INACTIVO' },
+        }),
+      ]);
+
+      revalidatePath('/dashboard/cooperativas');
+      revalidatePath('/dashboard');
+      return {
+        success: true,
+        data: true,
+        error: 'La cooperativa tiene viajes o cierres registrados en el historial operativo. Se ha marcado como Inactiva y deshabilitado sus cuentas para proteger los registros financieros.',
+      };
+    }
+
+    // Si es una solicitud nueva o datos de prueba sin viajes registrados, eliminación completa:
+    await prisma.$transaction(async (tx) => {
+      // 1. Desvincular usuarios asociados (los ponemos como sin cooperativa)
+      await tx.usuario.updateMany({
+        where: { idCooperativa },
+        data: { idCooperativa: null },
+      });
+
+      // 2. Eliminar unidades y sus asientos/asignaciones asociadas si existen
+      const unidades = await tx.unidad.findMany({
+        where: { idCooperativa },
+        select: { idUnidad: true },
+      });
+      const unidadIds = unidades.map((u) => u.idUnidad);
+      if (unidadIds.length > 0) {
+        await tx.asiento.deleteMany({
+          where: { idUnidad: { in: unidadIds } },
+        });
+        await tx.asignacionUnidad.deleteMany({
+          where: { idUnidad: { in: unidadIds } },
+        });
+        await tx.unidad.deleteMany({
+          where: { idCooperativa },
+        });
+      }
+
+      // 3. Eliminar rutas y sus paradas
+      const rutas = await tx.ruta.findMany({
+        where: { idCooperativa },
+        select: { idRuta: true },
+      });
+      const rutaIds = rutas.map((r) => r.idRuta);
+      if (rutaIds.length > 0) {
+        await tx.puntoRuta.deleteMany({
+          where: { idRuta: { in: rutaIds } },
+        });
+        await tx.tarifa.deleteMany({
+          where: { idRuta: { in: rutaIds } },
+        });
+        await tx.ruta.deleteMany({
+          where: { idCooperativa },
+        });
+      }
+
+      // 4. Eliminar la cooperativa
+      await tx.cooperativa.delete({
+        where: { idCooperativa },
+      });
+    });
+
+    revalidatePath('/dashboard/cooperativas');
+    revalidatePath('/dashboard');
+    return { success: true, data: true };
+  } catch (error) {
+    console.error('Error al eliminar cooperativa:', error);
+    return { success: false, error: 'Ocurrió un error al eliminar la cooperativa.' };
+  }
+}
+
 

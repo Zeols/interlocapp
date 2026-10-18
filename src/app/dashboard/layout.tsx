@@ -135,17 +135,17 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             : "-translate-x-full"
         }`}
       >
-        <div className="p-5 flex items-center justify-between border-b border-slate-100">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <Logo size={0.85} />
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-900 text-base tracking-tight">InterlocApp</span>
-              <span className="text-[10px] font-semibold bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20">
-                {isSuperAdmin ? "Super Admin" : "Admin"}
-              </span>
-            </div>
-          </Link>
-          <div className="flex items-center">
+        <div className="p-5 border-b border-slate-100">
+          <div className="flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <Logo size={0.85} />
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-900 text-base tracking-tight">InterlocApp</span>
+                <span className="text-[10px] font-semibold bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20">
+                  {isSuperAdmin ? "Super Admin" : "Cooperativa"}
+                </span>
+              </div>
+            </Link>
             {/* Botón cerrar exclusivamente en móvil */}
             <button
               onClick={() => setMobileMenuOpen(false)}
@@ -155,6 +155,19 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
               <Icon path={mdiClose} size={0.7} />
             </button>
           </div>
+          {selectedCoop && (
+            <div className="mt-3 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 font-bold text-xs">
+                <Icon path={mdiDomain} size={0.55} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-900 truncate leading-tight" title={selectedCoop.nombre}>
+                  {selectedCoop.nombre}
+                </p>
+                <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">Cooperativa asignada</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Selector de cooperativa en móvil si es Super Admin */}
@@ -227,14 +240,22 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             >
               <Icon path={mdiMenu} size={0.8} />
             </button>
-            <div className="flex items-center gap-2">
-              <h2 className="font-semibold text-slate-900 text-sm sm:text-base tracking-tight">Panel Administrativo</h2>
-              {selectedCoop && (
-                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20 max-w-[180px] truncate">
-                  <Icon path={mdiDomain} size={0.5} />
-                  {selectedCoop.nombre}
-                </span>
-              )}
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2.5 min-w-0">
+                <h2 className="font-bold text-slate-900 text-xs sm:text-sm md:text-base tracking-tight truncate">
+                  {selectedCoop ? selectedCoop.nombre : "Panel Administrativo"}
+                </h2>
+                {selectedCoop ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/90 shrink-0 self-start sm:self-auto">
+                    <Icon path={mdiDomain} size={0.45} className="text-emerald-600" />
+                    <span>Cooperativa</span>
+                  </span>
+                ) : isSuperAdmin ? (
+                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
+                    <span>Super Admin</span>
+                  </span>
+                ) : null}
+              </div>
             </div>
           </div>
 

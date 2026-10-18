@@ -20,6 +20,8 @@ import {
   mdiCheck,
   mdiCalendarOutline,
   mdiShieldCheckOutline,
+  mdiDeleteOutline,
+  mdiLoading,
 } from "@mdi/js";
 import {
   getCooperativas,
@@ -27,6 +29,7 @@ import {
   aprobarCooperativaAction,
   rechazarCooperativaAction,
   createCooperativa,
+  deleteCooperativaAction,
 } from "@/backend/actions/cooperativas";
 import { TableSkeleton, CardSkeleton } from "@/frontend/components/ui/Skeleton";
 import { Pagination } from "@/frontend/components/ui/Pagination";
@@ -85,6 +88,13 @@ export default function CooperativasDashboardPage() {
     type: "aprobar" | "rechazar";
     cooperativa: SolicitudItem;
   } | null>(null);
+  const [deleteModalCoop, setDeleteModalCoop] = useState<{
+    idCooperativa: number;
+    nombre: string;
+    usuariosCount: number;
+    unidadesCount: number;
+  } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Formulario nueva cooperativa (directa)
   const [formNombre, setFormNombre] = useState("");
@@ -184,6 +194,35 @@ export default function CooperativasDashboardPage() {
       setFeedback({ type: "error", text: "Error al procesar el rechazo de la solicitud." });
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  // Manejador para eliminar cooperativa definitivamente (Super Admin)
+  const handleDeleteCooperativa = async () => {
+    if (!deleteModalCoop) return;
+    setDeleting(true);
+    setFeedback(null);
+    try {
+      const res = await deleteCooperativaAction(deleteModalCoop.idCooperativa);
+      if (res.success) {
+        if (res.error) {
+          // Ha sido marcada como inactiva por tener historial de viajes o cierres
+          setFeedback({ type: "success", text: res.error });
+        } else {
+          setFeedback({
+            type: "success",
+            text: `La cooperativa "${deleteModalCoop.nombre}" fue eliminada definitivamente.`,
+          });
+        }
+        setDeleteModalCoop(null);
+        await fetchData();
+      } else {
+        setFeedback({ type: "error", text: res.error || "No se pudo eliminar la cooperativa." });
+      }
+    } catch {
+      setFeedback({ type: "error", text: "Error de conexión al eliminar la cooperativa." });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -482,22 +521,42 @@ export default function CooperativasDashboardPage() {
                     </div>
 
                     {/* Botones de Acción */}
-                    <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                    <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                       <button
-                        onClick={() => setModalAction({ type: "rechazar", cooperativa: sol })}
+                        type="button"
+                        onClick={() =>
+                          setDeleteModalCoop({
+                            idCooperativa: sol.idCooperativa,
+                            nombre: sol.nombre,
+                            usuariosCount: sol.usuarios.length,
+                            unidadesCount: sol._count?.unidades || 0,
+                          })
+                        }
                         disabled={processingId === sol.idCooperativa}
-                        className="px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200 cursor-pointer"
+                        className="p-1.5 text-xs text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-red-100"
+                        title="Eliminar solicitud permanentemente"
+                        aria-label="Eliminar solicitud"
                       >
-                        Rechazar
+                        <Icon path={mdiDeleteOutline} size={0.7} />
                       </button>
-                      <button
-                        onClick={() => setModalAction({ type: "aprobar", cooperativa: sol })}
-                        disabled={processingId === sol.idCooperativa}
-                        className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
-                      >
-                        <Icon path={mdiCheck} size={0.65} />
-                        <span>Aprobar Cooperativa</span>
-                      </button>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setModalAction({ type: "rechazar", cooperativa: sol })}
+                          disabled={processingId === sol.idCooperativa}
+                          className="px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200 cursor-pointer"
+                        >
+                          Rechazar
+                        </button>
+                        <button
+                          onClick={() => setModalAction({ type: "aprobar", cooperativa: sol })}
+                          disabled={processingId === sol.idCooperativa}
+                          className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <Icon path={mdiCheck} size={0.65} />
+                          <span>Aprobar Cooperativa</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -557,7 +616,8 @@ export default function CooperativasDashboardPage() {
                       <th className="py-3 px-4 text-center">Rutas</th>
                       <th className="py-3 px-4 text-center">Usuarios</th>
                       <th className="py-3 px-4 text-center">Estado</th>
-                      <th className="py-3 px-4 text-right">Fecha Registro</th>
+                      <th className="py-3 px-4 text-center">Registro</th>
+                      <th className="py-3 px-4 text-center">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -620,8 +680,26 @@ export default function CooperativasDashboardPage() {
                                 : "Inactiva"}
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 text-right text-slate-500 font-medium">
+                          <td className="py-3.5 px-4 text-center text-slate-500 font-medium">
                             {fechaFormat}
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDeleteModalCoop({
+                                  idCooperativa: c.idCooperativa,
+                                  nombre: c.nombre,
+                                  usuariosCount: c._count?.usuarios || 0,
+                                  unidadesCount: c._count?.unidades || 0,
+                                })
+                              }
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all cursor-pointer inline-flex items-center justify-center"
+                              title={`Eliminar ${c.nombre}`}
+                              aria-label="Eliminar cooperativa"
+                            >
+                              <Icon path={mdiDeleteOutline} size={0.7} />
+                            </button>
                           </td>
                         </tr>
                       );
@@ -796,6 +874,53 @@ export default function CooperativasDashboardPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* MODAL PARA ELIMINAR COOPERATIVA */}
+      {deleteModalCoop && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-2xs p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0 border border-red-100">
+                <Icon path={mdiDeleteOutline} size={1} />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">¿Eliminar Cooperativa?</h3>
+                <p className="text-xs text-slate-500">
+                  Esta acción eliminará de forma permanente la cooperativa si no tiene historial operativo.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-xs space-y-1.5">
+              <p className="font-bold text-slate-900 text-sm">{deleteModalCoop.nombre}</p>
+              <div className="flex items-center gap-3 text-slate-500 text-[11px] pt-1">
+                <span>{deleteModalCoop.usuariosCount} usuarios</span>
+                <span>•</span>
+                <span>{deleteModalCoop.unidadesCount} unidades</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteModalCoop(null)}
+                disabled={deleting}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={handleDeleteCooperativa}
+                className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {deleting && <Icon path={mdiLoading} size={0.65} className="animate-spin" />}
+                <span>{deleting ? "Eliminando..." : "Eliminar Definitivamente"}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -4,6 +4,7 @@ import { prisma } from '../db';
 import { hashPassword, verifyPassword } from '../lib/crypto';
 import { revalidatePath } from 'next/cache';
 import { getSession } from '../lib/session';
+import { ActionResponse } from '../lib/validations/auth';
 
 export interface UsuarioInput {
   idCooperativa?: number;
@@ -593,4 +594,83 @@ export async function deleteOperarioAction(idUsuario: number) {
     };
   }
 }
+
+// Eliminar usuario general con validaciones de tenant y roles
+export async function deleteUsuarioAction(idUsuario: number): Promise<ActionResponse<boolean>> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: 'No autorizado.' };
+    }
+
+    if (session.idUsuario === idUsuario) {
+      return { success: false, error: 'No puedes eliminar tu propia cuenta en sesión activa.' };
+    }
+
+    const isSuperAdmin = session.rolNombre === 'SUPER_ADMIN';
+    const isAdminCoop = session.rolNombre === 'ADMIN_COOP';
+
+    if (!isSuperAdmin && !isAdminCoop) {
+      return { success: false, error: 'No tienes permisos para eliminar usuarios.' };
+    }
+
+    const targetUser = await prisma.usuario.findUnique({
+      where: { idUsuario },
+      include: { rol: true },
+    });
+
+    if (!targetUser) {
+      return { success: false, error: 'El usuario no existe o ya fue eliminado.' };
+    }
+
+    if (isAdminCoop) {
+      if (targetUser.rol.nombre === 'SUPER_ADMIN') {
+        return { success: false, error: 'No tienes permisos para eliminar a un Super Administrador.' };
+      }
+      if (targetUser.idCooperativa !== session.idCooperativa) {
+        return { success: false, error: 'Solo puedes eliminar usuarios asignados a tu propia cooperativa.' };
+      }
+    }
+
+    // Comprobar si el usuario tiene asignaciones de buses o cierres de caja registrados
+    const [asignacionesCount, cierresCount] = await Promise.all([
+      prisma.asignacionUnidad.count({ where: { idUsuario } }),
+      prisma.cierreJornada.count({ where: { idUsuario } }),
+    ]);
+
+    if (asignacionesCount > 0 || cierresCount > 0) {
+      await prisma.usuario.update({
+        where: { idUsuario },
+        data: { estado: 'INACTIVO' },
+      });
+      revalidatePath('/dashboard/usuarios');
+      revalidatePath('/dashboard/choferes');
+      return {
+        success: true,
+        data: true,
+        error: 'El usuario cuenta con historial operativo o cierres de caja. Para proteger la integridad de los datos, su estado ha sido cambiado a INACTIVO.',
+      };
+    }
+
+    await prisma.$transaction([
+      prisma.codigoVerificacion.deleteMany({
+        where: { correo: targetUser.correo },
+      }),
+      prisma.metodoPagoUsuario.deleteMany({
+        where: { idUsuario },
+      }),
+      prisma.usuario.delete({
+        where: { idUsuario },
+      }),
+    ]);
+
+    revalidatePath('/dashboard/usuarios');
+    revalidatePath('/dashboard/choferes');
+    return { success: true, data: true };
+  } catch (error) {
+    console.error('Error en deleteUsuarioAction:', error);
+    return { success: false, error: 'No se pudo eliminar el usuario. Intenta nuevamente.' };
+  }
+}
+
 
