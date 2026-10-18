@@ -111,11 +111,11 @@ export function BiometricPromptModal() {
       const friendlyName = getFriendlyDeviceName();
       const userFull = userData.nombre || userData.correo;
 
-      // 1. Solicitar huella digital nativa a través de WebAuthn
+      // 1. Solicitar huella digital o Face ID nativo a través de WebAuthn
       const credResult = await createBiometricCredential(userData.correo, userFull);
       if (!credResult.success || !credResult.credentialId) {
         setErrorMessage(
-          credResult.error || "No se completó la verificación con el sensor biométrico."
+          credResult.error || `No se completó la verificación con ${bioInfo.shortLabel}.`
         );
         setIsLoading(false);
         return;

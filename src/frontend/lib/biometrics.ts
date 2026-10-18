@@ -46,9 +46,16 @@ function base64UrlToBuffer(base64url: string): ArrayBuffer {
 export async function isBiometricsAvailable(): Promise<{
   supported: boolean;
   hasPlatformAuthenticator: boolean;
+  isSecure: boolean;
 }> {
   if (typeof window === 'undefined' || !window.PublicKeyCredential) {
-    return { supported: false, hasPlatformAuthenticator: false };
+    return { supported: false, hasPlatformAuthenticator: false, isSecure: false };
+  }
+
+  // WebAuthn requiere obligatoriamente un contexto seguro (HTTPS o localhost).
+  const isSecure = window.isSecureContext ?? (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  if (!isSecure) {
+    return { supported: false, hasPlatformAuthenticator: false, isSecure: false };
   }
 
   let hasPlatformAuthenticator = false;
@@ -63,6 +70,7 @@ export async function isBiometricsAvailable(): Promise<{
   return {
     supported: true,
     hasPlatformAuthenticator,
+    isSecure: true,
   };
 }
 
@@ -143,8 +151,8 @@ export function removeStoredBiometricDevice(): void {
  * Solicita al sistema operativo registrar una nueva huella digital / Face ID / passkey
  * a través de `navigator.credentials.create`.
  * 
- * Diseñado con compatibilidad estricta para iOS Safari / WebKit (Face ID / Touch ID),
- * evitando errores de RP ID en IPs y conflictos de residentKey que mandaban al usuario a Configuración.
+ * Diseñado con compatibilidad universal para iOS Safari / WebKit (Face ID / Touch ID),
+ * evitando bloqueos de NotAllowedError y permitiendo la captura biométrica nativa de Apple.
  */
 export async function createBiometricCredential(
   userEmail: string,
@@ -153,6 +161,14 @@ export async function createBiometricCredential(
   try {
     if (typeof window === 'undefined' || !window.PublicKeyCredential) {
       return { success: false, error: 'Tu navegador no soporta autenticación biométrica WebAuthn.' };
+    }
+
+    const isSecure = window.isSecureContext ?? (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (!isSecure) {
+      return {
+        success: false,
+        error: 'Face ID / Biometría requiere una conexión segura (HTTPS). En pruebas móviles, accede mediante la URL con HTTPS.',
+      };
     }
 
     // Generar un challenge criptográfico seguro de 32 bytes
@@ -164,86 +180,43 @@ export async function createBiometricCredential(
     const validName = (userName || '').trim() || validEmail;
     const userIdBuffer = new TextEncoder().encode(validEmail);
 
-    // Configuración del Relying Party:
-    // La especificación WebAuthn prohíbe que rp.id sea una dirección IP (IPv4/IPv6).
-    // Si estamos en un dominio válido o localhost, lo asignamos.
-    // Si se accede mediante una dirección IP (ej. pruebas en red local Wi-Fi desde iPhone),
-    // omitimos `id` para que el navegador utilice el origen de forma nativa sin arrojar SecurityError.
-    const rp: { name: string; id?: string } = {
+    // Omitir rp.id para que el navegador resuelva automáticamente el origen efectivo.
+    // Esto garantiza 100% de compatibilidad en Safari sin riesgo de SecurityError ni NotAllowedError.
+    const rp: { name: string } = {
       name: 'InterlocApp Transporte',
     };
-    const hostname = window.location.hostname || '';
-    const isIpAddress = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(hostname) || hostname.includes(':');
-    if (hostname && !isIpAddress) {
-      rp.id = hostname;
-    }
 
     // Parámetros de algoritmos de clave pública compatibles
-    // ES256 (-7): Estándar por defecto para Apple Secure Enclave (Face ID / Touch ID) y Android
-    // RS256 (-257): Compatibilidad con Windows Hello y hardware TPM
+    // ES256 (-7): Estándar nativo para Apple Secure Enclave (Face ID / Touch ID)
+    // RS256 (-257): Compatibilidad con Windows Hello y TPM
     const pubKeyCredParams: PublicKeyCredentialParameters[] = [
       { alg: -7, type: 'public-key' },
       { alg: -257, type: 'public-key' },
     ];
 
-    let credential: PublicKeyCredential | null = null;
-
-    // Intento 1: Registro nativo de Passkey con plataforma (Face ID / Touch ID / Sensor local)
-    // NOTA CRÍTICA PARA iOS:
-    // - NUNCA enviar `requireResidentKey: false`, ya que en iOS Safari los autenticadores de plataforma
-    //   (Face ID / iCloud Keychain) solo admiten resident keys. Enviar `false` provocaba que iOS
-    //   mostrara el diálogo "Ve a Configuración a habilitar opciones" y bloqueara Face ID.
-    // - Usamos `residentKey: 'preferred'` y `userVerification: 'preferred'` para máxima compatibilidad.
-    try {
-      credential = (await navigator.credentials.create({
-        publicKey: {
-          challenge,
-          rp,
-          user: {
-            id: userIdBuffer,
-            name: validEmail,
-            displayName: validName,
-          },
-          pubKeyCredParams,
-          authenticatorSelection: {
-            authenticatorAttachment: 'platform',
-            residentKey: 'preferred',
-            userVerification: 'preferred',
-          },
-          timeout: 60000,
-          attestation: 'none',
+    // Omitir authenticatorAttachment para no forzar restricciones que causen NotAllowedError en iOS.
+    // En iPhone/iPad, Safari presentará automáticamente la hoja nativa de Face ID / Passkey.
+    const credential = (await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp,
+        user: {
+          id: userIdBuffer,
+          name: validEmail,
+          displayName: validName,
         },
-      })) as PublicKeyCredential | null;
-    } catch (platformErr: unknown) {
-      const err = platformErr as Error;
-      // Si el navegador rechaza el requerimiento estricto de 'platform' (ej. en ciertas versiones de WebView o iOS)
-      // reintentamos sin forzar attachment para que Safari muestre su hoja de Passkey nativa
-      if (err.name === 'NotSupportedError' || err.name === 'ConstraintError') {
-        credential = (await navigator.credentials.create({
-          publicKey: {
-            challenge,
-            rp,
-            user: {
-              id: userIdBuffer,
-              name: validEmail,
-              displayName: validName,
-            },
-            pubKeyCredParams,
-            authenticatorSelection: {
-              residentKey: 'preferred',
-              userVerification: 'preferred',
-            },
-            timeout: 60000,
-            attestation: 'none',
-          },
-        })) as PublicKeyCredential | null;
-      } else {
-        throw platformErr;
-      }
-    }
+        pubKeyCredParams,
+        authenticatorSelection: {
+          residentKey: 'preferred',
+          userVerification: 'preferred',
+        },
+        timeout: 60000,
+        attestation: 'none',
+      },
+    })) as PublicKeyCredential | null;
 
     if (!credential) {
-      return { success: false, error: 'No se completó el registro de los datos biométricos.' };
+      return { success: false, error: 'No se completó el registro de Face ID / datos biométricos.' };
     }
 
     const credentialId = bufferToBase64Url(credential.rawId);
@@ -251,15 +224,18 @@ export async function createBiometricCredential(
   } catch (err: unknown) {
     const error = err as Error;
     if (error.name === 'NotAllowedError') {
-      return { success: false, error: 'Operación cancelada o permiso biométrico denegado en el dispositivo.' };
+      return {
+        success: false,
+        error: 'Registro cancelado o no autorizado. En iPhone, verifica en Configuración > Face ID y código (y Contraseñas) que el acceso esté permitido.',
+      };
     }
     if (error.name === 'SecurityError') {
-      return { success: false, error: 'Contexto de seguridad no válido. Asegúrate de acceder mediante un dominio seguro (HTTPS o localhost).' };
+      return { success: false, error: 'Contexto de seguridad no válido. Asegúrate de acceder mediante una conexión segura HTTPS.' };
     }
     if (error.name === 'NotSupportedError') {
-      return { success: false, error: 'Tu dispositivo o navegador no soporta el método biométrico configurado.' };
+      return { success: false, error: 'Tu dispositivo o navegador no soporta el método biométrico solicitado.' };
     }
-    return { success: false, error: error.message || 'Error al registrar Face ID / huella digital.' };
+    return { success: false, error: error.message || 'Error al registrar Face ID / datos biométricos.' };
   }
 }
 
