@@ -48,6 +48,15 @@
   }
 }
 
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+
 /* Ocultar el cursor nativo de Windows cuando el Smooth Cursor está activo */
 html.has-smooth-cursor,
 html.has-smooth-cursor *,
