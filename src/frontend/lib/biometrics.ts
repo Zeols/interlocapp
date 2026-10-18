@@ -53,7 +53,7 @@ export async function isBiometricsAvailable(): Promise<{
 
   let hasPlatformAuthenticator = false;
   try {
-    if (typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
+    if (PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
       hasPlatformAuthenticator = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
     }
   } catch {
@@ -67,19 +67,18 @@ export async function isBiometricsAvailable(): Promise<{
 }
 
 /**
- * Detecta un nombre amigable para el dispositivo actual con mención específica de Face ID en iOS.
+ * Detecta un nombre amigable para el dispositivo actual.
  */
 export function getFriendlyDeviceName(): string {
   if (typeof window === 'undefined') return 'Dispositivo Web';
   const ua = navigator.userAgent;
 
-  if (/iPhone/.test(ua)) return 'iPhone (Face ID / Biometría)';
-  if (/iPad/.test(ua)) return 'iPad (Face ID / Biometría)';
-  if (/Android/.test(ua)) return 'Dispositivo Android (Huella)';
+  if (/iPhone|iPad|iPod/.test(ua)) return 'iPhone / iPad (Touch ID / Face ID)';
+  if (/Android/.test(ua)) return 'Dispositivo Android (Huella / Biometría)';
   if (/Windows/.test(ua)) return 'PC Windows (Windows Hello)';
   if (/Macintosh/.test(ua)) return 'Mac (Touch ID)';
   if (/Linux/.test(ua)) return 'Dispositivo Linux';
-  return 'Navegador Web';
+  return 'Navegador Web Seguro';
 }
 
 /**
@@ -140,11 +139,8 @@ export function removeStoredBiometricDevice(): void {
 }
 
 /**
- * Solicita al sistema operativo registrar una nueva huella digital / Face ID / passkey
+ * Solicita al sistema operativo registrar una nueva huella digital / passkey
  * a través de `navigator.credentials.create`.
- * 
- * Configurado exactamente con authenticatorAttachment: 'platform' para activar el sensor
- * biométrico local del dispositivo (Face ID en iPhone / Windows Hello / Huella Android).
  */
 export async function createBiometricCredential(
   userEmail: string,
@@ -160,9 +156,7 @@ export async function createBiometricCredential(
     crypto.getRandomValues(challenge);
 
     // Identificador de usuario único
-    const validEmail = (userEmail || '').trim() || 'usuario@interlocapp.com';
-    const validName = (userName || '').trim() || validEmail;
-    const userIdBuffer = new TextEncoder().encode(validEmail);
+    const userIdBuffer = new TextEncoder().encode(userEmail);
 
     const credential = (await navigator.credentials.create({
       publicKey: {
@@ -173,16 +167,16 @@ export async function createBiometricCredential(
         },
         user: {
           id: userIdBuffer,
-          name: validEmail,
-          displayName: validName,
+          name: userEmail,
+          displayName: userName,
         },
         pubKeyCredParams: [
-          { alg: -7, type: 'public-key' },  // ES256 (Nativo Apple Secure Enclave Face ID / Touch ID)
-          { alg: -257, type: 'public-key' }, // RS256 (Windows Hello)
+          { alg: -7, type: 'public-key' },  // ES256
+          { alg: -257, type: 'public-key' }, // RS256
         ],
         authenticatorSelection: {
-          authenticatorAttachment: 'platform', // Fuerza el sensor biométrico local (Face ID / Touch ID / Huella)
-          userVerification: 'required',        // Requiere autenticación biométrica inmediata
+          authenticatorAttachment: 'platform', // Obliga al sensor biométrico local (TouchID, Windows Hello, Huella Android)
+          userVerification: 'required',
           requireResidentKey: false,
         },
         timeout: 60000,
@@ -191,7 +185,7 @@ export async function createBiometricCredential(
     })) as PublicKeyCredential | null;
 
     if (!credential) {
-      return { success: false, error: 'No se completó el registro de los datos biométricos.' };
+      return { success: false, error: 'No se completó el registro de la huella digital.' };
     }
 
     const credentialId = bufferToBase64Url(credential.rawId);
@@ -199,23 +193,14 @@ export async function createBiometricCredential(
   } catch (err: unknown) {
     const error = err as Error;
     if (error.name === 'NotAllowedError') {
-      return {
-        success: false,
-        error: 'Operación cancelada o permiso biométrico denegado en el dispositivo.',
-      };
+      return { success: false, error: 'Operación cancelada o no se detectó el sensor biométrico.' };
     }
-    if (error.name === 'SecurityError') {
-      return { success: false, error: 'Contexto de seguridad no válido. Asegúrate de acceder mediante una conexión segura HTTPS.' };
-    }
-    if (error.name === 'NotSupportedError') {
-      return { success: false, error: 'Tu dispositivo o navegador no soporta el método biométrico solicitado.' };
-    }
-    return { success: false, error: error.message || 'Error al registrar datos biométricos.' };
+    return { success: false, error: error.message || 'Error al registrar huella digital.' };
   }
 }
 
 /**
- * Pide al usuario escanear su Face ID / huella digital / Windows Hello
+ * Pide al usuario escanear su huella digital / Face ID / Windows Hello
  * a través de `navigator.credentials.get`.
  */
 export async function verifyBiometricCredential(
@@ -245,15 +230,15 @@ export async function verifyBiometricCredential(
     });
 
     if (!assertion) {
-      return { success: false, error: 'No se pudo verificar la huella digital / Face ID.' };
+      return { success: false, error: 'No se pudo verificar la huella digital.' };
     }
 
     return { success: true };
   } catch (err: unknown) {
     const error = err as Error;
     if (error.name === 'NotAllowedError') {
-      return { success: false, error: 'Acceso biométrico cancelado o denegado por el usuario.' };
+      return { success: false, error: 'Acceso biométrico denegado o cancelado por el usuario.' };
     }
-    return { success: false, error: error.message || 'Error al validar datos biométricos.' };
+    return { success: false, error: error.message || 'Error al validar huella digital.' };
   }
 }
