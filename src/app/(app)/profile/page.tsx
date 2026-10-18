@@ -28,7 +28,7 @@ import {
   updateUserProfileAction,
   changePasswordAction,
 } from "@/backend/actions/usuarios";
-import { registerBiometricDeviceAction } from "@/backend/actions/auth";
+import { registerBiometricDeviceAction, getCurrentUserAction } from "@/backend/actions/auth";
 import { processAvatarImage } from "@/frontend/lib/image-utils";
 import {
   isBiometricsAvailable,
@@ -38,6 +38,7 @@ import {
   createBiometricCredential,
   verifyBiometricCredential,
   getFriendlyDeviceName,
+  getBiometricTypeLabel,
   StoredBiometricDevice,
 } from "@/frontend/lib/biometrics";
 
@@ -48,6 +49,11 @@ export default function ProfilePage() {
   const [savingPersonal, setSavingPersonal] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
+  const [bioInfo, setBioInfo] = useState<{ label: string; shortLabel: string; isFaceId: boolean }>({
+    label: "Huella Digital",
+    shortLabel: "Huella",
+    isFaceId: false,
+  });
   const [biometricFeedback, setBiometricFeedback] = useState<{
     type: "success" | "error";
     message: string;
@@ -132,6 +138,9 @@ export default function ProfilePage() {
     });
 
     // Detectar soporte y credencial biométrica en este dispositivo
+    if (typeof window !== "undefined") {
+      setBioInfo(getBiometricTypeLabel());
+    }
     isBiometricsAvailable().then((res) => {
       setBioSupported(res.supported);
     });
@@ -185,20 +194,35 @@ export default function ProfilePage() {
     }
   };
 
-  // Acciones de Huella Digital
+  // Acciones de Huella Digital / Face ID
   const handleRegisterBiometric = async () => {
     setBiometricFeedback(null);
     setBiometricLoading(true);
 
     try {
       const friendlyName = getFriendlyDeviceName();
-      const userFull = `${nombre} ${apellido}`.trim() || correo;
+      let userEmail = (correo || "").trim();
+      let userFull = `${nombre} ${apellido}`.trim();
+
+      // Si aún no ha cargado el correo del estado, obtenerlo de la sesión activa
+      if (!userEmail) {
+        const sessionUser = await getCurrentUserAction();
+        if (sessionUser?.correo) {
+          userEmail = sessionUser.correo;
+          userFull = userFull || sessionUser.nombre || userEmail;
+        } else {
+          userEmail = "usuario@interlocapp.com";
+          userFull = userFull || "Usuario";
+        }
+      } else if (!userFull) {
+        userFull = userEmail;
+      }
       
-      const resCred = await createBiometricCredential(correo, userFull);
+      const resCred = await createBiometricCredential(userEmail, userFull);
       if (!resCred.success || !resCred.credentialId) {
         setBiometricFeedback({
           type: "error",
-          message: resCred.error || "No se pudo registrar la huella digital en este dispositivo.",
+          message: resCred.error || `No se pudo registrar ${bioInfo.shortLabel} en este dispositivo.`,
         });
         setBiometricLoading(false);
         return;
@@ -222,7 +246,7 @@ export default function ProfilePage() {
         credentialId: resCred.credentialId,
         deviceToken: resToken.data.deviceToken,
         deviceName: friendlyName,
-        userEmail: correo,
+        userEmail: userEmail,
         userName: userFull,
         registeredAt: new Date().toISOString(),
       };
@@ -231,13 +255,13 @@ export default function ProfilePage() {
       setStoredDevice(newDevice);
       setBiometricFeedback({
         type: "success",
-        message: "¡Huella digital vinculada exitosamente a este dispositivo!",
+        message: `¡${bioInfo.isFaceId ? "Face ID" : "Huella digital"} vinculada exitosamente a este dispositivo!`,
       });
     } catch (err: unknown) {
       const error = err as Error;
       setBiometricFeedback({
         type: "error",
-        message: error.message || "Error al vincular huella digital.",
+        message: error.message || `Error al vincular ${bioInfo.shortLabel}.`,
       });
     } finally {
       setBiometricLoading(false);
@@ -254,19 +278,19 @@ export default function ProfilePage() {
       if (res.success) {
         setBiometricFeedback({
           type: "success",
-          message: "¡Huella verificada correctamente! Tu sensor biométrico está funcionando al 100%.",
+          message: `¡${bioInfo.isFaceId ? "Face ID" : "Huella"} verificado correctamente! El sensor biométrico está funcionando al 100%.`,
         });
       } else {
         setBiometricFeedback({
           type: "error",
-          message: res.error || "No se reconoció la huella digital.",
+          message: res.error || `No se pudo verificar ${bioInfo.shortLabel}.`,
         });
       }
     } catch (err: unknown) {
       const error = err as Error;
       setBiometricFeedback({
         type: "error",
-        message: error.message || "Error al verificar huella digital.",
+        message: error.message || `Error al verificar ${bioInfo.shortLabel}.`,
       });
     } finally {
       setBiometricLoading(false);
@@ -708,9 +732,9 @@ export default function ProfilePage() {
                 }`}
               >
                 <FingerprintPattern className={`w-4 h-4 ${activeTab === "biometria" ? "text-emerald-600" : "text-slate-400"}`} />
-                <span>Huella Digital</span>
+                <span>{bioInfo.isFaceId ? "Face ID / Huella" : "Huella Digital"}</span>
                 {storedDevice && (
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" title="Huella activa en este dispositivo" />
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" title={`${bioInfo.shortLabel} activa en este dispositivo`} />
                 )}
               </button>
             </div>
@@ -1166,10 +1190,12 @@ export default function ProfilePage() {
               <div>
                 <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2.5">
                   <FingerprintPattern className="w-5 h-5 text-emerald-600" />
-                  Huella Digital y Passkeys
+                  {bioInfo.isFaceId ? "Face ID y Llaves de Acceso" : "Huella Digital y Passkeys"}
                 </h2>
                 <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                  Accede a InterlocApp instantáneamente utilizando el sensor de huella, Face ID o Windows Hello de tu dispositivo.
+                  {bioInfo.isFaceId
+                    ? "Accede a InterlocApp instantáneamente utilizando Face ID en tu iPhone o iPad sin necesidad de escribir tu contraseña."
+                    : "Accede a InterlocApp instantáneamente utilizando el sensor de huella, Face ID o Windows Hello de tu dispositivo."}
                 </p>
               </div>
 
@@ -1236,7 +1262,7 @@ export default function ProfilePage() {
                       ) : (
                         <Icon path={mdiShieldCheckOutline} size={0.65} className="text-emerald-600" />
                       )}
-                      <span>Probar Huella</span>
+                      <span>Probar {bioInfo.shortLabel}</span>
                     </button>
 
                     <button
@@ -1252,7 +1278,7 @@ export default function ProfilePage() {
                 </div>
 
                 <p className="text-xs text-gray-500 leading-relaxed">
-                  Con este dispositivo vinculado, puedes pulsar <strong>"Con Huella"</strong> en la pantalla de inicio de sesión para entrar al sistema sin necesidad de introducir tu contraseña.
+                  Con este dispositivo vinculado, puedes usar el botón de acceso biométrico en la pantalla de inicio de sesión para entrar al sistema al instante sin necesidad de escribir tu contraseña.
                 </p>
               </div>
             ) : (
@@ -1261,10 +1287,14 @@ export default function ProfilePage() {
                   <FingerprintPattern className="w-7 h-7" />
                 </div>
                 <h3 className="text-sm font-bold text-gray-900 mb-1">
-                  No hay huella digital registrada en este equipo
+                  {bioInfo.isFaceId
+                    ? "No hay Face ID registrado en este dispositivo"
+                    : "No hay huella digital registrada en este equipo"}
                 </h3>
                 <p className="text-xs text-gray-500 max-w-sm mb-5 leading-relaxed">
-                  Registra el sensor biométrico (Touch ID, Face ID o Windows Hello) de este dispositivo para acceder con un solo toque la próxima vez.
+                  {bioInfo.isFaceId
+                    ? "Registra Face ID de este dispositivo para acceder con un solo vistazo la próxima vez."
+                    : "Registra el sensor biométrico (Touch ID, Face ID o Windows Hello) de este dispositivo para acceder con un solo toque la próxima vez."}
                 </p>
 
                 <button
@@ -1276,12 +1306,12 @@ export default function ProfilePage() {
                   {biometricLoading ? (
                     <>
                       <Icon path={mdiLoading} size={0.7} className="animate-spin text-white" />
-                      <span>Esperando sensor biométrico...</span>
+                      <span>{bioInfo.isFaceId ? "Esperando Face ID..." : "Esperando sensor biométrico..."}</span>
                     </>
                   ) : (
                     <>
                       <FingerprintPattern className="w-4 h-4 text-emerald-400" />
-                      <span>Vincular Huella de este Dispositivo</span>
+                      <span>{bioInfo.isFaceId ? "Vincular Face ID de este Dispositivo" : "Vincular Huella de este Dispositivo"}</span>
                     </>
                   )}
                 </button>

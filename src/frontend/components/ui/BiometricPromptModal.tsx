@@ -19,6 +19,7 @@ import {
   saveBiometricDevice,
   createBiometricCredential,
   getFriendlyDeviceName,
+  getBiometricTypeLabel,
   StoredBiometricDevice,
 } from "@/frontend/lib/biometrics";
 import { SessionPayload } from "@/backend/lib/session";
@@ -30,9 +31,18 @@ export function BiometricPromptModal() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [bioInfo, setBioInfo] = useState<{ label: string; shortLabel: string; isFaceId: boolean }>({
+    label: "Huella Digital",
+    shortLabel: "Huella",
+    isFaceId: false,
+  });
 
   useEffect(() => {
     let isMounted = true;
+
+    if (typeof window !== "undefined") {
+      setBioInfo(getBiometricTypeLabel());
+    }
 
     const checkPromptEligibility = async () => {
       if (typeof window === "undefined") return;
@@ -180,10 +190,12 @@ export function BiometricPromptModal() {
                   <Icon path={mdiCheckCircleOutline} size={1.4} />
                 </div>
                 <h3 className="text-lg font-black text-gray-900 tracking-tight mb-1.5">
-                  ¡Huella digital activada!
+                  ¡{bioInfo.isFaceId ? "Face ID activado" : "Biometría activada"}!
                 </h3>
                 <p className="text-xs sm:text-sm text-gray-500 max-w-xs mx-auto">
-                  La próxima vez podrás acceder con un solo toque utilizando el sensor de este dispositivo.
+                  {bioInfo.isFaceId
+                    ? "La próxima vez podrás acceder instantáneamente utilizando Face ID."
+                    : "La próxima vez podrás acceder con un solo toque utilizando el sensor de este dispositivo."}
                 </p>
               </div>
             ) : (
@@ -198,20 +210,26 @@ export function BiometricPromptModal() {
                       Acceso rápido
                     </span>
                     <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight mt-0.5 leading-snug">
-                      ¿Deseas activar el acceso con huella digital?
+                      ¿Deseas activar {bioInfo.isFaceId ? "Face ID" : "acceso biométrico"}?
                     </h3>
                   </div>
                 </div>
 
                 <p className="text-xs sm:text-sm text-gray-600 leading-relaxed mb-4">
-                  Detectamos que este dispositivo cuenta con sensor biométrico. Actívalo para ingresar de forma instantánea a tu cuenta sin tener que escribir tu contraseña cada vez.
+                  {bioInfo.isFaceId
+                    ? "Detectamos que tu iPhone cuenta con Face ID. Actívalo para ingresar de forma instantánea a tu cuenta con un solo vistazo."
+                    : "Detectamos que este dispositivo cuenta con sensor biométrico. Actívalo para ingresar de forma instantánea a tu cuenta sin tener que escribir tu contraseña cada vez."}
                 </p>
 
                 {/* Beneficios directos */}
                 <div className="space-y-2 mb-4 p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100 text-xs text-gray-700 font-medium">
                   <div className="flex items-center gap-2">
                     <Icon path={mdiFlashOutline} size={0.65} className="text-amber-500 shrink-0" />
-                    <span>Ingreso en un solo toque sin escribir contraseñas</span>
+                    <span>
+                      {bioInfo.isFaceId
+                        ? "Ingreso instantáneo con Face ID sin escribir contraseñas"
+                        : "Ingreso en un solo toque sin escribir contraseñas"}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Icon path={mdiShieldCheckOutline} size={0.65} className="text-emerald-600 shrink-0" />
@@ -258,12 +276,12 @@ export function BiometricPromptModal() {
                     {isLoading ? (
                       <>
                         <Icon path={mdiLoading} size={0.65} className="animate-spin text-white" />
-                        <span>Esperando sensor...</span>
+                        <span>{bioInfo.isFaceId ? "Esperando Face ID..." : "Esperando sensor..."}</span>
                       </>
                     ) : (
                       <>
                         <FingerprintPattern className="w-4 h-4 text-emerald-400" />
-                        <span>Activar ahora</span>
+                        <span>{bioInfo.isFaceId ? "Activar Face ID Ahora" : "Activar ahora"}</span>
                       </>
                     )}
                   </button>
