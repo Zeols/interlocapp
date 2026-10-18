@@ -63,9 +63,9 @@ export function BiometricPromptModal() {
         return;
       }
 
-      // 4. Comprobar si el navegador y hardware soportan WebAuthn
+      // 4. Comprobar si el navegador y hardware soportan WebAuthn con biometría de plataforma
       const bioStatus = await isBiometricsAvailable();
-      if (!bioStatus.supported) {
+      if (!bioStatus.supported || !bioStatus.hasPlatformAuthenticator) {
         return;
       }
 
