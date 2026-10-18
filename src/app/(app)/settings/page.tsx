@@ -249,39 +249,51 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
         {/* Navigation Tabs */}
-        <div className="md:col-span-1">
-          <nav className="flex flex-row md:flex-col gap-1.5 bg-slate-100/70 p-1.5 rounded-xl border border-slate-200/70">
+        <div className="md:col-span-1 min-w-0">
+          <nav className="flex flex-row md:flex-col gap-1.5 bg-slate-100/70 p-1.5 rounded-xl border border-slate-200/70 overflow-x-auto no-scrollbar scroll-smooth">
             <button
-              onClick={() => setActiveTab("notifications")}
-              className={`flex items-center gap-2.5 w-full px-3.5 py-2.5 rounded-lg cursor-pointer text-xs sm:text-sm font-semibold transition-all ${
+              type="button"
+              onClick={(e) => {
+                setActiveTab("notifications");
+                e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+              }}
+              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg cursor-pointer text-xs sm:text-sm font-semibold transition-all shrink-0 whitespace-nowrap md:w-full md:justify-start ${
                 activeTab === "notifications"
                   ? "bg-white text-slate-900 shadow-2xs border border-slate-200/80"
                   : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
               }`}
             >
-              <Icon path={mdiBellOutline} size={0.75} />
+              <Icon path={mdiBellOutline} size={0.75} className="shrink-0" />
               <span>Notificaciones</span>
             </button>
             <button
-              onClick={() => setActiveTab("region")}
-              className={`flex items-center gap-2.5 w-full px-3.5 py-2.5 rounded-lg cursor-pointer text-xs sm:text-sm font-semibold transition-all ${
+              type="button"
+              onClick={(e) => {
+                setActiveTab("region");
+                e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+              }}
+              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg cursor-pointer text-xs sm:text-sm font-semibold transition-all shrink-0 whitespace-nowrap md:w-full md:justify-start ${
                 activeTab === "region"
                   ? "bg-white text-slate-900 shadow-2xs border border-slate-200/80"
                   : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
               }`}
             >
-              <Icon path={mdiEarth} size={0.75} />
+              <Icon path={mdiEarth} size={0.75} className="shrink-0" />
               <span>Región e Idioma</span>
             </button>
             <button
-              onClick={() => setActiveTab("payments")}
-              className={`flex items-center gap-2.5 w-full px-3.5 py-2.5 rounded-lg cursor-pointer text-xs sm:text-sm font-semibold transition-all ${
+              type="button"
+              onClick={(e) => {
+                setActiveTab("payments");
+                e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+              }}
+              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg cursor-pointer text-xs sm:text-sm font-semibold transition-all shrink-0 whitespace-nowrap md:w-full md:justify-start ${
                 activeTab === "payments"
                   ? "bg-white text-slate-900 shadow-2xs border border-slate-200/80"
                   : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
               }`}
             >
-              <Icon path={mdiCreditCardOutline} size={0.75} />
+              <Icon path={mdiCreditCardOutline} size={0.75} className="shrink-0" />
               <span>Métodos de Pago</span>
             </button>
           </nav>

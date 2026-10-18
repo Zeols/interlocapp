@@ -667,50 +667,59 @@ export default function ProfilePage() {
           </div>
 
           {/* PESTAÑAS HORIZONTALES (Segmented Control) con botón de acción en PC */}
-          <div className="border-t border-gray-100 bg-slate-50/70 px-6 sm:px-8 py-2.5 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+          <div className="border-t border-gray-100 bg-slate-50/70 px-4 sm:px-8 py-2.5 flex items-center justify-between gap-3 min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar scroll-smooth w-full sm:w-auto py-0.5">
               <button
                 type="button"
-                onClick={() => handleTabClick("personal")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                onClick={(e) => {
+                  handleTabClick("personal");
+                  e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+                }}
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   activeTab === "personal"
                     ? "bg-white text-slate-900 shadow-2xs font-bold border border-slate-200/80"
                     : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                 }`}
               >
-                <Icon path={mdiAccountOutline} size={0.75} className={activeTab === "personal" ? "text-slate-900" : "text-slate-400"} />
+                <Icon path={mdiAccountOutline} size={0.75} className={`shrink-0 ${activeTab === "personal" ? "text-slate-900" : "text-slate-400"}`} />
                 <span>Datos Personales</span>
                 {hasUnsavedChanges && (
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Cambios sin guardar" />
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" title="Cambios sin guardar" />
                 )}
               </button>
 
               <button
                 type="button"
-                onClick={() => handleTabClick("password")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                onClick={(e) => {
+                  handleTabClick("password");
+                  e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+                }}
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   activeTab === "password"
                     ? "bg-white text-slate-900 shadow-2xs font-bold border border-slate-200/80"
                     : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                 }`}
               >
-                <Icon path={mdiKeyOutline} size={0.75} className={activeTab === "password" ? "text-slate-900" : "text-slate-400"} />
+                <Icon path={mdiKeyOutline} size={0.75} className={`shrink-0 ${activeTab === "password" ? "text-slate-900" : "text-slate-400"}`} />
                 <span>Contraseña</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleTabClick("biometria")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                onClick={(e) => {
+                  handleTabClick("biometria");
+                  e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+                }}
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   activeTab === "biometria"
                     ? "bg-white text-slate-900 shadow-2xs font-bold border border-slate-200/80"
                     : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                 }`}
               >
-                <FingerprintPattern className={`w-4 h-4 ${activeTab === "biometria" ? "text-emerald-600" : "text-slate-400"}`} />
-                <span>Huella Digital</span>
+                <FingerprintPattern className={`w-4 h-4 shrink-0 ${activeTab === "biometria" ? "text-emerald-600" : "text-slate-400"}`} />
+                <span>Datos Biométricos</span>
                 {storedDevice && (
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" title="Huella activa en este dispositivo" />
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Huella activa en este dispositivo" />
                 )}
               </button>
             </div>
