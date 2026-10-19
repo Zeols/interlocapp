@@ -1,8 +1,17 @@
-import 'dotenv/config';
+// import 'dotenv/config';
 import { prisma } from '../src/backend/db';
 import { hashPassword } from '../src/backend/lib/crypto';
 
 async function main() {
+  console.log('🧹 Limpiando registros operativos anteriores...');
+  // Limpiamos en orden de dependencia para evitar conflictos de llaves foráneas
+  await prisma.controlViaje.deleteMany({});
+  await prisma.boleto.deleteMany({});
+  await prisma.venta.deleteMany({});
+  await prisma.despacho.deleteMany({});
+  await prisma.viaje.deleteMany({});
+  await prisma.asignacionUnidad.deleteMany({});
+
   console.log('🌱 Iniciando siembra de datos maestros para InterlocApp...');
 
   // -------------------------------------------------------------
@@ -136,6 +145,15 @@ async function main() {
 
   const usuariosData = [
     {
+      nombre: 'Steven',
+      apellido: 'Baldelomar',
+      usuario: 'superadmin',
+      correo: 'admin@interlocapp.com',
+      telefono: '+505 8888-0000',
+      idRol: rolesMap.get('SUPER_ADMIN')!,
+      idCooperativa: null,
+    },
+    {
       nombre: 'Guillermo',
       apellido: 'López',
       usuario: 'admin_coop',
@@ -235,7 +253,6 @@ async function main() {
         },
       });
 
-      // Generar asientos correspondientes
       const asientosData = Array.from({ length: u.capacidad }, (_, i) => ({
         idUnidad: unidad!.idUnidad,
         numero: String(i + 1),
@@ -274,7 +291,6 @@ async function main() {
     puntosMap.set(pNombre, punto.idPunto);
   }
 
-  // Ruta 1: Managua UCA - Juigalpa
   let rutaJuigalpa = await prisma.ruta.findFirst({
     where: { nombre: 'Managua UCA - Juigalpa', idCooperativa: coop.idCooperativa },
   });
@@ -308,7 +324,6 @@ async function main() {
       });
     }
 
-    // Tarifas por tramo
     const pUca = puntosMap.get('Terminal UCA (Managua)')!;
     const pTipitapa = puntosMap.get('Tipitapa')!;
     const pSanBenito = puntosMap.get('San Benito')!;
@@ -337,14 +352,52 @@ async function main() {
     }
   }
 
+  // -------------------------------------------------------------
+  // 9. GENERACIÓN DE TURNO Y VIAJE ACTIVO PARA EL AYUDANTE
+  // -------------------------------------------------------------
+  console.log('-> Generando turno y viaje activo para pruebas del Ayudante...');
+
+  const unidadObj = await prisma.unidad.findFirst({ where: { numeroUnidad: '01' } });
+  const ayudanteObj = await prisma.usuario.findFirst({ where: { usuario: 'ayudante_juan' } });
+
+  if (rutaJuigalpa && unidadObj && ayudanteObj) {
+    const asignacion = await prisma.asignacionUnidad.create({
+      data: {
+        idUnidad: unidadObj.idUnidad,
+        idUsuario: ayudanteObj.idUsuario,
+        fechaHInicio: new Date(),
+        estado: 'INICIADA',
+      },
+    });
+
+    const viaje = await prisma.viaje.create({
+      data: {
+        idRuta: rutaJuigalpa.idRuta,
+        fecha: new Date(),
+        hrSalidaProgramada: new Date(),
+        estado: 'EN_CURSO',
+      },
+    });
+
+    const despacho = await prisma.despacho.create({
+      data: {
+        idViaje: viaje.idViaje,
+        idAsignacion: asignacion.idAsignacion,
+        estado: 'EN_CURSO',
+        observacion: 'Viaje de prueba en ruta Managua - Juigalpa',
+      },
+    });
+
+    console.log('✅ ¡Turno activo creado con éxito!');
+    console.log(`   • ID Viaje: ${viaje.idViaje}`);
+    console.log(`   • ID Despacho: ${despacho.idDespacho}`);
+    console.log(`   • Unidad: #${unidadObj.numeroUnidad} (Placa: ${unidadObj.placa})`);
+  }
+
   console.log('✅ Siembra de datos completada exitosamente.');
   console.log('----------------------------------------------------');
-  console.log('Usuarios de prueba creados (Contraseña: Password123!):');
-  console.log('  • Admin Cooperativa: admin@cootranstel.com');
-  console.log('  • Taquillero:        taquilla@cootranstel.com');
-  console.log('  • Chofer:            carlos.chofer@cootranstel.com');
-  console.log('  • Ayudante:          juan.ayudante@cootranstel.com');
-  console.log('  • Pasajero:          pasajero@correo.com');
+  console.log('Usuario Ayudante listo para probar (Contraseña: Password123!):');
+  console.log('   • Correo: juan.ayudante@cootranstel.com');
   console.log('----------------------------------------------------');
 }
 

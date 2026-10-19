@@ -122,13 +122,25 @@ export function Navbar() {
               user.idCooperativa ||
               (user.rolNombre && ["SUPER_ADMIN", "ADMIN_COOP", "CHOFER", "AYUDANTE", "TAQUILLERO"].includes(user.rolNombre))
             );
+
+            // Título dinámico para el botón según el rol
+            const panelTitle = isCoopUser
+              ? user.rolNombre === "AYUDANTE"
+                ? "Panel de Ayudante"
+                : user.rolNombre === "CHOFER"
+                ? "Panel de Chofer"
+                : user.rolNombre === "TAQUILLERO"
+                ? "Panel de Taquillero"
+                : "Panel de Cooperativa"
+              : "Mis Boletos";
+
             return (
               <>
                 <Link
                   href={isCoopUser ? "/dashboard" : "/tickets"}
                   className="flex items-center justify-center w-8.5 h-8.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-xs transition-colors cursor-pointer"
-                  title={isCoopUser ? "Panel de Cooperativa" : "Mis Boletos"}
-                  aria-label={isCoopUser ? "Panel de Cooperativa" : "Mis Boletos"}
+                  title={panelTitle}
+                  aria-label={panelTitle}
                 >
                   <Icon path={isCoopUser ? mdiBus : mdiTicketConfirmationOutline} size={0.7} />
                 </Link>

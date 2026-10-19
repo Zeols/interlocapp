@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifySessionToken, COOKIE_NAME } from '@/backend/lib/session';
 
-// Roles administrativos autorizados para el dashboard
-const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO'];
+// Roles administrativos y operacionales autorizados para acceder al dashboard
+const DASHBOARD_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO', 'CHOFER', 'AYUDANTE'];
 
-// Roles operativos autorizados para el escáner de boletos
+// Roles autorizados para el escáner de boletos
 const OPERATIONAL_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO', 'CHOFER', 'AYUDANTE'];
 
 // Rutas públicas que no requieren autenticación
@@ -28,10 +28,7 @@ export async function middleware(request: NextRequest) {
   // -------------------------------------------------------------
   if (pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/forgot')) {
     if (isAuthenticated) {
-      if (['CHOFER', 'AYUDANTE'].includes(session.rolNombre)) {
-        return NextResponse.redirect(new URL('/validar-boleto', request.url));
-      }
-      if (ADMIN_ROLES.includes(session.rolNombre)) {
+      if (DASHBOARD_ROLES.includes(session.rolNombre)) {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
       return NextResponse.redirect(new URL('/home', request.url));
@@ -64,20 +61,14 @@ export async function middleware(request: NextRequest) {
   const PASSENGER_PORTAL_ROUTES = ['/home', '/trips', '/tickets', '/compra'];
   if (PASSENGER_PORTAL_ROUTES.some((route) => pathname.startsWith(route))) {
     if (session.rolNombre !== 'PASAJERO') {
-      if (['CHOFER', 'AYUDANTE'].includes(session.rolNombre)) {
-        return NextResponse.redirect(new URL('/validar-boleto', request.url));
-      }
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
     return NextResponse.next();
   }
 
-  // Protección de /dashboard/* (Solo administradores y taquilleros)
+  // Protección de /dashboard/* (Permite Admins, Taquilleros, Choferes y Ayudantes)
   if (pathname.startsWith('/dashboard')) {
-    if (!ADMIN_ROLES.includes(session.rolNombre)) {
-      if (['CHOFER', 'AYUDANTE'].includes(session.rolNombre)) {
-        return NextResponse.redirect(new URL('/validar-boleto', request.url));
-      }
+    if (!DASHBOARD_ROLES.includes(session.rolNombre)) {
       return NextResponse.redirect(new URL('/home', request.url));
     }
     return NextResponse.next();

@@ -79,16 +79,36 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("profile-updated", handleProfileUpdate);
   }, []);
 
-  const menuItems = [
-    { name: "Resumen", path: "/dashboard", icon: mdiViewDashboard },
-    ...(isSuperAdmin
-      ? [{ name: "Cooperativas", path: "/dashboard/cooperativas", icon: mdiDomain }]
-      : []),
-    { name: "Flota", path: "/dashboard/flota", icon: mdiBusDoubleDecker },
-    { name: "Personal", path: "/dashboard/choferes", icon: mdiAccountGroup },
-    { name: "Usuarios", path: "/dashboard/usuarios", icon: mdiAccountMultiple },
-    { name: "Rutas", path: "/dashboard/rutas", icon: mdiMapMarkerPath },
-  ];
+  // Normalizamos el rol de forma segura para evitar fallos por mayúsculas/minúsculas o espacios
+  const rolUsuario = (session?.rolNombre || (session as any)?.rol || "").trim().toUpperCase();
+  const isAyudante = rolUsuario === "AYUDANTE" || rolUsuario === "CHOFER";
+  const isLoadingSession = session === null;
+
+  // Si la sesión está cargando, mostramos un spinner limpio para evitar el parpadeo de pestañas
+  if (isLoadingSession) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Menú dinámico según el rol validado
+  const menuItems = isAyudante
+    ? [
+        { name: "Resumen", path: "/dashboard", icon: mdiViewDashboard },
+        { name: "Viaje", path: "/dashboard/viaje", icon: mdiBus },
+      ]
+    : [
+        { name: "Resumen", path: "/dashboard", icon: mdiViewDashboard },
+        ...(isSuperAdmin
+          ? [{ name: "Cooperativas", path: "/dashboard/cooperativas", icon: mdiDomain }]
+          : []),
+        { name: "Flota", path: "/dashboard/flota", icon: mdiBusDoubleDecker },
+        { name: "Personal", path: "/dashboard/choferes", icon: mdiAccountGroup },
+        { name: "Usuarios", path: "/dashboard/usuarios", icon: mdiAccountMultiple },
+        { name: "Rutas", path: "/dashboard/rutas", icon: mdiMapMarkerPath },
+      ];
 
   const handleToggleSidebar = () => {
     if (typeof window !== "undefined" && window.innerWidth < 1024) {
@@ -140,9 +160,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
               <Logo size={0.85} />
               <div className="flex items-center gap-2">
                 <span className="font-bold text-slate-900 text-base tracking-tight">InterlocApp</span>
+                
+                {/* 🟢 CAMBIO 1: Badge dinámico en el Sidebar */}
                 <span className="text-[10px] font-semibold bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20">
-                  {isSuperAdmin ? "Super Admin" : "Cooperativa"}
+                  {isAyudante ? "Ayudante" : isSuperAdmin ? "Super Admin" : "Admin"}
                 </span>
+
               </div>
             </Link>
             {/* Botón cerrar exclusivamente en móvil */}
@@ -154,7 +177,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
               <Icon path={mdiClose} size={0.7} />
             </button>
           </div>
-          {selectedCoop && (
+          {!isAyudante && selectedCoop && (
             <div className="mt-3 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center gap-2.5">
               <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 font-bold text-xs">
                 <Icon path={mdiDomain} size={0.55} />
@@ -170,7 +193,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Selector de cooperativa en móvil si es Super Admin */}
-        {isSuperAdmin && cooperativas.length > 0 && (
+        {!isAyudante && isSuperAdmin && cooperativas.length > 0 && (
           <div className="p-3 border-b border-slate-100 lg:hidden bg-slate-50/60">
             <label className="text-[11px] font-medium text-slate-500 mb-1 flex items-center gap-1.5">
               <Icon path={mdiDomain} size={0.55} className="text-slate-400" />
@@ -241,26 +264,33 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             </button>
             <div className="flex items-center gap-2 min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2.5 min-w-0">
+                
+                {/* 🟢 CAMBIO 2: Título dinámico en el Header superior */}
                 <h2 className="font-bold text-slate-900 text-xs sm:text-sm md:text-base tracking-tight truncate">
-                  {selectedCoop ? selectedCoop.nombre : "Panel Administrativo"}
+                  {isAyudante ? "Panel de Ayudante" : selectedCoop ? selectedCoop.nombre : "Panel Administrativo"}
                 </h2>
-                {selectedCoop ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/90 shrink-0 self-start sm:self-auto">
-                    <Icon path={mdiDomain} size={0.45} className="text-emerald-600" />
-                    <span>Cooperativa</span>
-                  </span>
-                ) : isSuperAdmin ? (
-                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
-                    <span>Super Admin</span>
-                  </span>
-                ) : null}
+
+                {/* 🟢 CAMBIO 3: Etiqueta de Cooperativa solo visible si NO es Ayudante */}
+                {!isAyudante && (
+                  selectedCoop ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/90 shrink-0 self-start sm:self-auto">
+                      <Icon path={mdiDomain} size={0.45} className="text-emerald-600" />
+                      <span>Cooperativa</span>
+                    </span>
+                  ) : isSuperAdmin ? (
+                    <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
+                      <span>Super Admin</span>
+                    </span>
+                  ) : null
+                )}
+
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             {/* Si es Super Admin, selector de Cooperativa global en Header */}
-            {isSuperAdmin && cooperativas.length > 0 && (
+            {!isAyudante && isSuperAdmin && cooperativas.length > 0 && (
               <div className="hidden md:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs">
                 <Icon path={mdiDomain} size={0.65} className="text-slate-400" />
                 <span className="text-slate-500 font-medium">Cooperativa:</span>

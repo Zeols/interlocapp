@@ -125,9 +125,9 @@ export async function loginAction(input: LoginInput): Promise<ActionResponse<{ r
 
     // Determinar URL de redirección según el rol
     let redirectUrl = '/home';
-    if (['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO'].includes(user.rol.nombre)) {
+    if (['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO', 'AYUDANTE'].includes(user.rol.nombre)) {
       redirectUrl = '/dashboard';
-    } else if (['CHOFER', 'AYUDANTE'].includes(user.rol.nombre)) {
+    } else if (['CHOFER'].includes(user.rol.nombre)) {
       redirectUrl = '/validar-boleto';
     }
 

@@ -12,8 +12,8 @@ export interface ViajeInput {
 
 export interface AsignacionInput {
   idUnidad: number;
-  idUsuarios?: number[]; // Lista con los IDs de la tripulación (ej: [idChofer, idAyudante])
-  idUsuario?: number;    // Compatible con asignación individual
+  idUsuarios?: number[];
+  idUsuario?: number;
   fechaHInicio?: string;
 }
 
@@ -89,7 +89,6 @@ export async function createViaje(data: ViajeInput) {
 
 export async function createAsignacionUnidad(data: AsignacionInput) {
   try {
-    // Determinar la lista de usuarios a asignar
     const listaUsuarios = data.idUsuarios
       ? data.idUsuarios
       : data.idUsuario
@@ -100,7 +99,6 @@ export async function createAsignacionUnidad(data: AsignacionInput) {
       return { success: false, error: 'Debe especificar al menos un usuario para asignar.' };
     }
 
-    // 1. Validar existencia de la Unidad
     const unidad = await prisma.unidad.findUnique({
       where: { idUnidad: data.idUnidad },
     });
@@ -108,7 +106,6 @@ export async function createAsignacionUnidad(data: AsignacionInput) {
       return { success: false, error: `La unidad con ID ${data.idUnidad} no existe.` };
     }
 
-    // 2. Validar existencia de todos los Usuarios especificados
     const usuarios = await prisma.usuario.findMany({
       where: { idUsuario: { in: listaUsuarios } },
       include: { rol: true },
@@ -118,7 +115,6 @@ export async function createAsignacionUnidad(data: AsignacionInput) {
       return { success: false, error: 'Uno o más usuarios seleccionados no existen en la BD.' };
     }
 
-    // 3. Crear los registros de asignación en una transacción atómica
     const fechaInicio = data.fechaHInicio ? new Date(data.fechaHInicio) : new Date();
 
     const asignaciones = await prisma.$transaction(
@@ -143,7 +139,6 @@ export async function createAsignacionUnidad(data: AsignacionInput) {
     return {
       success: true,
       data: asignaciones,
-      // Devolvemos la primera asignación como referencia principal para el despacho
       asignacionPrincipal: asignaciones[0],
     };
   } catch (error) {
@@ -266,14 +261,12 @@ export async function getViajesByCooperativa(idCooperativa: number) {
       orderBy: { hrSalidaProgramada: 'asc' },
     });
 
-    // Enriquecer cada viaje despachado con la tripulación completa (Chofer + Ayudante)
     const viajesConTripulacionCompleta = await Promise.all(
       viajes.map(async (v) => {
         if (!v.despacho) return v;
 
         const idUnidad = v.despacho.asignacionUnidad.idUnidad;
 
-        // Consultar todas las asignaciones de esta unidad
         const asignacionesTripulacion = await prisma.asignacionUnidad.findMany({
           where: { idUnidad, estado: 'INICIADA' },
           include: {
@@ -482,5 +475,245 @@ export async function getViajesDisponiblesAction(filters?: {
   } catch (error) {
     console.error('Error al consultar viajes disponibles:', error);
     return { success: false, error: 'No se pudieron consultar los viajes disponibles.', data: [] };
+  }
+}
+
+// -------------------------------------------------------------
+// 6. GESTIÓN DE JORNADA Y PARADAS EN TIEMPO REAL PARA TRIPULACIÓN (AYUDANTE / CHOFER)
+// -------------------------------------------------------------
+
+export async function getViajeActivoAyudanteAction(idUsuario: number) {
+  try {
+    const hoyInicio = new Date();
+    hoyInicio.setHours(0, 0, 0, 0);
+
+    const hoyFin = new Date();
+    hoyFin.setHours(23, 59, 59, 999);
+
+    const asignacion = await prisma.asignacionUnidad.findFirst({
+      where: {
+        idUsuario: idUsuario,
+        estado: 'INICIADA',
+        fechaHInicio: {
+          gte: hoyInicio,
+          lte: hoyFin,
+        },
+      },
+    });
+
+    if (!asignacion) {
+      return {
+        success: false,
+        error: 'No tienes ninguna unidad asignada activa para el día de hoy.',
+      };
+    }
+
+    const unidad = await prisma.unidad.findUnique({
+      where: { idUnidad: asignacion.idUnidad },
+    });
+
+    if (!unidad) {
+      return {
+        success: false,
+        error: 'No se encontró la unidad asignada.',
+      };
+    }
+
+    let viajeObjetivo: any = null;
+
+    const despacho = await prisma.despacho.findFirst({
+      where: {
+        idAsignacion: asignacion.idAsignacion,
+      },
+    });
+
+    if (despacho && despacho.idViaje) {
+      viajeObjetivo = await prisma.viaje.findUnique({
+        where: { idViaje: despacho.idViaje },
+        include: {
+          ruta: {
+            include: {
+              puntosRuta: {
+                include: { punto: true },
+                orderBy: { orden: 'asc' },
+              },
+            },
+          },
+          controlesViaje: {
+            include: { puntoRuta: true },
+            orderBy: { fechaHora: 'desc' },
+            take: 1,
+          },
+        },
+      });
+    }
+
+    if (!viajeObjetivo) {
+      viajeObjetivo = await prisma.viaje.findFirst({
+        where: {
+          fecha: {
+            gte: hoyInicio,
+            lte: hoyFin,
+          },
+          ruta: {
+            idCooperativa: unidad.idCooperativa,
+          },
+          estado: { in: ['EN_CURSO', 'PROGRAMADO'] },
+        },
+        include: {
+          ruta: {
+            include: {
+              puntosRuta: {
+                include: { punto: true },
+                orderBy: { orden: 'asc' },
+              },
+            },
+          },
+          controlesViaje: {
+            include: { puntoRuta: true },
+            orderBy: { fechaHora: 'desc' },
+            take: 1,
+          },
+        },
+      });
+    }
+
+    if (!viajeObjetivo) {
+      return {
+        success: false,
+        error: 'No se encontró un viaje activo o programado para tu unidad el día de hoy.',
+      };
+    }
+
+    const paradasList = viajeObjetivo.ruta.puntosRuta.map((pr: any) => ({
+      id: pr.punto.idPunto,
+      idPuntoRuta: pr.idPuntoRuta,
+      nombre: pr.punto.nombre,
+    }));
+
+    // Determinamos el último punto reportado en la tabla controles_viaje
+    const ultimoControl = viajeObjetivo.controlesViaje?.[0];
+    let ultimaParadaId = null;
+
+    if (ultimoControl) {
+      const matchPuntoRuta = viajeObjetivo.ruta.puntosRuta.find(
+        (pr: any) => pr.idPuntoRuta === ultimoControl.idPuntoRuta
+      );
+      if (matchPuntoRuta) {
+        ultimaParadaId = matchPuntoRuta.punto.idPunto;
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        idViaje: viajeObjetivo.idViaje,
+        rutaNombre: viajeObjetivo.ruta.nombre,
+        sentido: viajeObjetivo.sentido || 'IDA', // Incluye el sentido (IDA / RETORNO)
+        busNumero: unidad.numeroUnidad || `Unidad #${unidad.idUnidad}`,
+        busPlaca: unidad.placa || 'Sin placa',
+        paradaActualId: ultimaParadaId || paradasList[0]?.id || null,
+        paradas: paradasList,
+      },
+    };
+  } catch (error) {
+    console.error('Error al obtener viaje activo del ayudante:', error);
+    return {
+      success: false,
+      error: 'Ocurrió un error al consultar la jornada operativa.',
+    };
+  }
+}
+
+export async function actualizarParadaActualAction(idViaje: number, idPunto: number) {
+  try {
+    // 1. Buscamos el viaje con su ruta, puntos ordenados y el despacho asociado
+    const viaje = await prisma.viaje.findUnique({
+      where: { idViaje },
+      include: {
+        ruta: {
+          include: {
+            puntosRuta: {
+              orderBy: { orden: 'asc' },
+            },
+          },
+        },
+        despacho: {
+          include: { asignacionUnidad: true },
+        },
+      },
+    });
+
+    if (!viaje) {
+      return { success: false, error: 'Viaje no encontrado.' };
+    }
+
+    const puntosRuta = viaje.ruta.puntosRuta;
+    const puntoRutaEncontrado = puntosRuta.find((pr) => pr.idPunto === idPunto);
+
+    if (!puntoRutaEncontrado) {
+      return { success: false, error: 'El punto seleccionado no pertenece a la ruta de este viaje.' };
+    }
+
+    // 2. Verificamos si es el último punto (punto final de la ruta)
+    const esPuntoFinal = puntosRuta[puntosRuta.length - 1].idPuntoRuta === puntoRutaEncontrado.idPuntoRuta;
+
+    // 3. Ejecutamos la transacción en la base de datos
+    await prisma.$transaction(async (tx) => {
+      // Registramos el control en la tabla controles_viaje
+      await tx.controlViaje.create({
+        data: {
+          idViaje: idViaje,
+          idPuntoRuta: puntoRutaEncontrado.idPuntoRuta,
+          fechaHora: new Date(),
+        },
+      });
+
+      // Si es la última parada, finalizamos el viaje automáticamente
+      if (esPuntoFinal) {
+        await tx.viaje.update({
+          where: { idViaje },
+          data: {
+            estado: 'FINALIZADO',
+            hrLlegadaReal: new Date(), // Se registra la hora real de llegada
+          },
+        });
+
+        if (viaje.despacho) {
+          await tx.despacho.update({
+            where: { idViaje },
+            data: { estado: 'FINALIZADO' },
+          });
+
+          const asignacion = await tx.asignacionUnidad.update({
+            where: { idAsignacion: viaje.despacho.idAsignacion },
+            data: {
+              estado: 'FINALIZADA',
+              fechaHFin: new Date(),
+            },
+          });
+
+          // Liberamos la unidad y los asientos
+          await tx.unidad.update({
+            where: { idUnidad: asignacion.idUnidad },
+            data: { estado: 'DISPONIBLE' },
+          });
+
+          await tx.asiento.updateMany({
+            where: { idUnidad: asignacion.idUnidad, estado: 'OCUPADO' },
+            data: { estado: 'DISPONIBLE' },
+          });
+        }
+      }
+    });
+
+    revalidatePath('/dashboard');
+    return { success: true, esPuntoFinal };
+  } catch (error) {
+    console.error('Error al registrar la parada actual del viaje en controles_viaje:', error);
+    return {
+      success: false,
+      error: 'No se pudo actualizar la posición de la parada en el sistema.',
+    };
   }
 }
