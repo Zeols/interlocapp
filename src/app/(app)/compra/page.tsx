@@ -142,29 +142,22 @@ function PurchaseContent() {
             <div
               className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
                 isConnected
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                  : "bg-blue-50 text-blue-700 border-blue-200"
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  : "bg-gray-50 text-gray-700 border-gray-200"
               }`}
             >
-              <span className="relative flex h-2 w-2">
-                <span
-                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                    isConnected ? "bg-emerald-400" : "bg-blue-400"
-                  }`}
-                />
-                <span
-                  className={`relative inline-flex rounded-full h-2 w-2 ${
-                    isConnected ? "bg-emerald-500" : "bg-blue-500"
-                  }`}
-                />
-              </span>
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isConnected ? "bg-emerald-500" : "bg-gray-400"
+                }`}
+              />
               <Icon path={mdiWifi} size={0.55} />
-              <span>{isConnected ? "Sincronización en vivo" : "Tiempo real activo"}</span>
+              <span>{isConnected ? "Sincronización en vivo" : "Conexión estándar"}</span>
             </div>
 
             {timeRemainingSeconds !== null && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 animate-pulse">
-                <Icon path={mdiTimerOutline} size={0.6} className="text-amber-600" />
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200">
+                <Icon path={mdiTimerOutline} size={0.6} className="text-amber-700" />
                 <span>Tiempo de reserva: {formatCountdown(timeRemainingSeconds)}</span>
               </div>
             )}
@@ -191,12 +184,12 @@ function PurchaseContent() {
                   Selección de Asientos
                 </h2>
                 <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                  Los asientos seleccionados quedan bloqueados para ti durante 10 minutos.
+                  Los asientos seleccionados quedan reservados durante 10 minutos para completar el pago.
                 </p>
               </div>
 
               {isLoading && (
-                <span className="text-xs font-semibold text-gray-400 animate-pulse">
+                <span className="text-xs font-medium text-gray-400">
                   Cargando disponibilidad...
                 </span>
               )}
@@ -224,14 +217,14 @@ function PurchaseContent() {
                         let title = `Asiento #${seat.numero} Disponible`;
 
                         if (isSelectedByMe) {
-                          style = "bg-primary border-primary text-white scale-105 shadow-md shadow-primary/20";
+                          style = "bg-primary border-primary text-white scale-105 shadow-sm shadow-primary/20";
                           title = `Asiento #${seat.numero} Seleccionado por ti`;
                         } else if (isLockedByOther) {
-                          style = "bg-amber-100 border-amber-300 text-amber-800 cursor-not-allowed opacity-90 animate-pulse";
-                          title = `Asiento #${seat.numero} en proceso de compra por otro pasajero`;
+                          style = "bg-amber-50 border-amber-300 text-amber-900 cursor-not-allowed";
+                          title = `Asiento #${seat.numero} en proceso de compra`;
                         } else if (isOccupied) {
-                          style = "bg-gray-200 border-gray-200 text-gray-400 cursor-not-allowed opacity-60";
-                          title = `Asiento #${seat.numero} Vendido`;
+                          style = "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed";
+                          title = `Asiento #${seat.numero} Ocupado`;
                         }
 
                         return (
@@ -265,14 +258,14 @@ function PurchaseContent() {
                         let title = `Asiento #${seat.numero} Disponible`;
 
                         if (isSelectedByMe) {
-                          style = "bg-primary border-primary text-white scale-105 shadow-md shadow-primary/20";
+                          style = "bg-primary border-primary text-white scale-105 shadow-sm shadow-primary/20";
                           title = `Asiento #${seat.numero} Seleccionado por ti`;
                         } else if (isLockedByOther) {
-                          style = "bg-amber-100 border-amber-300 text-amber-800 cursor-not-allowed opacity-90 animate-pulse";
-                          title = `Asiento #${seat.numero} en proceso de compra por otro pasajero`;
+                          style = "bg-amber-50 border-amber-300 text-amber-900 cursor-not-allowed";
+                          title = `Asiento #${seat.numero} en proceso de compra`;
                         } else if (isOccupied) {
-                          style = "bg-gray-200 border-gray-200 text-gray-400 cursor-not-allowed opacity-60";
-                          title = `Asiento #${seat.numero} Vendido`;
+                          style = "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed";
+                          title = `Asiento #${seat.numero} Ocupado`;
                         }
 
                         return (
