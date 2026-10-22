@@ -9,7 +9,7 @@ export function BrowserCard() {
   return (
     <div className="w-full max-w-[310px] sm:max-w-[330px] mx-auto relative select-none">
       {/* Resplandor suave y minimalista */}
-      <div className="absolute -inset-2 bg-gradient-to-b from-primary/12 via-transparent to-transparent rounded-2xl blur-lg -z-10 pointer-events-none" />
+      <div className="absolute -inset-2 bg-gradient-to-b from-primary/12 via-transparent to-transparent rounded-xl blur-lg -z-10 pointer-events-none" />
 
       {/* Tarjeta Boleto Minimalista & Sereno */}
       <motion.div
@@ -17,7 +17,7 @@ export function BrowserCard() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
         whileHover={{ y: -3, transition: { duration: 0.2 } }}
-        className="bg-white rounded-2xl border border-gray-200/80 shadow-lg shadow-gray-200/40 overflow-hidden"
+        className="bg-white rounded-xl border border-gray-200/80 shadow-lg shadow-gray-200/40 overflow-hidden"
       >
         {/* Cuerpo Principal del Boleto */}
         <div className="p-5 sm:p-6">
@@ -30,7 +30,7 @@ export function BrowserCard() {
               <span className="font-mono text-[11px] text-gray-400">#B-8942</span>
             </div>
 
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-md">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               Confirmado
             </span>

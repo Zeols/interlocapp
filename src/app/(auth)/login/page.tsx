@@ -127,7 +127,7 @@ function LoginFormContent() {
         return;
       }
 
-      setSuccessMessage(`¡Bienvenido de vuelta, ${response.data?.user.nombre || "usuario"}!`);
+      setSuccessMessage(`Sesión iniciada correctamente como ${response.data?.user.nombre || "usuario"}.`);
       const targetUrl = redirectParam || response.data?.redirectUrl || "/home";
       setTimeout(() => {
         router.push(targetUrl);
@@ -206,7 +206,7 @@ function LoginFormContent() {
                   <div className="flex items-start gap-2.5">
                     <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-emerald-600" />
                     <div>
-                      <p className="font-bold">¡Solicitud de Cooperativa Registrada!</p>
+                      <p className="font-bold">Solicitud de cooperativa registrada</p>
                       <p className="mt-0.5 text-emerald-700">Tu cooperativa y credenciales han sido recibidas y están en proceso de verificación por la administración central. Te notificaremos por correo en cuanto sea activada.</p>
                     </div>
                   </div>
@@ -382,28 +382,28 @@ function LoginFormContent() {
       {/* Modal Informativo de Huella Digital */}
       <AnimatePresence>
         {showBiometricInfoModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-gray-100"
+              className="bg-white rounded-xl max-w-sm w-full p-6 shadow-xl border border-slate-200"
             >
-              <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center mx-auto mb-4">
                 <FingerprintPattern className="w-6 h-6" />
               </div>
 
-              <h3 className="text-lg font-extrabold text-gray-900 text-center mb-2">
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 text-center mb-2">
                 Huella Digital
               </h3>
-              <p className="text-xs text-gray-600 text-center leading-relaxed mb-5">
+              <p className="text-xs text-slate-500 text-center leading-relaxed mb-5">
                 Para ingresar con huella digital en este dispositivo, primero inicia sesión con tu usuario y contraseña. Al entrar, la app te ofrecerá activarla con un solo toque.
               </p>
 
               <button
                 type="button"
                 onClick={() => setShowBiometricInfoModal(false)}
-                className="w-full bg-gray-900 hover:bg-black text-white font-bold text-xs py-2.5 rounded-xl transition-all cursor-pointer"
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs py-2.5 rounded-lg transition-colors cursor-pointer"
               >
                 Entendido
               </button>

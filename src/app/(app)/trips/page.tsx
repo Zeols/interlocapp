@@ -143,7 +143,7 @@ export default function TripsPage() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-6 flex flex-col lg:flex-row gap-6 items-start">
         {/* Sidebar de Filtros */}
-        <aside className="w-full lg:w-64 shrink-0 bg-white border border-gray-100 rounded-2xl p-5 shadow-2xs sticky top-[76px]">
+        <aside className="w-full lg:w-64 shrink-0 bg-white border border-gray-100 rounded-xl p-5 shadow-2xs sticky top-[76px]">
           <div
             className={`flex items-center justify-between ${
               showMobileFilters
@@ -259,7 +259,7 @@ export default function TripsPage() {
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="bg-white border border-gray-100 rounded-2xl p-5 shadow-2xs"
+                  className="bg-white border border-gray-100 rounded-xl p-5 shadow-2xs"
                 >
                   <div className="flex flex-col md:flex-row items-center gap-3.5 md:gap-0">
                     <div className="flex-1 flex flex-row items-center w-full justify-between">
@@ -306,7 +306,7 @@ export default function TripsPage() {
               ))}
             </div>
           ) : filtered.length === 0 ? (
-            <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center shadow-xs">
+            <div className="bg-white border border-gray-100 rounded-xl p-8 text-center shadow-xs">
               <div className="w-10 h-10 bg-gray-50 rounded-xl mx-auto mb-2.5 flex items-center justify-center text-gray-300">
                 <Icon path={mdiBus} size={1} />
               </div>
@@ -322,7 +322,7 @@ export default function TripsPage() {
               {filtered.map((trip) => (
                 <div
                   key={trip.id}
-                  className="bg-white border border-gray-100 rounded-2xl p-5 shadow-2xs hover:shadow-sm hover:border-gray-200 transition-all"
+                  className="bg-white border border-gray-100 rounded-xl p-5 shadow-2xs hover:shadow-sm hover:border-gray-200 transition-all"
                 >
                   <div className="flex flex-col md:flex-row items-center gap-3.5 md:gap-0">
                     <div className="flex-1 flex flex-row items-center w-full justify-between">
@@ -399,7 +399,7 @@ export default function TripsPage() {
                       </div>
                       <button
                         onClick={() => goPurchase(trip)}
-                        className="bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs sm:text-sm px-5 py-2.5 rounded-xl transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-98"
+                        className="bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs sm:text-sm px-5 py-2.5 rounded-lg transition-all cursor-pointer shadow-xs active:scale-98"
                       >
                         Seleccionar
                       </button>

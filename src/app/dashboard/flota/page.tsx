@@ -375,7 +375,7 @@ export default function FlotaDashboardPage() {
             className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-medium text-xs sm:text-sm shadow-2xs transition-colors cursor-pointer"
           >
             <Icon path={mdiTagOutline} size={0.7} className="text-slate-500" />
-            + Tipo de Unidad
+            <span>Tipo de Unidad</span>
           </button>
 
           {/* Botón para registrar nueva unidad */}

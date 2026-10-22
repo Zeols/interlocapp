@@ -90,34 +90,45 @@ export async function validarBoletoAction(
     }
 
     // Consultar boleto con información completa de viaje, unidad y ruta
-    const boleto = await prisma.boleto.findUnique({
-      where: { idBoleto },
-      include: {
-        asiento: true,
-        viaje: {
-          include: {
-            ruta: {
-              include: {
-                cooperativa: true,
-                puntosRuta: {
-                  include: { punto: true },
-                },
+    const boletoInclude = {
+      asiento: true,
+      viaje: {
+        include: {
+          ruta: {
+            include: {
+              cooperativa: true,
+              puntosRuta: {
+                include: { punto: true },
               },
             },
-            despacho: {
-              include: {
-                asignacionUnidad: {
-                  include: {
-                    unidad: true,
-                  },
+          },
+          despacho: {
+            include: {
+              asignacionUnidad: {
+                include: {
+                  unidad: true,
                 },
               },
             },
           },
         },
-        venta: true,
       },
+      venta: true,
+    };
+
+    let boleto = await prisma.boleto.findUnique({
+      where: { idBoleto },
+      include: boletoInclude,
     });
+
+    if (!boleto) {
+      // Fallback: Si el código escaneado corresponde al ID de la transacción de venta (TK-#)
+      boleto = await prisma.boleto.findFirst({
+        where: { idVenta: idBoleto },
+        include: boletoInclude,
+        orderBy: { idBoleto: 'asc' },
+      });
+    }
 
     if (!boleto) {
       return { success: false, error: `No se encontró ningún boleto registrado con el código #${idBoleto}.` };

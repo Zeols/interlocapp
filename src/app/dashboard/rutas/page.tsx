@@ -88,7 +88,9 @@ export default function RutasDashboardPage() {
   const [rutas, setRutas] = useState<RutaItem[]>([]);
   const [catalogoPuntos, setCatalogoPuntos] = useState<PuntoItem[]>([]);
   const [tiposRuta, setTiposRuta] = useState<TipoRutaItem[]>([]);
-  const [cooperativas, setCooperativas] = useState<{ idCooperativa: number; nombre: string }[]>([]);
+  const [cooperativas, setCooperativas] = useState<
+    { idCooperativa: number; nombre: string; _count?: { unidades: number; usuarios: number; rutas: number } }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("TODOS");
@@ -393,6 +395,11 @@ export default function RutasDashboardPage() {
         setFeedbackMsg({
           type: "success",
           text: `Ruta ${nuevoEstado === "ACTIVO" ? "activada" : "desactivada"} exitosamente.`,
+        });
+      } else {
+        setFeedbackMsg({
+          type: "error",
+          text: res.error || "No se pudo actualizar el estado de la ruta.",
         });
       }
     } catch {

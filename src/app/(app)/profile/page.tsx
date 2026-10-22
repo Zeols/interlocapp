@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import Icon from "@mdi/react";
 import {
   mdiAccountOutline,
@@ -19,6 +20,7 @@ import {
   mdiEyeOffOutline,
   mdiCheck,
   mdiClose,
+  mdiTicketConfirmationOutline,
 } from "@mdi/js";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -254,7 +256,7 @@ export default function ProfilePage() {
       if (res.success) {
         setBiometricFeedback({
           type: "success",
-          message: "¡Huella verificada correctamente! Tu sensor biométrico está funcionando al 100%.",
+          message: "Huella verificada correctamente. El sensor biométrico se encuentra operativo.",
         });
       } else {
         setBiometricFeedback({
@@ -640,7 +642,14 @@ export default function ProfilePage() {
 
               {/* Botón de acceso rápido a boletos */}
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                <Link
+                  href="/tickets"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                >
+                  <Icon path={mdiTicketConfirmationOutline} size={0.65} />
+                  <span>Mis Boletos QR</span>
+                </Link>
+                <span className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
                   {rolNombre || "PASAJERO"}
                 </span>
               </div>

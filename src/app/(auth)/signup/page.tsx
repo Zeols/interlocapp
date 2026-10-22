@@ -551,7 +551,7 @@ export default function SignUpPage() {
                 transition={{ duration: 0.25 }}
               >
                 <div className="mb-6">
-                  <div className="w-12 h-12 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center mb-4 border border-sky-100">
+                  <div className="w-12 h-12 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center mb-4 border border-sky-100">
                     <Icon path={mdiShieldCheckOutline} size={1.2} />
                   </div>
                   <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight mb-2">
@@ -562,7 +562,7 @@ export default function SignUpPage() {
                     <strong className="text-gray-900 font-bold">{email}</strong>. Ingresa el código para activar tu cuenta.
                   </p>
 
-                  <div className="mt-3.5 p-3 rounded-xl bg-amber-50 border border-amber-200/90 text-amber-900 text-xs flex items-start gap-2.5">
+                  <div className="mt-3.5 p-3 rounded-lg bg-amber-50 border border-amber-200/90 text-amber-900 text-xs flex items-start gap-2.5">
                     <Icon path={mdiAlertCircleOutline} size={0.75} className="text-amber-600 shrink-0 mt-0.5" />
                     <span className="leading-snug">
                       ¿No lo ves en tu bandeja de entrada? <strong>Revisa tu carpeta de Spam o Correo no deseado</strong>. A veces los correos con códigos de verificación pueden filtrarse allí.
@@ -580,7 +580,7 @@ export default function SignUpPage() {
                       transition={{ duration: 0.2 }}
                       className="overflow-hidden mb-5"
                     >
-                      <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start justify-between gap-2.5">
+                      <div className="p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start justify-between gap-2.5">
                         <div className="flex items-start gap-2.5">
                           <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-red-500" />
                           <span>{errorMessage}</span>
@@ -606,7 +606,7 @@ export default function SignUpPage() {
                       transition={{ duration: 0.2 }}
                       className="overflow-hidden mb-5"
                     >
-                      <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs sm:text-sm flex items-center justify-between gap-2.5">
+                      <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs sm:text-sm flex items-center justify-between gap-2.5">
                         <div className="flex items-center gap-2.5">
                           <Icon path={mdiCheckCircleOutline} size={0.8} className="shrink-0 text-emerald-500" />
                           <span>¡Nuevo código de verificación enviado a tu correo!</span>
@@ -637,7 +637,7 @@ export default function SignUpPage() {
                       value={code}
                       onChange={(e) => setCode(e.target.value.replace(/[^0-9a-zA-Z]/g, "").slice(0, 6))}
                       placeholder="••••••"
-                      className="w-full text-center tracking-[0.45em] font-mono font-black text-2xl sm:text-3xl py-3.5 bg-gray-50/90 border border-gray-200 text-gray-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white transition-all uppercase placeholder:tracking-normal placeholder:font-sans placeholder:text-gray-300"
+                      className="w-full text-center tracking-[0.45em] font-mono font-black text-2xl sm:text-3xl py-3 bg-gray-50 border border-gray-200 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white transition-all uppercase placeholder:tracking-normal placeholder:font-sans placeholder:text-gray-300"
                       autoFocus
                       required
                       disabled={isPending}
@@ -650,7 +650,7 @@ export default function SignUpPage() {
                   <button
                     type="submit"
                     disabled={isPending || code.length !== 6}
-                    className="w-full bg-primary hover:bg-primary-dark text-white font-bold text-sm sm:text-base py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all mt-4 cursor-pointer shadow-md shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full bg-primary hover:bg-primary-dark text-white font-bold text-sm sm:text-base py-3 rounded-lg flex items-center justify-center gap-2 transition-all mt-4 cursor-pointer shadow-xs hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isPending ? (
                       <>

@@ -48,7 +48,7 @@ const BentoCard = ({
   <div
     key={name}
     className={cn(
-      "group relative col-span-3 flex flex-col justify-between overflow-hidden rounded-3xl",
+      "group relative col-span-3 flex flex-col justify-between overflow-hidden rounded-xl",
       "[box-shadow:0_0_0_1px_rgba(0,0,0,.03),0_2px_4px_rgba(0,0,0,.05),0_12px_24px_rgba(0,0,0,.05)]",
       "transform-gpu",
       className || "bg-white",
@@ -56,7 +56,7 @@ const BentoCard = ({
   >
     <div className="absolute inset-0">{background}</div>
     <div className="pointer-events-none z-10 flex transform-gpu flex-col gap-1 p-8 transition-all duration-300 group-hover:-translate-y-10">
-      <div className={cn("h-14 w-14 origin-left transform-gpu transition-all duration-300 ease-in-out group-hover:scale-75 flex items-center justify-center rounded-2xl mb-4", iconClassName || "bg-gray-100 text-neutral-700")}>
+      <div className={cn("h-12 w-12 origin-left transform-gpu transition-all duration-300 ease-in-out group-hover:scale-75 flex items-center justify-center rounded-lg mb-4", iconClassName || "bg-gray-100 text-neutral-700")}>
         <Icon path={IconPath} size={1.2} />
       </div>
       <h3 className={cn("text-xl font-bold", textClassName)}>

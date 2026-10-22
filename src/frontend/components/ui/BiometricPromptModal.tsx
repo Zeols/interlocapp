@@ -169,14 +169,14 @@ export function BiometricPromptModal() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 15 }}
             transition={{ type: "spring", stiffness: 400, damping: 28 }}
-            className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-gray-100 relative overflow-hidden"
+            className="bg-white rounded-xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200 relative overflow-hidden"
           >
             {/* Botón de cerrar */}
             {!isLoading && !isSuccess && (
               <button
                 type="button"
                 onClick={handleDismiss}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 p-1.5 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                 title="Cerrar"
                 aria-label="Cerrar sugerencia"
               >
@@ -186,13 +186,13 @@ export function BiometricPromptModal() {
 
             {isSuccess ? (
               <div className="py-6 text-center">
-                <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4 animate-in zoom-in-75 duration-200">
-                  <Icon path={mdiCheckCircleOutline} size={1.4} />
+                <div className="w-14 h-14 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4 animate-in zoom-in-75 duration-200">
+                  <Icon path={mdiCheckCircleOutline} size={1.2} />
                 </div>
-                <h3 className="text-lg font-black text-gray-900 tracking-tight mb-1.5">
-                  ¡{bioInfo.isFaceId ? "Face ID activado" : "Biometría activada"}!
+                <h3 className="text-lg font-bold text-slate-900 tracking-tight mb-1.5">
+                  {bioInfo.isFaceId ? "Face ID activado" : "Biometría activada"}
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-500 max-w-xs mx-auto">
+                <p className="text-xs sm:text-sm text-slate-500 max-w-xs mx-auto">
                   {bioInfo.isFaceId
                     ? "La próxima vez podrás acceder instantáneamente utilizando Face ID."
                     : "La próxima vez podrás acceder con un solo toque utilizando el sensor de este dispositivo."}
@@ -202,27 +202,27 @@ export function BiometricPromptModal() {
               <div>
                 {/* Cabecera con icono */}
                 <div className="flex items-center gap-3.5 mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-emerald-700 flex items-center justify-center shrink-0 shadow-2xs">
-                    <FingerprintPattern className="w-6 h-6" />
+                  <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
+                    <FingerprintPattern className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md">
                       Acceso rápido
                     </span>
-                    <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight mt-0.5 leading-snug">
+                    <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight mt-0.5 leading-snug">
                       ¿Deseas activar {bioInfo.isFaceId ? "Face ID" : "acceso biométrico"}?
                     </h3>
                   </div>
                 </div>
 
-                <p className="text-xs sm:text-sm text-gray-600 leading-relaxed mb-4">
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4">
                   {bioInfo.isFaceId
                     ? "Detectamos que tu iPhone cuenta con Face ID. Actívalo para ingresar de forma instantánea a tu cuenta con un solo vistazo."
                     : "Detectamos que este dispositivo cuenta con sensor biométrico. Actívalo para ingresar de forma instantánea a tu cuenta sin tener que escribir tu contraseña cada vez."}
                 </p>
 
                 {/* Beneficios directos */}
-                <div className="space-y-2 mb-4 p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100 text-xs text-gray-700 font-medium">
+                <div className="space-y-2 mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-700 font-medium">
                   <div className="flex items-center gap-2">
                     <Icon path={mdiFlashOutline} size={0.65} className="text-amber-500 shrink-0" />
                     <span>
@@ -238,20 +238,20 @@ export function BiometricPromptModal() {
                 </div>
 
                 {errorMessage && (
-                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2 mb-4">
+                  <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2 mb-4">
                     <Icon path={mdiAlertCircleOutline} size={0.7} className="shrink-0 text-red-500" />
                     <span>{errorMessage}</span>
                   </div>
                 )}
 
                 {/* Checkbox: No volver a mostrar */}
-                <label className="flex items-center gap-2.5 text-xs text-gray-500 hover:text-gray-700 select-none cursor-pointer mt-1 mb-5">
+                <label className="flex items-center gap-2.5 text-xs text-slate-500 hover:text-slate-700 select-none cursor-pointer mt-1 mb-5">
                   <input
                     type="checkbox"
                     checked={dontShowAgain}
                     onChange={(e) => setDontShowAgain(e.target.checked)}
                     disabled={isLoading}
-                    className="w-4 h-4 rounded border-gray-300 text-slate-900 focus:ring-slate-900/20 cursor-pointer"
+                    className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900/20 cursor-pointer"
                   />
                   <span>No volver a mostrar en este dispositivo</span>
                 </label>
@@ -262,7 +262,7 @@ export function BiometricPromptModal() {
                     type="button"
                     onClick={handleDismiss}
                     disabled={isLoading}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer disabled:opacity-50"
+                    className="px-4 py-2.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-50"
                   >
                     Quizá más tarde
                   </button>
@@ -271,7 +271,7 @@ export function BiometricPromptModal() {
                     type="button"
                     onClick={handleActivate}
                     disabled={isLoading}
-                    className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm px-5 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-60 flex items-center gap-2"
+                    className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm px-5 py-2.5 rounded-lg transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-60 flex items-center gap-2"
                   >
                     {isLoading ? (
                       <>

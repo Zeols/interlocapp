@@ -769,13 +769,13 @@ export default function AdminProfilePage() {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 text-center z-10"
+              className="relative w-full max-w-sm bg-white rounded-xl p-6 shadow-2xl border border-slate-200 text-center z-10"
             >
-              <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 border border-red-100 flex items-center justify-center mx-auto mb-4">
-                <Icon path={mdiDeleteOutline} size={1.1} />
+              <div className="w-12 h-12 rounded-xl bg-red-50 text-red-600 border border-red-100 flex items-center justify-center mx-auto mb-4">
+                <Icon path={mdiDeleteOutline} size={1} />
               </div>
 
-              <h3 className="text-lg font-black text-slate-900 tracking-tight mb-2">
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight mb-2">
                 ¿Quitar foto de perfil?
               </h3>
               
@@ -788,7 +788,7 @@ export default function AdminProfilePage() {
                   type="button"
                   onClick={() => setShowDeletePhotoModal(false)}
                   disabled={processingImage}
-                  className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+                  className="w-full py-2.5 px-4 rounded-lg text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -796,7 +796,7 @@ export default function AdminProfilePage() {
                   type="button"
                   onClick={confirmDeletePhoto}
                   disabled={processingImage}
-                  className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+                  className="w-full py-2.5 px-4 rounded-lg text-xs sm:text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-xs"
                 >
                   {processingImage ? "Quitando..." : "Sí, quitar"}
                 </button>

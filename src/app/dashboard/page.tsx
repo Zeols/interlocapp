@@ -253,9 +253,9 @@ export default function DashboardHome() {
                           #{index + 1}
                         </span>
                         {isCurrent && !esFinalizado ? (
-                          <span className="flex items-center gap-1 text-[10px] font-bold bg-white text-primary px-1.5 py-0.5 rounded">
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
-                            {actualizando ? "Guardando..." : "Aquí"}
+                          <span className="flex items-center gap-1.5 text-[10px] font-bold bg-white text-primary px-2 py-0.5 rounded">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                            {actualizando ? "Guardando..." : "Actual"}
                           </span>
                         ) : isPassedOrCurrent || esFinalizado ? (
                           <Icon path={mdiCheckCircle} size={0.6} className={esFinalizado ? "text-emerald-600" : "text-emerald-400"} />
@@ -272,12 +272,12 @@ export default function DashboardHome() {
               <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
                 <span className="text-slate-600 font-medium">
                   {esFinalizado ? (
-                    <strong className="text-amber-800">🏁 Viaje finalizado con éxito. Esperando nueva asignación de ruta.</strong>
+                    <strong className="text-amber-800">Viaje concluido. En espera de una nueva asignación de ruta.</strong>
                   ) : (
-                    <span>📍 Posición actual en ruta: <strong className="text-slate-900">{viajeActivo.paradas[paradaActualIndex]?.nombre}</strong></span>
+                    <span>Posición actual en ruta: <strong className="text-slate-900">{viajeActivo.paradas[paradaActualIndex]?.nombre}</strong></span>
                   )}
                 </span>
-                <span className="text-emerald-600 font-bold">
+                <span className="text-emerald-700 font-bold">
                   Sincronizado con base de datos
                 </span>
               </div>

@@ -81,21 +81,21 @@ export function LogoutModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 12 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="relative w-full max-w-sm bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 text-center overflow-hidden z-10 mx-auto"
+            className="relative w-full max-w-sm bg-white rounded-xl p-6 sm:p-7 shadow-2xl border border-slate-200 text-center overflow-hidden z-10 mx-auto"
           >
             {/* Ícono de Alerta / Cerrar Sesión */}
-            <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-500 border border-red-100/80 flex items-center justify-center mx-auto mb-4 shadow-xs">
-              <Icon path={mdiLogout} size={1.2} />
+            <div className="w-12 h-12 rounded-xl bg-red-50 text-red-500 border border-red-100 flex items-center justify-center mx-auto mb-4">
+              <Icon path={mdiLogout} size={1} />
             </div>
 
             {/* Título y Mensaje */}
-            <h3 className="text-xl font-extrabold text-gray-900 tracking-tight mb-2">
+            <h3 className="text-lg font-bold text-slate-900 tracking-tight mb-2">
               ¿Cerrar sesión?
             </h3>
-            <p className="text-sm text-gray-500 leading-relaxed mb-6">
+            <p className="text-xs sm:text-sm text-slate-500 leading-relaxed mb-6">
               {userName ? (
                 <>
-                  Hola <strong className="text-gray-700">{userName}</strong>, tu sesión actual se cerrará y necesitarás ingresar tus credenciales para volver a acceder.
+                  Hola <strong className="text-slate-700">{userName}</strong>, tu sesión actual se cerrará y necesitarás ingresar tus credenciales para volver a acceder.
                 </>
               ) : (
                 "Tu sesión actual se cerrará y necesitarás ingresar tus credenciales para volver a acceder."
@@ -108,7 +108,7 @@ export function LogoutModal({
                 type="button"
                 disabled={isLoading}
                 onClick={onClose}
-                className="flex-1 py-3 px-4 rounded-2xl text-sm font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 px-4 rounded-lg text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancelar
               </button>
@@ -116,7 +116,7 @@ export function LogoutModal({
                 type="button"
                 disabled={isLoading}
                 onClick={handleConfirm}
-                className="flex-1 py-3 px-4 rounded-2xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 active:scale-[0.98] transition-all cursor-pointer shadow-md shadow-red-600/20 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 px-4 rounded-lg text-xs sm:text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-colors cursor-pointer shadow-xs flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <>
