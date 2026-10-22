@@ -241,7 +241,7 @@ export default function ForgotPage() {
                 </div>
 
                 {errorMessage && (
-                  <div className="mb-5 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5">
+                  <div className="mb-5 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5">
                     <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-red-500" />
                     <span>{errorMessage}</span>
                   </div>
@@ -261,7 +261,7 @@ export default function ForgotPage() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="ejemplo@correo.com"
-                        className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
+                        className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm sm:text-base rounded-lg py-2.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
                         required
                         disabled={isPending}
                         autoFocus
@@ -272,7 +272,7 @@ export default function ForgotPage() {
                   <button
                     type="submit"
                     disabled={isPending}
-                    className="w-full bg-primary hover:bg-primary-dark text-white font-bold text-sm sm:text-base py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all mt-4 cursor-pointer shadow-md shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="w-full bg-primary hover:bg-primary-dark text-white font-bold text-sm sm:text-base py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all mt-4 cursor-pointer shadow-xs hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     {isPending ? (
                       <>
@@ -307,7 +307,7 @@ export default function ForgotPage() {
                 transition={{ duration: 0.25 }}
               >
                 <div className="mb-6">
-                  <div className="w-12 h-12 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center mb-4 border border-sky-100">
+                  <div className="w-12 h-12 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center mb-4 border border-sky-100">
                     <Icon path={mdiShieldKeyOutline} size={1.2} />
                   </div>
                   <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight mb-2">
@@ -320,14 +320,14 @@ export default function ForgotPage() {
                 </div>
 
                 {errorMessage && (
-                  <div className="mb-5 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5">
+                  <div className="mb-5 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5">
                     <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-red-500" />
                     <span>{errorMessage}</span>
                   </div>
                 )}
 
                 {resendSuccess && (
-                  <div className="mb-5 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs sm:text-sm flex items-center gap-2.5">
+                  <div className="mb-5 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs sm:text-sm flex items-center gap-2.5">
                     <Icon path={mdiCheckCircleOutline} size={0.8} className="shrink-0 text-emerald-500" />
                     <span>¡Código reenviado con éxito! Revisa tu bandeja.</span>
                   </div>
@@ -346,7 +346,7 @@ export default function ForgotPage() {
                       value={code}
                       onChange={(e) => setCode(e.target.value.replace(/[^0-9a-zA-Z]/g, "").slice(0, 6))}
                       placeholder="••••••"
-                      className="w-full text-center tracking-[0.45em] font-mono font-black text-2xl sm:text-3xl py-3.5 bg-gray-50/90 border border-gray-200 text-gray-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white transition-all uppercase placeholder:tracking-normal placeholder:font-sans placeholder:text-gray-300"
+                      className="w-full text-center tracking-[0.45em] font-mono font-black text-2xl sm:text-3xl py-3 bg-gray-50 border border-gray-200 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white transition-all uppercase placeholder:tracking-normal placeholder:font-sans placeholder:text-gray-300"
                       autoFocus
                       required
                       disabled={isPending}
@@ -359,7 +359,7 @@ export default function ForgotPage() {
                   <button
                     type="submit"
                     disabled={isPending || code.length !== 6}
-                    className="w-full bg-primary hover:bg-primary-dark text-white font-bold text-sm sm:text-base py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all mt-4 cursor-pointer shadow-md shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full bg-primary hover:bg-primary-dark text-white font-bold text-sm sm:text-base py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all mt-4 cursor-pointer shadow-xs hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isPending ? (
                       <>
@@ -425,7 +425,7 @@ export default function ForgotPage() {
                 </div>
 
                 {errorMessage && (
-                  <div className="mb-5 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5">
+                  <div className="mb-5 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5">
                     <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-red-500" />
                     <span>{errorMessage}</span>
                   </div>
@@ -445,7 +445,7 @@ export default function ForgotPage() {
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm rounded-2xl py-3 pl-11 pr-11 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
+                        className="w-full bg-gray-50/80 border border-gray-200/80 text-gray-900 text-sm rounded-lg py-2.5 pl-11 pr-11 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary focus:bg-white transition-all disabled:opacity-60"
                         required
                         disabled={isPending}
                         autoFocus
@@ -473,7 +473,7 @@ export default function ForgotPage() {
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="••••••••"
-                        className={`w-full bg-gray-50/80 border text-gray-900 text-sm rounded-2xl py-3 pl-11 pr-11 focus:outline-none focus:ring-2 transition-all disabled:opacity-60 ${
+                        className={`w-full bg-gray-50/80 border text-gray-900 text-sm rounded-lg py-2.5 pl-11 pr-11 focus:outline-none focus:ring-2 transition-all disabled:opacity-60 ${
                           passwordsMismatch
                             ? "border-red-300 focus:ring-red-500/20 focus:border-red-500"
                             : passwordsMatch
@@ -496,7 +496,7 @@ export default function ForgotPage() {
                   <button
                     type="submit"
                     disabled={isPending || !passwordsMatch || newPassword.length < 6}
-                    className="w-full bg-primary hover:bg-primary-dark text-white font-bold text-sm sm:text-base py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all mt-6 cursor-pointer shadow-md shadow-primary/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full bg-primary hover:bg-primary-dark text-white font-bold text-sm sm:text-base py-2.5 rounded-lg flex items-center justify-center gap-2 transition-all mt-6 cursor-pointer shadow-xs hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isPending ? (
                       <>
@@ -518,10 +518,10 @@ export default function ForgotPage() {
                 initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.3 }}
-                className="text-center py-6 bg-gray-50/80 rounded-3xl border border-gray-100 p-8"
+                className="text-center py-6 bg-gray-50/80 rounded-xl border border-gray-100 p-8"
               >
-                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-5 border border-emerald-100 shadow-xs">
-                  <Icon path={mdiCheckCircleOutline} size={1.6} />
+                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-5 border border-emerald-100 shadow-xs">
+                  <Icon path={mdiCheckCircleOutline} size={1.4} />
                 </div>
                 <h3 className="font-extrabold text-gray-900 text-xl mb-2">¡Contraseña actualizada!</h3>
                 <p className="text-sm text-gray-500 mb-6 leading-relaxed max-w-sm mx-auto">
@@ -529,7 +529,7 @@ export default function ForgotPage() {
                 </p>
                 <button
                   onClick={goBackToLogin}
-                  className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold text-sm py-3.5 rounded-2xl transition-all shadow-md cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
+                  className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold text-sm py-2.5 rounded-lg transition-all shadow-xs cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
                 >
                   Ir a Iniciar Sesión
                 </button>

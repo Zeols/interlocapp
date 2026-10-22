@@ -298,7 +298,7 @@ export default function CooperativasDashboardPage() {
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
               Cooperativas y Empresas
             </h1>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
               Super Admin
             </span>
           </div>
@@ -322,7 +322,7 @@ export default function CooperativasDashboardPage() {
             className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <Icon path={mdiPlus} size={0.7} />
-            <span>+ Nueva Cooperativa</span>
+            <span>Nueva Cooperativa</span>
           </button>
         </div>
       </div>
@@ -371,7 +371,7 @@ export default function CooperativasDashboardPage() {
         <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500">Rutas en Red</span>
-            <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
               <Icon path={mdiMapMarkerPath} size={0.75} />
             </div>
           </div>
@@ -733,7 +733,7 @@ export default function CooperativasDashboardPage() {
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                   modalAction.type === "aprobar"
                     ? "bg-emerald-50 text-emerald-600"
                     : "bg-red-50 text-red-600"
@@ -880,9 +880,9 @@ export default function CooperativasDashboardPage() {
       {/* MODAL PARA ELIMINAR COOPERATIVA */}
       {deleteModalCoop && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-2xs p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
+          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0 border border-red-100">
+              <div className="w-11 h-11 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0 border border-red-100">
                 <Icon path={mdiDeleteOutline} size={1} />
               </div>
               <div>
@@ -893,7 +893,7 @@ export default function CooperativasDashboardPage() {
               </div>
             </div>
 
-            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-xs space-y-1.5">
+            <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-100 text-xs space-y-1.5">
               <p className="font-bold text-slate-900 text-sm">{deleteModalCoop.nombre}</p>
               <div className="flex items-center gap-3 text-slate-500 text-[11px] pt-1">
                 <span>{deleteModalCoop.usuariosCount} usuarios</span>
@@ -907,7 +907,7 @@ export default function CooperativasDashboardPage() {
                 type="button"
                 onClick={() => setDeleteModalCoop(null)}
                 disabled={deleting}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
               >
                 Cancelar
               </button>
@@ -915,7 +915,7 @@ export default function CooperativasDashboardPage() {
                 type="button"
                 disabled={deleting}
                 onClick={handleDeleteCooperativa}
-                className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+                className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
               >
                 {deleting && <Icon path={mdiLoading} size={0.65} className="animate-spin" />}
                 <span>{deleting ? "Eliminando..." : "Eliminar Definitivamente"}</span>

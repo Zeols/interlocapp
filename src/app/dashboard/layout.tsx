@@ -280,15 +280,15 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                   {isAyudante ? "Panel de Ayudante" : selectedCoop ? selectedCoop.nombre : "Panel Administrativo"}
                 </h2>
 
-                {/* 🟢 CAMBIO 3: Etiqueta de Cooperativa solo visible si NO es Ayudante */}
+                {/* Etiqueta de Cooperativa o Super Admin */}
                 {!isAyudante && (
                   selectedCoop ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/90 shrink-0 self-start sm:self-auto">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0 self-start sm:self-auto">
                       <Icon path={mdiDomain} size={0.45} className="text-emerald-600" />
                       <span>Cooperativa</span>
                     </span>
                   ) : isSuperAdmin ? (
-                    <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
+                    <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
                       <span>Super Admin</span>
                     </span>
                   ) : null

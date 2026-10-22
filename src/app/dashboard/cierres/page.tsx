@@ -106,21 +106,17 @@ export default function CierresPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <div className="inline-flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider mb-1">
-            <Icon path={mdiFinance} size={0.7} />
-            Tesorería y Liquidación
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
             Arqueo Diario y Cierres de Turno
           </h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Conciliación de recaudación por ventas frente a gastos y efectivo físico.
           </p>
         </div>
 
         <button
           onClick={cargarDatos}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-xs transition-colors cursor-pointer self-start sm:self-auto"
+          className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer self-start sm:self-auto"
         >
           <Icon path={mdiRefresh} size={0.65} />
           Actualizar arqueo en vivo
@@ -129,10 +125,10 @@ export default function CierresPage() {
 
       {/* Alerta de Cierre Exitoso */}
       {cierreExitoso && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start justify-between gap-3 shadow-xs">
+        <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start justify-between gap-3 shadow-2xs">
           <div className="flex items-start gap-3">
             <div className="mt-0.5 text-emerald-600">
-              <Icon path={mdiCheckCircleOutline} size={0.9} />
+              <Icon path={mdiCheckCircleOutline} size={0.8} />
             </div>
             <div className="text-xs">
               <p className="font-bold text-sm">Jornada Cerrada Exitosamente (#{cierreExitoso.idCierre})</p>
@@ -147,7 +143,7 @@ export default function CierresPage() {
           </div>
           <button
             onClick={() => setCierreExitoso(null)}
-            className="text-emerald-700 hover:text-emerald-900 font-bold text-xs cursor-pointer"
+            className="text-emerald-700 hover:text-emerald-900 font-semibold text-xs cursor-pointer"
           >
             Entendido
           </button>
@@ -155,17 +151,17 @@ export default function CierresPage() {
       )}
 
       {/* Tarjeta de Arqueo Activo en Vivo */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-4 border-b border-slate-100">
+      <div className="bg-white rounded-xl p-5 sm:p-6 border border-slate-200 shadow-2xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-100">
           <div>
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
               Jornada en Curso
             </span>
-            <h3 className="text-lg font-black text-slate-900">
+            <h3 className="text-base font-bold text-slate-900">
               Balance de Caja del Día ({arqueo?.fecha || "Hoy"})
             </h3>
           </div>
-          <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full self-start sm:self-auto">
+          <span className="text-[11px] font-semibold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-md self-start sm:self-auto">
             Responsable: {arqueo?.taquillero}
           </span>
         </div>
@@ -173,12 +169,12 @@ export default function CierresPage() {
         {/* 3 Bloques Matemáticos: Recaudación - Gastos = Esperado */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Ingresos */}
-          <div className="p-5 rounded-2xl bg-emerald-50/60 border border-emerald-200">
+          <div className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200">
             <div className="flex items-center justify-between text-emerald-800 text-xs font-bold mb-1">
               <span>(+) Total Ventas en Boletos</span>
               <Icon path={mdiCashMultiple} size={0.7} />
             </div>
-            <span className="text-2xl font-black text-emerald-700 block">
+            <span className="text-2xl font-bold text-emerald-700 block">
               {formatPrice(arqueo?.totalVentas || 0)}
             </span>
             <span className="text-[11px] text-emerald-800/80 block mt-1">
@@ -187,12 +183,12 @@ export default function CierresPage() {
           </div>
 
           {/* Egresos */}
-          <div className="p-5 rounded-2xl bg-rose-50/60 border border-rose-200">
+          <div className="p-4 rounded-xl bg-rose-50/60 border border-rose-200">
             <div className="flex items-center justify-between text-rose-800 text-xs font-bold mb-1">
               <span>(-) Gastos y Combustible</span>
               <Icon path={mdiReceiptTextOutline} size={0.7} />
             </div>
-            <span className="text-2xl font-black text-rose-700 block">
+            <span className="text-2xl font-bold text-rose-700 block">
               {formatPrice(arqueo?.totalGastos || 0)}
             </span>
             <span className="text-[11px] text-rose-800/80 block mt-1">
@@ -201,12 +197,12 @@ export default function CierresPage() {
           </div>
 
           {/* Monto Neto Esperado */}
-          <div className="p-5 rounded-2xl bg-slate-900 text-white">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-1">
+          <div className="p-4 rounded-xl bg-slate-900 text-white">
+            <div className="flex items-center justify-between text-slate-400 text-xs font-semibold mb-1">
               <span>(=) Efectivo Esperado en Caja</span>
               <Icon path={mdiCashCheck} size={0.7} />
             </div>
-            <span className="text-2xl font-black text-white block">
+            <span className="text-2xl font-bold text-white block">
               {formatPrice(esperado)}
             </span>
             <span className="text-[11px] text-slate-400 block mt-1">
@@ -216,14 +212,14 @@ export default function CierresPage() {
         </div>
 
         {/* Sección de Cuadre Físico */}
-        <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
-          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+        <div className="p-4.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3.5">
+          <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
             Recepción y Conteo de Efectivo Físico
           </h4>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
             <div className="md:col-span-5">
-              <label className="text-xs font-bold text-slate-600 block mb-1">
+              <label className="text-xs font-semibold text-slate-600 block mb-1">
                 Efectivo Físico Entregado (C$)
               </label>
               <input
@@ -232,14 +228,14 @@ export default function CierresPage() {
                 value={montoEntregado}
                 onChange={(e) => setMontoEntregado(e.target.value)}
                 placeholder="Ingresa el monto contado..."
-                className="w-full px-4 py-3 bg-white border-2 border-slate-300 focus:border-slate-900 rounded-xl text-lg font-black text-slate-900 outline-none transition-colors"
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 focus:border-slate-900 rounded-lg text-base font-bold text-slate-900 outline-none transition-colors"
               />
             </div>
 
             {/* Semáforo de Cuadre */}
             <div className="md:col-span-4">
               <div
-                className={`p-3 rounded-xl border text-center transition-all ${
+                className={`p-2.5 rounded-lg border text-center transition-all ${
                   !tieneInput
                     ? "bg-white text-slate-400 border-slate-200"
                     : esExacto
@@ -258,7 +254,7 @@ export default function CierresPage() {
                     ? "Faltante en Caja"
                     : "Sobrante en Caja"}
                 </span>
-                <span className="text-base font-black">
+                <span className="text-sm sm:text-base font-bold">
                   {!tieneInput ? "Esperando conteo" : formatPrice(diferencia)}
                 </span>
               </div>
@@ -270,16 +266,16 @@ export default function CierresPage() {
                 type="button"
                 disabled={!tieneInput || cerrando}
                 onClick={handleCerrarJornada}
-                className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all disabled:opacity-40 cursor-pointer shadow-xs flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold text-xs uppercase tracking-wider transition-all disabled:opacity-40 cursor-pointer shadow-2xs flex items-center justify-center gap-2"
               >
-                <Icon path={mdiLockCheckOutline} size={0.7} />
+                <Icon path={mdiLockCheckOutline} size={0.65} />
                 {cerrando ? "Cerrando..." : "Cerrar Jornada"}
               </button>
             </div>
           </div>
 
           {errorCierre && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-bold">
+            <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs font-semibold">
               {errorCierre}
             </div>
           )}
@@ -287,7 +283,7 @@ export default function CierresPage() {
       </div>
 
       {/* Historial de Cierres de Caja */}
-      <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
+      <div className="bg-white rounded-xl p-5 sm:p-6 border border-slate-200 shadow-2xs space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div>
             <h3 className="text-base font-extrabold text-slate-900">

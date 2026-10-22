@@ -101,7 +101,7 @@ export function UserChip({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.95 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute top-[calc(100%+0.5rem)] right-0 w-64 bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-2 z-[100] origin-top-right"
+            className="absolute top-[calc(100%+0.5rem)] right-0 w-64 bg-white rounded-xl shadow-lg border border-slate-200 p-1.5 z-[100] origin-top-right"
           >
             <div className="flex items-center gap-3 px-3 py-2.5">
               <div className="relative shrink-0">
@@ -128,28 +128,26 @@ export function UserChip({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <p className="font-extrabold text-gray-900 text-sm tracking-tight truncate">{name}</p>
+                  <p className="font-extrabold text-slate-900 text-sm tracking-tight truncate">{name}</p>
                   {isOperativeBusRole && (
-                    <span className="p-0.5 rounded bg-slate-100 text-slate-700 shrink-0" title={`Rol operativo: ${rolNombre}`}>
+                    <span className="p-0.5 rounded-md bg-slate-100 text-slate-700 shrink-0" title={`Rol operativo: ${rolNombre}`}>
                       <Icon path={mdiBus} size={0.55} />
                     </span>
                   )}
                 </div>
-                <p className="text-gray-500 text-xs truncate">{email}</p>
+                <p className="text-slate-500 text-xs truncate">{email}</p>
               </div>
             </div>
-            <div className="h-px bg-gray-100 my-1.5" />
+            <div className="h-px bg-slate-100 my-1.5" />
             {isCoopUser ? (
               <Link 
                 href="/dashboard"
                 onClick={() => setIsOpen(false)}
-                className="flex items-center gap-2.5 w-full px-3.5 py-2 bg-transparent border-none rounded-xl cursor-pointer text-xs sm:text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-100 hover:text-gray-900"
+                className="flex items-center gap-2.5 w-full px-3 py-2 bg-transparent border-none rounded-lg cursor-pointer text-xs sm:text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100 hover:text-slate-900"
               >
                 <Icon path={mdiBus} size={0.7} className="text-primary" />
                 {(() => {
-                  // Normalizamos el rol a mayúsculas y eliminamos espacios para evitar fallos
                   const rolLimpio = (rolNombre || "").trim().toUpperCase();
-                  
                   if (rolLimpio === "AYUDANTE") return "Panel de Ayudante";
                   if (rolLimpio === "CHOFER") return "Panel de Chofer";
                   if (rolLimpio === "TAQUILLERO") return "Panel de Taquillero";
@@ -160,7 +158,7 @@ export function UserChip({
               <Link 
                 href="/tickets"
                 onClick={() => setIsOpen(false)}
-                className="flex items-center gap-2.5 w-full px-3.5 py-2 bg-transparent border-none rounded-xl cursor-pointer text-xs sm:text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
+                className="flex items-center gap-2.5 w-full px-3 py-2 bg-transparent border-none rounded-lg cursor-pointer text-xs sm:text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900"
               >
                 <Icon path={mdiTicketConfirmationOutline} size={0.7} className="text-primary" />
                 Mis Boletos
@@ -169,23 +167,23 @@ export function UserChip({
             <Link 
               href="/profile"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2.5 w-full px-3.5 py-2 bg-transparent border-none rounded-xl cursor-pointer text-xs sm:text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
+              className="flex items-center gap-2.5 w-full px-3 py-2 bg-transparent border-none rounded-lg cursor-pointer text-xs sm:text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900"
             >
-              <Icon path={mdiAccountOutline} size={0.7} className="text-gray-400" />
+              <Icon path={mdiAccountOutline} size={0.7} className="text-slate-400" />
               Ver perfil
             </Link>
             <Link 
               href="/settings"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2.5 w-full px-3.5 py-2 bg-transparent border-none rounded-xl cursor-pointer text-xs sm:text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
+              className="flex items-center gap-2.5 w-full px-3 py-2 bg-transparent border-none rounded-lg cursor-pointer text-xs sm:text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900"
             >
-              <Icon path={mdiCogOutline} size={0.7} className="text-gray-400" />
+              <Icon path={mdiCogOutline} size={0.7} className="text-slate-400" />
               Ajustes
             </Link>
-            <div className="h-px bg-gray-100 my-1.5" />
+            <div className="h-px bg-slate-100 my-1.5" />
             <button 
               onClick={handleOpenLogout}
-              className="flex items-center gap-2.5 w-full px-3.5 py-2 bg-transparent border-none rounded-xl cursor-pointer text-xs sm:text-sm font-bold text-red-500 transition-colors hover:bg-red-50 hover:text-red-600"
+              className="flex items-center gap-2.5 w-full px-3 py-2 bg-transparent border-none rounded-lg cursor-pointer text-xs sm:text-sm font-bold text-red-500 transition-colors hover:bg-red-50 hover:text-red-600"
             >
               <Icon path={mdiLogout} size={0.7} className="text-red-400" />
               Cerrar sesión

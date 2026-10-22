@@ -398,7 +398,7 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-12 gap-5 md:gap-6">
             {/* Principal: Compra Anticipada */}
-            <div className="md:col-span-7 bg-gray-50 rounded-2xl p-6 md:p-8 flex flex-col justify-between items-start border border-gray-100 transition-colors hover:bg-gray-100/70">
+            <div className="md:col-span-7 bg-gray-50 rounded-xl p-6 md:p-8 flex flex-col justify-between items-start border border-gray-100 transition-colors hover:bg-gray-100/70">
               <div>
                 <h3 className="text-lg md:text-xl font-extrabold text-gray-900 mb-2.5 tracking-tight">Compra anticipada</h3>
                 <p className="text-gray-600 text-sm leading-relaxed max-w-md">
@@ -411,7 +411,7 @@ export default function LandingPage() {
             </div>
 
             {/* Secundario: Elige tu Asiento */}
-            <div className="md:col-span-5 bg-gray-900 text-white rounded-2xl p-6 md:p-8 flex flex-col justify-between items-start">
+            <div className="md:col-span-5 bg-gray-900 text-white rounded-xl p-6 md:p-8 flex flex-col justify-between items-start">
               <div>
                 <h3 className="text-lg md:text-xl font-extrabold mb-2.5 tracking-tight">Elige tu asiento</h3>
                 <p className="text-gray-400 text-sm leading-relaxed">
@@ -424,7 +424,7 @@ export default function LandingPage() {
             </div>
 
             {/* Puntualidad */}
-            <div className="md:col-span-12 bg-gray-50 rounded-2xl p-6 md:p-8 flex flex-col justify-between items-start border border-gray-100 transition-colors hover:bg-gray-100/70">
+            <div className="md:col-span-12 bg-gray-50 rounded-xl p-6 md:p-8 flex flex-col justify-between items-start border border-gray-100 transition-colors hover:bg-gray-100/70">
               <div>
                 <h3 className="text-lg md:text-xl font-extrabold text-gray-900 mb-2.5 tracking-tight">Puntualidad y confort</h3>
                 <p className="text-gray-600 text-sm leading-relaxed max-w-md">

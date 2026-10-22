@@ -17,6 +17,7 @@ import {
   mdiLockOutline,
   mdiTimerOutline,
   mdiAlertCircleOutline,
+  mdiBagSuitcase,
 } from "@mdi/js";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/frontend/context/CurrencyContext";
@@ -344,16 +345,16 @@ function PurchaseContent() {
           <div className="bg-white border border-gray-100 rounded-3xl p-6 sm:p-8 shadow-sm">
             <div className="mb-5">
               <h2 className="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight">Equipaje Extra</h2>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1">Agrega piezas adicionales de equipaje</p>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">Agrega equipaje extra para tu viaje</p>
             </div>
 
             <div className="flex items-center justify-between p-4 bg-gray-50/80 border border-gray-100 rounded-2xl">
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-primary shadow-xs">
-                  <Icon path={mdiBus} size={0.8} />
+                  <Icon path={mdiBagSuitcase} size={0.8} />
                 </div>
                 <div>
-                  <p className="font-bold text-sm text-gray-900">Pieza adicional</p>
+                  <p className="font-bold text-sm text-gray-900">Equipaje extra</p>
                   <p className="text-xs text-gray-500">+C$ 50.00 c/u</p>
                 </div>
               </div>

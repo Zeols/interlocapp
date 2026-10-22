@@ -404,9 +404,9 @@ export default function UsuariosPage() {
 
                       <td className="py-3 px-4">
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold ${
                             u.rolNombre === "SUPER_ADMIN"
-                              ? "bg-purple-50 text-purple-700 border border-purple-200"
+                              ? "bg-slate-900 text-white border border-slate-900"
                               : u.rolNombre === "ADMIN_COOP"
                               ? "bg-blue-50 text-blue-700 border border-blue-200"
                               : isBusRole
@@ -490,7 +490,7 @@ export default function UsuariosPage() {
       {/* MODAL PARA CREAR NUEVO USUARIO */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden animate-in zoom-in-95">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden animate-in zoom-in-95">
             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
@@ -637,7 +637,7 @@ export default function UsuariosPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-lg shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {saving && <Icon path={mdiLoading} size={0.65} className="animate-spin" />}
                   <span>{saving ? "Registrando..." : "Crear Usuario"}</span>
@@ -650,9 +650,9 @@ export default function UsuariosPage() {
       {/* MODAL DE CONFIRMACIÓN PARA ELIMINAR USUARIO */}
       {deleteModalUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-2xs animate-fadeIn">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0 border border-red-100">
+              <div className="w-11 h-11 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0 border border-red-100">
                 <Icon path={mdiDeleteOutline} size={1} />
               </div>
               <div>
@@ -663,11 +663,11 @@ export default function UsuariosPage() {
               </div>
             </div>
 
-            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 text-xs space-y-1.5">
+            <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-100 text-xs space-y-1.5">
               <p className="font-bold text-slate-900 text-sm">{deleteModalUser.nombreCompleto}</p>
               <p className="font-mono text-slate-500 text-[11px]">@{deleteModalUser.usuario} • {deleteModalUser.correo}</p>
               <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-600">
-                <span className="px-2 py-0.5 rounded bg-slate-200/80 font-semibold">{deleteModalUser.rolNombre}</span>
+                <span className="px-2 py-0.5 rounded-md bg-slate-200/80 font-semibold">{deleteModalUser.rolNombre}</span>
                 <span>•</span>
                 <span>{deleteModalUser.cooperativaNombre}</span>
               </div>
@@ -678,7 +678,7 @@ export default function UsuariosPage() {
                 type="button"
                 onClick={() => setDeleteModalUser(null)}
                 disabled={deleting}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
               >
                 Cancelar
               </button>
@@ -686,7 +686,7 @@ export default function UsuariosPage() {
                 type="button"
                 disabled={deleting}
                 onClick={handleDeleteUsuario}
-                className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+                className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
               >
                 {deleting && <Icon path={mdiLoading} size={0.65} className="animate-spin" />}
                 <span>{deleting ? "Eliminando..." : "Eliminar Cuenta"}</span>

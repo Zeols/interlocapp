@@ -418,7 +418,7 @@ export default function SalidasViajesPage() {
       {/* ======================================================== */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Total Salidas */}
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+        <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Total Salidas
@@ -427,13 +427,13 @@ export default function SalidasViajesPage() {
               {kpis.total}
             </p>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
+          <div className="w-11 h-11 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
             <Icon path={mdiBus} size={0.9} />
           </div>
         </div>
 
         {/* En Ruta / Activas */}
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+        <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -445,13 +445,13 @@ export default function SalidasViajesPage() {
               {kpis.enCurso}
             </p>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+          <div className="w-11 h-11 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
             <Icon path={mdiSteering} size={0.9} />
           </div>
         </div>
 
         {/* Programadas / Por Despachar */}
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+        <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-sky-700 uppercase tracking-wider">
               Programadas
@@ -460,13 +460,13 @@ export default function SalidasViajesPage() {
               {kpis.programados}
             </p>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center">
+          <div className="w-11 h-11 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center">
             <Icon path={mdiClockOutline} size={0.9} />
           </div>
         </div>
 
         {/* Finalizadas */}
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+        <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Finalizadas
@@ -475,7 +475,7 @@ export default function SalidasViajesPage() {
               {kpis.finalizados}
             </p>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center">
+          <div className="w-11 h-11 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
             <Icon path={mdiCheckCircleOutline} size={0.9} />
           </div>
         </div>
@@ -484,7 +484,7 @@ export default function SalidasViajesPage() {
       {/* ======================================================== */}
       {/* 3. BARRA DE FILTROS, FECHAS Y BÚSQUEDA                   */}
       {/* ======================================================== */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between gap-3">
+      <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-2xs space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between gap-3">
         {/* Pestañas de Estado con soporte touch horizontal sin desborde */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth py-0.5">
           {[
@@ -497,7 +497,7 @@ export default function SalidasViajesPage() {
             <button
               key={tab.id}
               onClick={() => setEstadoFilter(tab.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                 estadoFilter === tab.id
                   ? "bg-slate-900 text-white font-bold shadow-2xs"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -505,7 +505,7 @@ export default function SalidasViajesPage() {
             >
               <span>{tab.label}</span>
               <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                className={`text-[10px] px-1.5 py-0.2 rounded-md ${
                   estadoFilter === tab.id
                     ? "bg-white/20 text-white"
                     : "bg-slate-100 text-slate-500"
@@ -520,7 +520,7 @@ export default function SalidasViajesPage() {
         {/* Filtro de Fecha y Búsqueda */}
         <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
           {/* Selector de fecha */}
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/90 rounded-xl px-2.5 py-1.5">
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/90 rounded-lg px-2.5 py-1.5">
             <input
               type="date"
               value={fechaFilter}
@@ -554,7 +554,7 @@ export default function SalidasViajesPage() {
               placeholder="Buscar ruta, bus o chofer..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full text-xs font-medium pl-8 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200/90 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white transition-all"
+              className="w-full text-xs font-medium pl-8 pr-3 py-2 rounded-lg bg-slate-50 border border-slate-200/90 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white transition-all"
             />
           </div>
         </div>
@@ -566,9 +566,9 @@ export default function SalidasViajesPage() {
       {loading ? (
         <TableSkeleton rows={5} cols={5} />
       ) : viajesFiltrados.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-12 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
-            <Icon path={mdiBus} size={1.4} />
+        <div className="bg-white rounded-xl border border-dashed border-slate-200 p-10 text-center">
+          <div className="w-12 h-12 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+            <Icon path={mdiBus} size={1.2} />
           </div>
           <h3 className="font-bold text-sm sm:text-base text-slate-900">
             No se encontraron salidas para los filtros seleccionados
@@ -583,7 +583,7 @@ export default function SalidasViajesPage() {
               setErrorProgramar(null);
               setShowProgramarModal(true);
             }}
-            className="mt-4 bg-primary hover:bg-primary-dark text-white font-bold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer shadow-xs inline-flex items-center gap-1.5"
+            className="mt-4 bg-primary hover:bg-primary-dark text-white font-bold text-xs px-4 py-2 rounded-lg transition-all cursor-pointer shadow-xs inline-flex items-center gap-1.5"
           >
             <Icon path={mdiPlus} size={0.65} />
             <span>Programar Salida Ahora</span>
@@ -600,7 +600,7 @@ export default function SalidasViajesPage() {
             return (
               <div
                 key={viaje.idViaje}
-                className={`bg-white rounded-2xl border p-4 sm:p-5 transition-all shadow-2xs hover:shadow-xs ${
+                className={`bg-white rounded-xl border p-4 sm:p-5 transition-all shadow-2xs hover:shadow-xs ${
                   esEnCurso
                     ? "border-emerald-300 ring-1 ring-emerald-200/50"
                     : esProgramado
@@ -640,7 +640,7 @@ export default function SalidasViajesPage() {
                       <span
                         className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${
                           viaje.sentido === "RETORNO"
-                            ? "bg-purple-50 text-purple-700 border-purple-200"
+                            ? "bg-slate-100 text-slate-800 border-slate-300"
                             : "bg-primary/10 text-primary border-primary/20"
                         }`}
                       >
@@ -821,7 +821,7 @@ export default function SalidasViajesPage() {
       {/* ======================================================== */}
       {showProgramarModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-xl border border-slate-200">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 sm:p-7 shadow-xl border border-slate-200">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 tracking-tight">
@@ -841,7 +841,7 @@ export default function SalidasViajesPage() {
             </div>
 
             {errorProgramar && (
-              <div className="mb-4 p-3 bg-red-50 text-red-800 border border-red-200 rounded-xl text-xs font-medium flex items-center gap-2">
+              <div className="mb-4 p-3 bg-red-50 text-red-800 border border-red-200 rounded-lg text-xs font-medium flex items-center gap-2">
                 <Icon path={mdiAlertCircleOutline} size={0.7} className="text-red-600 shrink-0" />
                 <span>{errorProgramar}</span>
               </div>
@@ -857,7 +857,7 @@ export default function SalidasViajesPage() {
                   value={formRutaId}
                   onChange={(e) => setFormRutaId(e.target.value ? Number(e.target.value) : "")}
                   required
-                  className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white transition-all"
+                  className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white transition-all"
                 >
                   <option value="">Selecciona una ruta registrada...</option>
                   {recursosDespacho.rutas.map((r) => (
@@ -879,7 +879,7 @@ export default function SalidasViajesPage() {
                     value={formFecha}
                     onChange={(e) => setFormFecha(e.target.value)}
                     required
-                    className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
+                    className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
                   />
                 </div>
 
@@ -892,7 +892,7 @@ export default function SalidasViajesPage() {
                     value={formHora}
                     onChange={(e) => setFormHora(e.target.value)}
                     required
-                    className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
+                    className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
                   />
                 </div>
               </div>
@@ -906,7 +906,7 @@ export default function SalidasViajesPage() {
                   <button
                     type="button"
                     onClick={() => setFormSentido("IDA")}
-                    className={`p-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                    className={`p-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-2 ${
                       formSentido === "IDA"
                         ? "bg-primary text-white border-primary shadow-xs"
                         : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
@@ -919,9 +919,9 @@ export default function SalidasViajesPage() {
                   <button
                     type="button"
                     onClick={() => setFormSentido("RETORNO")}
-                    className={`p-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                    className={`p-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-2 ${
                       formSentido === "RETORNO"
-                        ? "bg-purple-700 text-white border-purple-700 shadow-xs"
+                        ? "bg-slate-800 text-white border-slate-800 shadow-xs"
                         : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                     }`}
                   >
@@ -937,7 +937,7 @@ export default function SalidasViajesPage() {
                   type="button"
                   onClick={() => setShowProgramarModal(false)}
                   disabled={guardandoViaje}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                  className="px-4 py-2.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -945,7 +945,7 @@ export default function SalidasViajesPage() {
                 <button
                   type="submit"
                   disabled={guardandoViaje}
-                  className="bg-primary hover:bg-primary-dark text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2 active:scale-95 disabled:opacity-60"
+                  className="bg-primary hover:bg-primary-dark text-white font-bold text-xs px-5 py-2.5 rounded-lg transition-all cursor-pointer shadow-xs flex items-center gap-2 active:scale-95 disabled:opacity-60"
                 >
                   {guardandoViaje ? (
                     <>
@@ -967,7 +967,7 @@ export default function SalidasViajesPage() {
       {/* ======================================================== */}
       {showDespachoModal && viajeSeleccionado && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 sm:p-7 shadow-xl border border-slate-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
@@ -988,12 +988,12 @@ export default function SalidasViajesPage() {
             </div>
 
             {/* Resumen del viaje seleccionado */}
-            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/90 mb-4 space-y-1 text-xs">
+            <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 mb-4 space-y-1 text-xs">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-slate-900 text-sm">
                   {viajeSeleccionado.rutaNombre}
                 </span>
-                <span className="font-extrabold text-[10px] uppercase px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                <span className="font-extrabold text-[10px] uppercase px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
                   {viajeSeleccionado.sentido}
                 </span>
               </div>
@@ -1003,7 +1003,7 @@ export default function SalidasViajesPage() {
             </div>
 
             {errorDespacho && (
-              <div className="mb-4 p-3 bg-red-50 text-red-800 border border-red-200 rounded-xl text-xs font-medium flex items-center gap-2">
+              <div className="mb-4 p-3 bg-red-50 text-red-800 border border-red-200 rounded-lg text-xs font-medium flex items-center gap-2">
                 <Icon path={mdiAlertCircleOutline} size={0.7} className="text-red-600 shrink-0" />
                 <span>{errorDespacho}</span>
               </div>
@@ -1016,7 +1016,7 @@ export default function SalidasViajesPage() {
                   Autobús Disponible *
                 </label>
                 {recursosDespacho.unidades.length === 0 ? (
-                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs flex items-center gap-2">
+                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs flex items-center gap-2">
                     <Icon path={mdiAlertCircleOutline} size={0.7} className="text-amber-600 shrink-0" />
                     <span>No hay unidades en estado <strong>DISPONIBLE</strong> en este momento. Finaliza un viaje previo o registra unidades en la sección Flota.</span>
                   </div>
@@ -1025,7 +1025,7 @@ export default function SalidasViajesPage() {
                     value={despachoUnidadId}
                     onChange={(e) => setDespachoUnidadId(e.target.value ? Number(e.target.value) : "")}
                     required
-                    className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
+                    className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
                   >
                     <option value="">Selecciona una unidad disponible...</option>
                     {recursosDespacho.unidades.map((u) => (
@@ -1043,7 +1043,7 @@ export default function SalidasViajesPage() {
                   Chofer Titular *
                 </label>
                 {recursosDespacho.choferes.length === 0 ? (
-                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs flex items-center gap-2">
+                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs flex items-center gap-2">
                     <Icon path={mdiAlertCircleOutline} size={0.7} className="text-amber-600 shrink-0" />
                     <span>No hay choferes activos registrados en la cooperativa.</span>
                   </div>
@@ -1052,7 +1052,7 @@ export default function SalidasViajesPage() {
                     value={despachoChoferId}
                     onChange={(e) => setDespachoChoferId(e.target.value ? Number(e.target.value) : "")}
                     required
-                    className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
+                    className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
                   >
                     <option value="">Selecciona el chofer conductor...</option>
                     {recursosDespacho.choferes.map((c) => (
@@ -1075,7 +1075,7 @@ export default function SalidasViajesPage() {
                 <select
                   value={despachoAyudanteId}
                   onChange={(e) => setDespachoAyudanteId(e.target.value ? Number(e.target.value) : "")}
-                  className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
+                  className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
                 >
                   <option value="">Sin ayudante / Solo chofer</option>
                   {recursosDespacho.ayudantes.map((a) => (
@@ -1096,7 +1096,7 @@ export default function SalidasViajesPage() {
                   placeholder="Ej: Salida a tiempo con tanque lleno y revisión mecánica OK."
                   value={despachoObservacion}
                   onChange={(e) => setDespachoObservacion(e.target.value)}
-                  className="w-full text-xs sm:text-sm font-medium p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
+                  className="w-full text-xs sm:text-sm font-medium p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
                 />
               </div>
 
@@ -1106,7 +1106,7 @@ export default function SalidasViajesPage() {
                   type="button"
                   onClick={() => setShowDespachoModal(false)}
                   disabled={despachando}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                  className="px-4 py-2.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -1114,7 +1114,7 @@ export default function SalidasViajesPage() {
                 <button
                   type="submit"
                   disabled={despachando || recursosDespacho.unidades.length === 0 || recursosDespacho.choferes.length === 0}
-                  className="bg-primary hover:bg-primary-dark text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-2 active:scale-95 disabled:opacity-60"
+                  className="bg-primary hover:bg-primary-dark text-white font-bold text-xs px-5 py-2.5 rounded-lg transition-all cursor-pointer shadow-xs flex items-center gap-2 active:scale-95 disabled:opacity-60"
                 >
                   {despachando ? (
                     <>
@@ -1136,7 +1136,7 @@ export default function SalidasViajesPage() {
       {/* ======================================================== */}
       {showManifiestoModal && viajeSeleccionado && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-xl border border-slate-200 max-h-[85vh] flex flex-col">
+          <div className="bg-white rounded-xl max-w-2xl w-full p-6 sm:p-7 shadow-xl border border-slate-200 max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
@@ -1203,7 +1203,7 @@ export default function SalidasViajesPage() {
                         </td>
                         <td className="py-2.5 text-right">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
                               p.estado === "ABORDADO"
                                 ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                                 : p.estado === "PAGADO"
@@ -1229,7 +1229,7 @@ export default function SalidasViajesPage() {
               <button
                 type="button"
                 onClick={() => setShowManifiestoModal(false)}
-                className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-xl cursor-pointer"
+                className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-lg cursor-pointer transition-colors"
               >
                 Cerrar Manifiesto
               </button>
@@ -1243,8 +1243,8 @@ export default function SalidasViajesPage() {
       {/* ======================================================== */}
       {showFinalizarModal && viajeSeleccionado && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl border border-slate-200 text-center">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-3">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-slate-200 text-center">
+            <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-3">
               <Icon path={mdiCheckCircleOutline} size={1} />
             </div>
             <h3 className="text-base font-bold text-slate-900">
@@ -1259,7 +1259,7 @@ export default function SalidasViajesPage() {
                 type="button"
                 onClick={() => setShowFinalizarModal(false)}
                 disabled={procesandoAccion}
-                className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="px-4 py-2.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 Volver
               </button>
@@ -1267,7 +1267,7 @@ export default function SalidasViajesPage() {
                 type="button"
                 onClick={handleConfirmarFinalizar}
                 disabled={procesandoAccion}
-                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-60"
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-5 py-2.5 rounded-lg transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-60"
               >
                 {procesandoAccion ? "Finalizando..." : "Sí, Finalizar Viaje"}
               </button>
@@ -1281,8 +1281,8 @@ export default function SalidasViajesPage() {
       {/* ======================================================== */}
       {showCancelarModal && viajeSeleccionado && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl border border-slate-200">
-            <div className="w-12 h-12 rounded-full bg-red-100 text-red-700 flex items-center justify-center mx-auto mb-3">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-slate-200">
+            <div className="w-12 h-12 rounded-xl bg-red-100 text-red-700 flex items-center justify-center mx-auto mb-3">
               <Icon path={mdiAlert} size={1} />
             </div>
             <h3 className="text-base font-bold text-slate-900 text-center">
@@ -1301,7 +1301,7 @@ export default function SalidasViajesPage() {
                 placeholder="Ej: Avería mecánica o falta de demanda"
                 value={motivoCancelacion}
                 onChange={(e) => setMotivoCancelacion(e.target.value)}
-                className="w-full text-xs font-medium p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-500"
+                className="w-full text-xs font-medium p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-500"
               />
             </div>
 
@@ -1310,7 +1310,7 @@ export default function SalidasViajesPage() {
                 type="button"
                 onClick={() => setShowCancelarModal(false)}
                 disabled={procesandoAccion}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
               >
                 Volver
               </button>
@@ -1318,7 +1318,7 @@ export default function SalidasViajesPage() {
                 type="button"
                 onClick={handleConfirmarCancelar}
                 disabled={procesandoAccion}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-60"
+                className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-60"
               >
                 {procesandoAccion ? "Cancelando..." : "Confirmar Cancelación"}
               </button>
