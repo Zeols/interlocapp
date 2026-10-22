@@ -53,7 +53,7 @@ export function UserChip({
   const handleConfirmLogout = async () => {
     const res = await logoutAction();
     router.push(res.data?.redirectUrl || "/login");
-    router.refresh();
+    router.refresh(); 
   };
 
   return (
@@ -146,7 +146,15 @@ export function UserChip({
                 className="flex items-center gap-2.5 w-full px-3.5 py-2 bg-transparent border-none rounded-xl cursor-pointer text-xs sm:text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-100 hover:text-gray-900"
               >
                 <Icon path={mdiBus} size={0.7} className="text-primary" />
-                Panel de Cooperativa
+                {(() => {
+                  // Normalizamos el rol a mayúsculas y eliminamos espacios para evitar fallos
+                  const rolLimpio = (rolNombre || "").trim().toUpperCase();
+                  
+                  if (rolLimpio === "AYUDANTE") return "Panel de Ayudante";
+                  if (rolLimpio === "CHOFER") return "Panel de Chofer";
+                  if (rolLimpio === "TAQUILLERO") return "Panel de Taquillero";
+                  return "Panel de Cooperativa";
+                })()}
               </Link>
             ) : (
               <Link 
