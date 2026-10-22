@@ -12,75 +12,56 @@ import {
   mdiCheckCircleOutline,
   mdiMinus,
   mdiPlus,
-  mdiEmailOutline
+  mdiEmailOutline,
+  mdiWifi,
+  mdiLockOutline,
+  mdiTimerOutline,
+  mdiAlertCircleOutline,
 } from "@mdi/js";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/frontend/context/CurrencyContext";
-
-type SeatStatus = "available" | "occupied" | "selected" | "unavailable";
-
-interface Seat {
-  id: number;
-  status: SeatStatus;
-}
-
-const OCCUPIED_IDS = [2, 5, 8, 13, 16];
-const UNAVAILABLE_IDS = [11, 20];
-
-function initSeats(): Seat[] {
-  return Array.from({ length: 20 }, (_, i) => {
-    const id = i + 1;
-    const status: SeatStatus = OCCUPIED_IDS.includes(id)
-      ? "occupied"
-      : UNAVAILABLE_IDS.includes(id)
-        ? "unavailable"
-        : "available";
-    return { id, status };
-  });
-}
-
-const SEAT_ROWS = [
-  [1, 2, 3, 4],
-  [5, 6, 7, 8],
-  [9, 10, 11, 12],
-  [13, 14, 15, 16],
-  [17, 18, 19, 20],
-];
+import { useSeatRealtime } from "@/frontend/hooks/useSeatRealtime";
+import { notificarCompraAsientoRealtimeAction, AsientoRealtimeItem } from "@/backend/actions/asientos-realtime";
 
 function PurchaseContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const userEmail = "user@ejemplo.com";
 
+  // Identificador de viaje (desde URL o por defecto 1)
+  const idViaje = Number(searchParams.get("tripId") || searchParams.get("idViaje")) || 1;
+
   const trip = {
     origin: searchParams.get("origin") || "Managua",
     destination: searchParams.get("destination") || "León",
     departure: searchParams.get("departure") || "06:00 AM",
     cooperative: searchParams.get("cooperative") || "TransNica",
-    price: Number(searchParams.get("price")) || 85
+    price: Number(searchParams.get("price")) || 85,
   };
 
   const BAGGAGE_PRICE = 50;
 
-  const [seats, setSeats] = useState<Seat[]>(initSeats());
+  // Hook WebSocket en tiempo real para sincronización de asientos
+  const {
+    seats,
+    selectedSeats,
+    isConnected,
+    isLoading,
+    error: realtimeError,
+    timeRemainingSeconds,
+    toggleSelectSeat,
+  } = useSeatRealtime({
+    idViaje,
+  });
+
   const [baggage, setBaggage] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  const selectedSeats = seats.filter(s => s.status === "selected");
   const ticketTotal = selectedSeats.length * trip.price;
   const baggageTotal = baggage * BAGGAGE_PRICE;
   const total = ticketTotal + baggageTotal;
-
-  const toggleSeat = (id: number) => {
-    setSeats(prev =>
-      prev.map(s => {
-        if (s.id !== id) return s;
-        if (s.status === "available") return { ...s, status: "selected" };
-        if (s.status === "selected") return { ...s, status: "available" };
-        return s;
-      })
-    );
-  };
 
   const { formatPrice } = useCurrency();
   const fmt = (n: number) => formatPrice(n);
@@ -88,23 +69,105 @@ function PurchaseContent() {
   const goTrips = () => router.push("/trips");
   const goHome = () => router.push("/home");
 
+  // Formato mm:ss para el TTL de bloqueo temporal
+  const formatCountdown = (seconds: number | null) => {
+    if (seconds === null) return null;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // Manejo de clic en asiento con bloqueo / liberación en tiempo real
+  const handleSeatClick = async (seat: AsientoRealtimeItem) => {
+    setActionError(null);
+    const result = await toggleSelectSeat(seat);
+    if (!result.success && result.error) {
+      setActionError(result.error);
+    }
+  };
+
+  // Confirmación de pago y notificación por WebSocket (estado -> OCUPADO)
+  const handlePayment = async () => {
+    if (selectedSeats.length === 0) return;
+    setIsProcessingPayment(true);
+    setActionError(null);
+
+    try {
+      // Notificar por WebSocket a todos los usuarios conectados que los asientos han sido ocupados
+      for (const seat of selectedSeats) {
+        await notificarCompraAsientoRealtimeAction({
+          idViaje,
+          idAsiento: seat.idAsiento,
+          numeroAsiento: seat.numero,
+        });
+      }
+      setShowSuccess(true);
+    } catch (err: any) {
+      console.error("Error al procesar pago de asientos:", err);
+      setActionError("Ocurrió un error al confirmar la compra.");
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  // Agrupar asientos dinámicamente en filas de 4 (2 izquierda, pasillo, 2 derecha)
+  const rows: AsientoRealtimeItem[][] = [];
+  for (let i = 0; i < seats.length; i += 4) {
+    rows.push(seats.slice(i, i + 4));
+  }
+
   return (
     <div className="w-full pb-16">
       {/* Page Header */}
       <div className="bg-white border-b border-gray-100 py-8 px-4 sm:px-6 md:px-8">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight mb-4">
-            Compra de Boleto
-          </h1>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-gray-900 bg-gray-50 border border-gray-200/80 px-3.5 py-1.5 rounded-full">
-              <Icon path={mdiMapMarker} size={0.65} className="text-primary" />
-              {trip.origin} → {trip.destination}
-            </span>
-            <span className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-gray-900 bg-gray-50 border border-gray-200/80 px-3.5 py-1.5 rounded-full">
-              <Icon path={mdiClockOutline} size={0.65} className="text-gray-400" />
-              {trip.departure}
-            </span>
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight mb-3">
+              Compra de Boleto
+            </h1>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-gray-900 bg-gray-50 border border-gray-200/80 px-3.5 py-1.5 rounded-full">
+                <Icon path={mdiMapMarker} size={0.65} className="text-primary" />
+                {trip.origin} → {trip.destination}
+              </span>
+              <span className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-gray-900 bg-gray-50 border border-gray-200/80 px-3.5 py-1.5 rounded-full">
+                <Icon path={mdiClockOutline} size={0.65} className="text-gray-400" />
+                {trip.departure}
+              </span>
+            </div>
+          </div>
+
+          {/* Estado de sincronización en tiempo real (WebSocket) */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                isConnected
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-blue-50 text-blue-700 border-blue-200"
+              }`}
+            >
+              <span className="relative flex h-2 w-2">
+                <span
+                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                    isConnected ? "bg-emerald-400" : "bg-blue-400"
+                  }`}
+                />
+                <span
+                  className={`relative inline-flex rounded-full h-2 w-2 ${
+                    isConnected ? "bg-emerald-500" : "bg-blue-500"
+                  }`}
+                />
+              </span>
+              <Icon path={mdiWifi} size={0.55} />
+              <span>{isConnected ? "Sincronización en vivo" : "Tiempo real activo"}</span>
+            </div>
+
+            {timeRemainingSeconds !== null && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 animate-pulse">
+                <Icon path={mdiTimerOutline} size={0.6} className="text-amber-600" />
+                <span>Tiempo de reserva: {formatCountdown(timeRemainingSeconds)}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -112,61 +175,118 @@ function PurchaseContent() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 mt-6 sm:mt-8 flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
         {/* Left Column */}
         <div className="flex-1 w-full space-y-6 sm:space-y-8">
+          {/* Alertas de error en tiempo real */}
+          {(actionError || realtimeError) && (
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs sm:text-sm font-medium">
+              <Icon path={mdiAlertCircleOutline} size={0.8} className="text-amber-600 shrink-0" />
+              <span>{actionError || realtimeError}</span>
+            </div>
+          )}
+
           {/* Seats Selection */}
           <div className="bg-white border border-gray-100 rounded-3xl p-6 sm:p-8 shadow-sm">
-            <div className="mb-6">
-              <h2 className="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight">
-                Selección de Asientos
-              </h2>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                Haz clic en los asientos disponibles para seleccionarlos
-              </p>
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <h2 className="text-lg sm:text-xl font-extrabold text-gray-900 tracking-tight">
+                  Selección de Asientos
+                </h2>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                  Los asientos seleccionados quedan bloqueados para ti durante 10 minutos.
+                </p>
+              </div>
+
+              {isLoading && (
+                <span className="text-xs font-semibold text-gray-400 animate-pulse">
+                  Cargando disponibilidad...
+                </span>
+              )}
             </div>
 
+            {/* Bus layout container */}
             <div className="flex flex-col items-center max-w-sm mx-auto bg-gray-50/80 border border-gray-200/80 rounded-3xl p-4 sm:p-8 mb-6 relative">
+              {/* Bus front cap / driver wheel */}
               <div className="absolute top-4 w-1/2 h-2 bg-gray-200 rounded-full" />
-              <div className="w-9 h-9 border-4 border-gray-200 rounded-full absolute -top-4.5 bg-white shadow-xs" />
+              <div className="w-9 h-9 border-4 border-gray-200 rounded-full absolute -top-4.5 bg-white shadow-xs flex items-center justify-center">
+                <span className="text-[9px] font-bold text-gray-400">BUS</span>
+              </div>
 
               <div className="w-full flex flex-col gap-3.5 mt-6">
-                {SEAT_ROWS.map((row, i) => (
+                {rows.map((row, i) => (
                   <div key={i} className="flex items-center justify-between w-full">
+                    {/* Left 2 seats */}
                     <div className="flex items-center gap-2 sm:gap-3">
-                      {row.slice(0, 2).map(id => {
-                        const s = seats.find(x => x.id === id)!;
+                      {row.slice(0, 2).map((seat) => {
+                        const isSelectedByMe = seat.esMio && seat.estado === "BLOQUEADO";
+                        const isLockedByOther = !seat.esMio && seat.estado === "BLOQUEADO";
+                        const isOccupied = seat.estado === "OCUPADO" || seat.estado === "RESERVADO";
+
                         let style = "bg-white border-gray-300 text-gray-700 hover:border-primary/80";
-                        if (s.status === 'selected') style = "bg-primary border-primary text-white scale-105 shadow-md shadow-primary/20";
-                        if (s.status === 'occupied') style = "bg-gray-200 border-gray-200 text-gray-400 cursor-not-allowed opacity-60";
-                        if (s.status === 'unavailable') style = "bg-gray-100 border-gray-100 text-transparent cursor-not-allowed";
+                        let title = `Asiento #${seat.numero} Disponible`;
+
+                        if (isSelectedByMe) {
+                          style = "bg-primary border-primary text-white scale-105 shadow-md shadow-primary/20";
+                          title = `Asiento #${seat.numero} Seleccionado por ti`;
+                        } else if (isLockedByOther) {
+                          style = "bg-amber-100 border-amber-300 text-amber-800 cursor-not-allowed opacity-90 animate-pulse";
+                          title = `Asiento #${seat.numero} en proceso de compra por otro pasajero`;
+                        } else if (isOccupied) {
+                          style = "bg-gray-200 border-gray-200 text-gray-400 cursor-not-allowed opacity-60";
+                          title = `Asiento #${seat.numero} Vendido`;
+                        }
 
                         return (
                           <button
-                            key={id}
-                            onClick={() => toggleSeat(id)}
-                            disabled={s.status === 'occupied' || s.status === 'unavailable'}
-                            className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl border-2 flex items-center justify-center font-bold text-xs sm:text-sm transition-all cursor-pointer ${style}`}
+                            key={seat.idAsiento}
+                            onClick={() => handleSeatClick(seat)}
+                            disabled={isOccupied || isLockedByOther}
+                            title={title}
+                            className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl border-2 flex flex-col items-center justify-center font-bold text-xs sm:text-sm transition-all cursor-pointer relative ${style}`}
                           >
-                            {s.status !== 'unavailable' ? id : ''}
+                            <span>{seat.numero}</span>
+                            {isLockedByOther && (
+                              <Icon path={mdiLockOutline} size={0.35} className="absolute bottom-0.5 text-amber-700" />
+                            )}
                           </button>
                         );
                       })}
                     </div>
+
+                    {/* Central Aisle */}
                     <div className="w-4 sm:w-8 shrink-0 text-center text-[10px] text-gray-300 font-mono">pasillo</div>
+
+                    {/* Right 2 seats */}
                     <div className="flex items-center gap-2 sm:gap-3">
-                      {row.slice(2, 4).map(id => {
-                        const s = seats.find(x => x.id === id)!;
+                      {row.slice(2, 4).map((seat) => {
+                        const isSelectedByMe = seat.esMio && seat.estado === "BLOQUEADO";
+                        const isLockedByOther = !seat.esMio && seat.estado === "BLOQUEADO";
+                        const isOccupied = seat.estado === "OCUPADO" || seat.estado === "RESERVADO";
+
                         let style = "bg-white border-gray-300 text-gray-700 hover:border-primary/80";
-                        if (s.status === 'selected') style = "bg-primary border-primary text-white scale-105 shadow-md shadow-primary/20";
-                        if (s.status === 'occupied') style = "bg-gray-200 border-gray-200 text-gray-400 cursor-not-allowed opacity-60";
-                        if (s.status === 'unavailable') style = "bg-gray-100 border-gray-100 text-transparent cursor-not-allowed";
+                        let title = `Asiento #${seat.numero} Disponible`;
+
+                        if (isSelectedByMe) {
+                          style = "bg-primary border-primary text-white scale-105 shadow-md shadow-primary/20";
+                          title = `Asiento #${seat.numero} Seleccionado por ti`;
+                        } else if (isLockedByOther) {
+                          style = "bg-amber-100 border-amber-300 text-amber-800 cursor-not-allowed opacity-90 animate-pulse";
+                          title = `Asiento #${seat.numero} en proceso de compra por otro pasajero`;
+                        } else if (isOccupied) {
+                          style = "bg-gray-200 border-gray-200 text-gray-400 cursor-not-allowed opacity-60";
+                          title = `Asiento #${seat.numero} Vendido`;
+                        }
 
                         return (
                           <button
-                            key={id}
-                            onClick={() => toggleSeat(id)}
-                            disabled={s.status === 'occupied' || s.status === 'unavailable'}
-                            className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl border-2 flex items-center justify-center font-bold text-xs sm:text-sm transition-all cursor-pointer ${style}`}
+                            key={seat.idAsiento}
+                            onClick={() => handleSeatClick(seat)}
+                            disabled={isOccupied || isLockedByOther}
+                            title={title}
+                            className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl border-2 flex flex-col items-center justify-center font-bold text-xs sm:text-sm transition-all cursor-pointer relative ${style}`}
                           >
-                            {s.status !== 'unavailable' ? id : ''}
+                            <span>{seat.numero}</span>
+                            {isLockedByOther && (
+                              <Icon path={mdiLockOutline} size={0.35} className="absolute bottom-0.5 text-amber-700" />
+                            )}
                           </button>
                         );
                       })}
@@ -176,12 +296,16 @@ function PurchaseContent() {
               </div>
             </div>
 
+            {/* Legend */}
             <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 mt-4">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
                 <div className="w-3.5 h-3.5 rounded-md border-2 border-gray-300 bg-white" /> Disponible
               </div>
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
-                <div className="w-3.5 h-3.5 rounded-md border-2 border-primary bg-primary" /> Seleccionado
+                <div className="w-3.5 h-3.5 rounded-md border-2 border-primary bg-primary" /> Tu selección
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
+                <div className="w-3.5 h-3.5 rounded-md border-2 border-amber-300 bg-amber-100" /> En proceso (otro usuario)
               </div>
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
                 <div className="w-3.5 h-3.5 rounded-md border-2 border-gray-200 bg-gray-200" /> Ocupado
@@ -210,7 +334,9 @@ function PurchaseContent() {
                 <button
                   onClick={() => setBaggage(Math.max(0, baggage - 1))}
                   disabled={baggage === 0}
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${baggage === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
+                    baggage === 0 ? "text-gray-300 cursor-not-allowed" : "text-gray-600 hover:bg-gray-100"
+                  }`}
                 >
                   <Icon path={mdiMinus} size={0.6} />
                 </button>
@@ -236,7 +362,9 @@ function PurchaseContent() {
                 <div>
                   <p className="text-gray-600 font-semibold">Boletos ({selectedSeats.length})</p>
                   {selectedSeats.length > 0 && (
-                    <p className="text-xs text-primary font-bold mt-0.5">Asientos: {selectedSeats.map(s => `#${s.id}`).join(", ")}</p>
+                    <p className="text-xs text-primary font-bold mt-0.5">
+                      Asientos: {selectedSeats.map((s) => `#${s.numero}`).join(", ")}
+                    </p>
                   )}
                 </div>
                 <p className="font-extrabold text-base text-gray-900">{fmt(ticketTotal)}</p>
@@ -256,11 +384,22 @@ function PurchaseContent() {
             </div>
 
             <button
-              onClick={() => setShowSuccess(true)}
-              disabled={selectedSeats.length === 0}
-              className={`w-full bg-primary hover:bg-primary-dark text-white font-bold text-sm sm:text-base py-3.5 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-md shadow-primary/20 ${selectedSeats.length === 0 ? 'opacity-50 cursor-not-allowed hover:bg-primary' : 'hover:scale-[1.01] active:scale-[0.99]'}`}
+              onClick={handlePayment}
+              disabled={selectedSeats.length === 0 || isProcessingPayment}
+              className={`w-full bg-primary hover:bg-primary-dark text-white font-bold text-sm sm:text-base py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-primary/20 ${
+                selectedSeats.length === 0 || isProcessingPayment
+                  ? "opacity-50 cursor-not-allowed hover:bg-primary"
+                  : "hover:scale-[1.01] active:scale-[0.99]"
+              }`}
             >
-              Pagar Boleto
+              {isProcessingPayment ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Procesando pago...</span>
+                </>
+              ) : (
+                "Pagar Boleto"
+              )}
             </button>
 
             <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-400 mt-5">
@@ -280,7 +419,10 @@ function PurchaseContent() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"
-              onClick={() => { setShowSuccess(false); goTrips(); }}
+              onClick={() => {
+                setShowSuccess(false);
+                goTrips();
+              }}
             />
 
             <motion.div
@@ -302,13 +444,18 @@ function PurchaseContent() {
                 <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-200/80">
                   <div className="flex items-center gap-2 font-bold text-gray-900 text-sm">
                     <Icon path={mdiBus} size={0.7} className="text-primary" />
-                    <span>{trip.origin} → {trip.destination}</span>
+                    <span>
+                      {trip.origin} → {trip.destination}
+                    </span>
                   </div>
                   <span className="font-extrabold text-base text-primary">{fmt(total)}</span>
                 </div>
                 {selectedSeats.length > 0 && (
                   <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1 break-words">
-                    Asiento{selectedSeats.length > 1 ? "s" : ""} <span className="font-bold text-gray-900">#{selectedSeats.map(s => s.id).join(", #")}</span>
+                    Asiento{selectedSeats.length > 1 ? "s" : ""}{" "}
+                    <span className="font-bold text-gray-900">
+                      #{selectedSeats.map((s) => s.numero).join(", #")}
+                    </span>
                   </p>
                 )}
                 <p className="text-xs text-gray-500">
@@ -329,13 +476,19 @@ function PurchaseContent() {
               </div>
 
               <button
-                onClick={() => { setShowSuccess(false); goHome(); }}
+                onClick={() => {
+                  setShowSuccess(false);
+                  goHome();
+                }}
                 className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xs mb-2.5 cursor-pointer text-sm"
               >
                 Volver al inicio
               </button>
               <button
-                onClick={() => { setShowSuccess(false); goTrips(); }}
+                onClick={() => {
+                  setShowSuccess(false);
+                  goTrips();
+                }}
                 className="w-full bg-transparent text-gray-500 hover:text-gray-900 font-bold py-2.5 rounded-2xl transition-colors cursor-pointer text-xs sm:text-sm"
               >
                 Ver más viajes
@@ -350,7 +503,13 @@ function PurchaseContent() {
 
 export default function PurchasePage() {
   return (
-    <Suspense fallback={<div className="flex w-full items-center justify-center p-20 text-gray-500 font-bold">Cargando...</div>}>
+    <Suspense
+      fallback={
+        <div className="flex w-full items-center justify-center p-20 text-gray-500 font-bold">
+          Cargando selección de viaje...
+        </div>
+      }
+    >
       <PurchaseContent />
     </Suspense>
   );

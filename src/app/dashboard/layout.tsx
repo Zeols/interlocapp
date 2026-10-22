@@ -97,13 +97,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const menuItems = isAyudante
     ? [
         { name: "Resumen", path: "/dashboard", icon: mdiViewDashboard },
-        { name: "Viaje", path: "/dashboard/viaje", icon: mdiBus },
+        { name: "Salidas", path: "/dashboard/viajes", icon: mdiBus },
       ]
     : [
         { name: "Resumen", path: "/dashboard", icon: mdiViewDashboard },
         ...(isSuperAdmin
           ? [{ name: "Cooperativas", path: "/dashboard/cooperativas", icon: mdiDomain }]
           : []),
+        { name: "Salidas y Despacho", path: "/dashboard/viajes", icon: mdiBus },
         { name: "Flota", path: "/dashboard/flota", icon: mdiBusDoubleDecker },
         { name: "Personal", path: "/dashboard/choferes", icon: mdiAccountGroup },
         { name: "Usuarios", path: "/dashboard/usuarios", icon: mdiAccountMultiple },

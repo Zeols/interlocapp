@@ -8,3 +8,4 @@ export * from './viajes';
 export * from './mail';
 export * from './metodos-pago';
 export * from './boletos';
+export * from './asientos-realtime';
