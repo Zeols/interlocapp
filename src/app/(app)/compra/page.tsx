@@ -21,7 +21,22 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/frontend/context/CurrencyContext";
 import { useSeatRealtime } from "@/frontend/hooks/useSeatRealtime";
-import { notificarCompraAsientoRealtimeAction, AsientoRealtimeItem } from "@/backend/actions/asientos-realtime";
+import { AsientoRealtimeItem } from "@/backend/actions/asientos-realtime";
+import { procesarVentaBoletos } from "@/backend/actions/ventas";
+
+interface VentaConfirmadaItem {
+  idBoleto: number;
+  codigoBoleto: string;
+  idAsiento: number;
+  monto: number;
+}
+
+interface VentaConfirmada {
+  idVenta: number;
+  idViaje: number;
+  total: number;
+  boletos: VentaConfirmadaItem[];
+}
 
 function PurchaseContent() {
   const router = useRouter();
@@ -56,6 +71,7 @@ function PurchaseContent() {
 
   const [baggage, setBaggage] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [ventaConfirmada, setVentaConfirmada] = useState<VentaConfirmada | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
@@ -86,25 +102,43 @@ function PurchaseContent() {
     }
   };
 
-  // Confirmación de pago y notificación por WebSocket (estado -> OCUPADO)
+  // Confirmación de pago transaccional en PostgreSQL y notificación WebSocket
   const handlePayment = async () => {
     if (selectedSeats.length === 0) return;
     setIsProcessingPayment(true);
     setActionError(null);
 
     try {
-      // Notificar por WebSocket a todos los usuarios conectados que los asientos han sido ocupados
-      for (const seat of selectedSeats) {
-        await notificarCompraAsientoRealtimeAction({
-          idViaje,
-          idAsiento: seat.idAsiento,
-          numeroAsiento: seat.numero,
-        });
+      const boletosPayload = selectedSeats.map((seat, idx) => ({
+        idAsiento: seat.idAsiento,
+        monto: trip.price,
+        ...(idx === 0 && baggage > 0
+          ? {
+              equipaje: {
+                cantidad: baggage,
+                monto: baggageTotal,
+                descripcion: `Equipaje adicional (${baggage} bulto${baggage > 1 ? "s" : ""})`,
+              },
+            }
+          : {}),
+      }));
+
+      const res = await procesarVentaBoletos({
+        idViaje,
+        boletos: boletosPayload,
+      });
+
+      if (!res.success || !res.data) {
+        setActionError(res.error || "No se pudo procesar la compra.");
+        setIsProcessingPayment(false);
+        return;
       }
+
+      setVentaConfirmada(res.data as VentaConfirmada);
       setShowSuccess(true);
     } catch (err: any) {
       console.error("Error al procesar pago de asientos:", err);
-      setActionError("Ocurrió un error al confirmar la compra.");
+      setActionError(err.message || "Ocurrió un error al confirmar la compra.");
     } finally {
       setIsProcessingPayment(false);
     }
@@ -454,6 +488,23 @@ function PurchaseContent() {
                 <p className="text-xs text-gray-500">
                   Salida <span className="font-bold text-gray-900">{trip.departure}</span> · {trip.cooperative}
                 </p>
+                {ventaConfirmada?.boletos && ventaConfirmada.boletos.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-200/80">
+                    <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+                      Códigos de Boleto (Presentar al abordar)
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {ventaConfirmada.boletos.map((b) => (
+                        <span
+                          key={b.idBoleto}
+                          className="px-2.5 py-1 bg-white border border-gray-300 rounded-lg text-xs font-mono font-bold text-gray-900 shadow-xs"
+                        >
+                          {b.codigoBoleto}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-start gap-3 text-left bg-blue-50/80 text-blue-900 p-4 rounded-2xl mb-6 border border-blue-100 w-full">
@@ -463,7 +514,7 @@ function PurchaseContent() {
                 <div>
                   <p className="font-bold text-xs sm:text-sm mb-0.5">Boleto digital emitido</p>
                   <p className="text-xs text-blue-700/80 leading-relaxed">
-                    Recibirás tu ticket en <span className="font-bold">{userEmail}</span>.
+                    Tus pasajes han sido guardados en tu bóveda digital y enviados a tu correo.
                   </p>
                 </div>
               </div>
@@ -471,9 +522,18 @@ function PurchaseContent() {
               <button
                 onClick={() => {
                   setShowSuccess(false);
+                  router.push("/tickets");
+                }}
+                className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3.5 rounded-2xl transition-all shadow-xs mb-2.5 cursor-pointer text-sm"
+              >
+                Ver mis boletos
+              </button>
+              <button
+                onClick={() => {
+                  setShowSuccess(false);
                   goHome();
                 }}
-                className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xs mb-2.5 cursor-pointer text-sm"
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 rounded-2xl transition-all mb-2 cursor-pointer text-xs sm:text-sm"
               >
                 Volver al inicio
               </button>
@@ -482,9 +542,9 @@ function PurchaseContent() {
                   setShowSuccess(false);
                   goTrips();
                 }}
-                className="w-full bg-transparent text-gray-500 hover:text-gray-900 font-bold py-2.5 rounded-2xl transition-colors cursor-pointer text-xs sm:text-sm"
+                className="w-full bg-transparent text-gray-500 hover:text-gray-900 font-medium py-2 transition-colors cursor-pointer text-xs"
               >
-                Ver más viajes
+                Ver más viajes disponibles
               </button>
             </motion.div>
           </div>

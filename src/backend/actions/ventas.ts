@@ -4,10 +4,11 @@ import { prisma } from '../db';
 import { revalidatePath } from 'next/cache';
 import { getSession } from '../lib/session';
 import { sendTicketEmail } from '../lib/mail';
+import { notificarCompraAsientoRealtimeAction } from './asientos-realtime';
 
 // Interfaces
 export interface EquipajeInput {
-  idTarifaEquipaje: number;
+  idTarifaEquipaje?: number;
   descripcion?: string;
   cantidad?: number;
   monto: number;
@@ -15,14 +16,14 @@ export interface EquipajeInput {
 
 export interface ItemBoletoInput {
   idAsiento: number;
-  idTarifa: number;
+  idTarifa?: number;
   monto: number;
   equipaje?: EquipajeInput; // Equipaje opcional asignado a este boleto
 }
 
 export interface VentaInput {
   idViaje: number;
-  idTipoVenta: number;
+  idTipoVenta?: number;
   boletos: ItemBoletoInput[];
 }
 
@@ -133,6 +134,72 @@ export async function procesarVentaBoletos(data: VentaInput) {
       return { success: false, error: 'Debe seleccionar al menos un asiento.' };
     }
 
+    // 1. Validar existencia del viaje
+    const viaje = await prisma.viaje.findUnique({
+      where: { idViaje: data.idViaje },
+      include: {
+        ruta: {
+          include: {
+            tarifas: { where: { estado: 'ACTIVO' } },
+          },
+        },
+      },
+    });
+
+    if (!viaje) {
+      return { success: false, error: 'El viaje seleccionado no existe.' };
+    }
+
+    // 2. Resolver Tipo de Venta (por defecto WEB si no se especifica)
+    let tipoVentaId = data.idTipoVenta;
+    if (!tipoVentaId) {
+      const tipoWeb = await prisma.tipoVenta.findFirst({
+        where: { nombre: 'WEB' },
+      });
+      if (tipoWeb) {
+        tipoVentaId = tipoWeb.idTipoVenta;
+      } else {
+        const nuevoTipo = await prisma.tipoVenta.create({
+          data: { nombre: 'WEB', descripcion: 'Compra digital vía portal B2C' },
+        });
+        tipoVentaId = nuevoTipo.idTipoVenta;
+      }
+    }
+
+    // 3. Resolver Tarifa base por defecto si algún boleto no la trae
+    let fallbackTarifaId = viaje.ruta.tarifas[0]?.idTarifa;
+    if (!fallbackTarifaId) {
+      const defaultTarifa = await prisma.tarifa.create({
+        data: {
+          idRuta: viaje.idRuta,
+          monto: data.boletos[0]?.monto || 85,
+          estado: 'ACTIVO',
+        },
+      });
+      fallbackTarifaId = defaultTarifa.idTarifa;
+    }
+
+    // 4. Resolver Tarifa de Equipaje base si algún boleto incluye equipaje
+    let fallbackTarifaEquipajeId: number | null = null;
+    const tieneEquipaje = data.boletos.some((b) => b.equipaje);
+    if (tieneEquipaje) {
+      const tarifaEq = await prisma.tarifaEquipaje.findFirst({
+        where: { estado: 'ACTIVO' },
+      });
+      if (tarifaEq) {
+        fallbackTarifaEquipajeId = tarifaEq.idTarifaEquipaje;
+      } else {
+        const nuevaEq = await prisma.tarifaEquipaje.create({
+          data: {
+            descripcion: 'Equipaje estándar bodega',
+            monto: 50,
+            estado: 'ACTIVO',
+          },
+        });
+        fallbackTarifaEquipajeId = nuevaEq.idTarifaEquipaje;
+      }
+    }
+
     // Calcular monto total sumando pasaje + equipaje de cada boleto
     const totalVenta = data.boletos.reduce((acc, item) => {
       const montoEquipaje = item.equipaje ? item.equipaje.monto : 0;
@@ -146,44 +213,59 @@ export async function procesarVentaBoletos(data: VentaInput) {
         where: {
           idViaje: data.idViaje,
           idAsiento: { in: asientosIds },
-          estado: { in: ['PAGADO', 'RESERVADO'] },
+          estado: { in: ['PAGADO', 'RESERVADO', 'ABORDADO'] },
         },
       });
 
       if (ocupados.length > 0) {
-        throw new Error('Uno o más asientos ya se encuentran ocupados o reservados.');
+        throw new Error('Uno o más asientos ya se encuentran ocupados o reservados por otro pasajero.');
       }
 
       // b) Crear Venta (Cabecera)
       const nuevaVenta = await tx.venta.create({
         data: {
           idViaje: data.idViaje,
-          idTipoVenta: data.idTipoVenta,
+          idTipoVenta: tipoVentaId!,
           total: totalVenta,
           estado: 'COMPLETADA',
         },
       });
 
       // c) Crear Boletos e integrar su Equipaje correspondiente
+      const boletosCreados: Array<{ idBoleto: number; idAsiento: number; monto: number }> = [];
+
       for (const item of data.boletos) {
+        const tarifaIdFinal = item.idTarifa && item.idTarifa > 0 ? item.idTarifa : fallbackTarifaId;
+
         const boletoCreado = await tx.boleto.create({
           data: {
             idVenta: nuevaVenta.idVenta,
             idViaje: data.idViaje,
             idAsiento: item.idAsiento,
-            idTarifa: item.idTarifa,
+            idTarifa: tarifaIdFinal,
             monto: item.monto,
             estado: 'PAGADO',
           },
         });
 
+        boletosCreados.push({
+          idBoleto: boletoCreado.idBoleto,
+          idAsiento: boletoCreado.idAsiento,
+          monto: Number(boletoCreado.monto),
+        });
+
         // Registrar equipaje adjunto si fue especificado
         if (item.equipaje) {
+          const idTarifaEqFinal =
+            item.equipaje.idTarifaEquipaje && item.equipaje.idTarifaEquipaje > 0
+              ? item.equipaje.idTarifaEquipaje
+              : fallbackTarifaEquipajeId!;
+
           await tx.equipaje.create({
             data: {
               idBoleto: boletoCreado.idBoleto,
-              idTarifaEquipaje: item.equipaje.idTarifaEquipaje,
-              descripcion: item.equipaje.descripcion?.trim() || null,
+              idTarifaEquipaje: idTarifaEqFinal,
+              descripcion: item.equipaje.descripcion?.trim() || 'Equipaje adicional',
               cantidad: item.equipaje.cantidad || 1,
               monto: item.equipaje.monto,
             },
@@ -191,16 +273,36 @@ export async function procesarVentaBoletos(data: VentaInput) {
         }
       }
 
-      // d) Cambiar estado de los asientos a OCUPADO
+      // d) Cambiar estado de los asientos a OCUPADO en base de datos
       await tx.asiento.updateMany({
         where: { idAsiento: { in: asientosIds } },
         data: { estado: 'OCUPADO' },
       });
 
-      return nuevaVenta;
+      return {
+        nuevaVenta,
+        boletosCreados,
+      };
     });
 
-    // Enviar confirmación electrónica del boleto si el usuario tiene correo en sesión
+    // 5. Notificación inmediata vía WebSocket a todos los usuarios conectados
+    for (const item of data.boletos) {
+      try {
+        const asientoObj = await prisma.asiento.findUnique({
+          where: { idAsiento: item.idAsiento },
+          select: { numero: true },
+        });
+        await notificarCompraAsientoRealtimeAction({
+          idViaje: data.idViaje,
+          idAsiento: item.idAsiento,
+          numeroAsiento: asientoObj ? String(asientoObj.numero) : String(item.idAsiento),
+        });
+      } catch (wsErr) {
+        console.warn('[Venta] Error al sincronizar asiento por websocket:', wsErr);
+      }
+    }
+
+    // 6. Enviar confirmación electrónica del boleto si el usuario tiene correo en sesión
     if (session.correo && process.env.DISABLE_TICKET_EMAIL !== 'true' && process.env.DISABLE_EMAIL_SENDING !== 'true') {
       try {
         const viajeInfo = await prisma.viaje.findUnique({
@@ -233,7 +335,7 @@ export async function procesarVentaBoletos(data: VentaInput) {
             sendTicketEmail({
               to: session.correo,
               passengerName: session.nombre || 'Pasajero',
-              ticketCode: `TK-${resultado.idVenta}`,
+              ticketCode: `TK-${resultado.nuevaVenta.idVenta}`,
               origin: origen,
               destination: destino,
               departureDate: fechaStr,
@@ -253,11 +355,21 @@ export async function procesarVentaBoletos(data: VentaInput) {
     }
 
     revalidatePath('/admin/ventas');
+    revalidatePath('/dashboard/pos');
+    revalidatePath('/tickets');
+
     return {
       success: true,
       data: {
-        ...resultado,
-        total: Number(resultado.total),
+        idVenta: resultado.nuevaVenta.idVenta,
+        idViaje: data.idViaje,
+        total: Number(resultado.nuevaVenta.total),
+        boletos: resultado.boletosCreados.map((b) => ({
+          idBoleto: b.idBoleto,
+          codigoBoleto: `BOLETO-${b.idBoleto}`,
+          idAsiento: b.idAsiento,
+          monto: b.monto,
+        })),
       },
     };
   } catch (error: any) {

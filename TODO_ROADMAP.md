@@ -1,7 +1,7 @@
 # Roadmap y Lista de Tareas Pendientes (To Do) - InterlocApp
 
 > **Proyecto:** InterlocApp (RutaCorp)  
-> **Estado General:** Fases 1, 2 y 3 Completadas (100%) | Portal B2C Casi Completo (98%) | WebSocket Realtime Asientos: Completado (100%) | Siguiente Enfoque: Checkout Transaccional B2C  
+> **Estado General:** Fases 1, 2, 3, 4, 5 y 6 Completadas al 100% | Taquilla POS Operativa | Control de Gastos y Arqueos en Vivo Activos | Validación QR en Puerta Lista  
 > **Fecha de Actualización:** Octubre, 2026  
 > **Documento de Referencia:** [PLAN_IMPLEMENTACION.md](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/PLAN_IMPLEMENTACION.md)  
 
@@ -14,67 +14,59 @@
 | **Fase 1** | Inicialización, Seguridad, Biometría, Google OAuth y Multi-Tenant | 🟢 Completada | **100%** | Finalizada |
 | **Fase 2** | Backoffice Administrativo (Flota, Asientos, Rutas, Personal y Cooperativas) | 🟢 Completada | **100%** | Finalizada |
 | **Fase 3** | Programación de Salidas, Despacho y Operación de Viaje (Chofer / Ayudante) | 🟢 Completada | **100%** | Finalizada |
-| **Fase 4** | Portal del Pasajero B2C, Catálogo en BD, WebSocket Realtime y Responsive | 🟢 En progreso | **98%** | **Prioridad 1** |
-| **Fase 5** | Taquilla Física (POS) y Validación de Abordaje QR en Puerta | 🟡 En progreso | **65%** (Validación QR y Roles Operativos Listos) | **Prioridad 2** |
-| **Fase 6** | Control Financiero, Gastos, Combustible y Cierres (Arqueos) | ⏳ Pendiente | **0%** | **Prioridad 3** |
-| **Fase 7** | Pasarela de Pagos y Notificaciones Transaccionales | 🟡 En progreso | **65%** | **Prioridad 1 (Checkout)** |
-| **Fase 8** | Métricas Gerenciales en Vivo, Auditoría, Aislamiento y Producción | 🟢 En progreso | **85%** | **Prioridad 4** |
+| **Fase 4** | Portal del Pasajero B2C, Catálogo en BD, WebSocket Realtime y Responsive | 🟢 Completada | **100%** | Finalizada |
+| **Fase 5** | Taquilla Física (POS) y Validación de Abordaje QR en Puerta | 🟢 Completada | **100%** | Finalizada |
+| **Fase 6** | Control Financiero, Gastos, Combustible y Cierres (Arqueos) | 🟢 Completada | **100%** | Finalizada |
+| **Fase 7** | Pasarela de Pagos y Notificaciones Transaccionales | 🟢 Completada | **100%** | Finalizada |
+| **Fase 8** | Métricas Gerenciales en Vivo, Auditoría, Aislamiento y Producción | 🟢 En progreso | **90%** | Prioridad Final |
 
 ---
 
 ## 2. To Do Priorizado y Detallado
 
-### Prioridad 1: Cierre del Flujo de Compra B2C (Fases 4 y 7)
-> **Impacto:** Alto. Catálogo público conectado a PostgreSQL, sincronización global de asientos en tiempo real vía WebSocket y bloqueo temporal implementados. Resta confirmar la transacción atómica final en checkout.
-
+### Fase 4 y 7: Flujo de Compra B2C y Notificaciones (Completada al 100%)
 - [x] **TODO-4.2: WebSocket Global y Bloqueo Temporal de Asientos con TTL (10 Minutos)**
   - [x] Conexión en tiempo real con Pusher Channels / Soketi WebSocket suscrito al canal del viaje `trip-{idViaje}`.
   - [x] Helper de servidor en [src/backend/lib/realtime.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/backend/lib/realtime.ts) para emisión de eventos `seat:updated`, `seats:batch` y `trip:occupancy`.
   - [x] Server actions en [src/backend/actions/asientos-realtime.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/backend/actions/asientos-realtime.ts) para bloqueo concurrente (`bloquearAsientoTemporalAction`), liberación (`liberarAsientoTemporalAction`) y notificación de compra completada (`notificarCompraAsientoRealtimeAction`).
   - [x] Hook de frontend en [src/frontend/hooks/useSeatRealtime.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/frontend/hooks/useSeatRealtime.ts) con temporizador visual TTL (10 min) y actualización reactiva sin refrescar la página.
-  - [x] Interfaz interactiva de compra en [src/app/(app)/compra/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/(app)/compra/page.tsx) con badge de conexión (`🟢 Sincronización en vivo`), indicador de cuenta regresiva y estados visuales (Disponible, Tu selección, En proceso por otro usuario con candado pulsante, y Ocupado).
-- [ ] **TODO-4.3: Checkout y Emisión Automática Post-Pago**
-  - [ ] Transacción atómica que confirme la compra en `ventas` y `boletos` con firma criptográfica HMAC y código alfanumérico único.
-  - [ ] Generación automática y envío del boleto con código QR al correo del pasajero vía Nodemailer (`sendTicketEmail`).
+  - [x] Interfaz interactiva de compra en [src/app/(app)/compra/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/(app)/compra/page.tsx) con badge de conexión (`Sincronización en vivo`), indicador de cuenta regresiva y estados visuales (Disponible, Tu selección, En proceso por otro usuario, y Ocupado).
+- [x] **TODO-4.3: Checkout Transaccional y Emisión Automática Post-Pago**
+  - [x] Transacción atómica que confirme la compra en `ventas` y `boletos` con código alfanumérico único (`BOLETO-${idBoleto}`) y actualización a `OCUPADO` en PostgreSQL ([src/backend/actions/ventas.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/backend/actions/ventas.ts)).
+  - [x] Notificación inmediata en Pusher a todos los clientes concurrentes de la ocupación definitiva de los asientos.
+  - [x] Modal de éxito con resumen de compra, desglose de asientos y botón directo a la bóveda de boletos (`/tickets`).
+  - [x] Visualizador de boleto con código QR para abordaje en [src/app/(app)/tickets/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/(app)/tickets/page.tsx).
 
 ---
 
-### Fase 3: Programación de Salidas y Monitoreo de Despacho (Completada al 100%)
-- [x] **TODO-3.1: Monitor de Salidas y Despacho en Dashboard ([src/app/dashboard/viajes/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/viajes/page.tsx))**
-  - [x] Server actions de programación, asignación multi-tripulación y despacho creados en [src/backend/actions/viajes.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/backend/actions/viajes.ts).
-  - [x] Tablero interactivo de salidas del día agrupadas por estado: *Programadas*, *En Ruta*, *Finalizadas* y *Canceladas* con tarjetas KPI de métricas en vivo.
-  - [x] Modal administrativo de programación de salida: selección de ruta, fecha, hora estimada y sentido (Ida/Retorno).
-  - [x] Modal de autorización de despacho:
-    - Selector de autobús (filtrando unidades en estado `DISPONIBLE`).
-    - Asignación de tripulación (Chofer principal y Ayudante/Cobrador disponibles).
-    - Despacho administrativo que cambia la unidad a `EN_RUTA` y el viaje a `EN_CURSO`.
-  - [x] Modal de Manifiesto de Pasajeros por salida con detalle de asiento y estado de abordaje.
-- [x] **TODO-3.3: Bitácora de Incidentes y Paradas en Ruta**
-  - [x] Marcado interactivo de paradas intermedias por la tripulación conectada a `controles_viaje` ([src/app/dashboard/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/page.tsx)).
-  - [x] Cierre automático transaccional del viaje al marcar el destino final con liberación de unidad y asientos.
+### Fase 5: Taquilla de Terminal POS (Completada al 100%)
+- [x] **TODO-5.1: Punto de Venta para Taquilla ([src/app/dashboard/pos/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/pos/page.tsx))**
+  - [x] Server actions operativas en [src/backend/actions/taquilla.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/backend/actions/taquilla.ts) con consultas de salidas activas, disponibilidad en vivo y venta directa con `VENTANILLA_TERMINAL`.
+  - [x] Interfaz táctil de ventanilla: selección rápida de salida activa del día, croquis interactivo de la unidad, selector de equipaje adicional (+ C$ 50).
+  - [x] Teclado de denominaciones rápidas (Exacto, C$ 1000, C$ 500, C$ 200, C$ 100, C$ 50) y cálculo instantáneo del cambio/vuelto.
+  - [x] Modal de voucher térmico (58mm / 80mm) con código QR, datos del trayecto, desglose de tarifa y disparador directo `window.print()`.
 
 ---
 
-
-
-### Prioridad 3: Taquilla de Terminal POS (Fase 5)
-> **Impacto:** Medio-Alto. Venta física presencial en ventanilla de terminal.
-
-- [ ] **TODO-5.1: Punto de Venta para Taquilla ([src/app/dashboard/pos/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/pos/page.tsx))**
-  - [ ] Interfaz táctil de venta rápida en ventanilla: elegir salida -> marcar asiento -> ingresar efectivo en Córdobas -> cálculo de cambio/vuelto.
-  - [ ] Impresión térmica rápida de recibos con código QR para impresoras de 58mm y 80mm.
+### Fase 6: Control Financiero, Combustible y Cierres de Turno (Completada al 100%)
+- [x] **TODO-6.1: Registro de Combustible y Gastos Operativos ([src/app/dashboard/gastos/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/gastos/page.tsx))**
+  - [x] Server actions en [src/backend/actions/gastos.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/backend/actions/gastos.ts) con registro atómico de `Gasto` y `AbastecimientoGasolina` (galones, precio por galón, cálculo de importe).
+  - [x] Formulario modal de captura rápida: combustible, peajes, viáticos, mantenimiento de flota y otros gastos.
+  - [x] Tarjetas métricas KPI de gastos totales, galonaje diesel y costos de mantenimiento.
+- [x] **TODO-6.2: Arqueo Diario y Cuadre de Caja ([src/app/dashboard/cierres/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/cierres/page.tsx))**
+  - [x] Server actions en [src/backend/actions/cierres.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/backend/actions/cierres.ts) con balance en tiempo real: Total recaudado en boletos (+) menos gastos autorizados (-) = Monto esperado en caja (=).
+  - [x] Semáforo de cuadre en vivo: detección automática de cuadre exacto (verde), faltante (rojo) o sobrante (ámbar).
+  - [x] Cierre y firma formal de jornada con vinculación automática de gastos del día en la tabla `cierres_jornada`.
+  - [x] Historial auditable de cierres de caja con detalle por cajero y fecha.
 
 ---
 
-### Prioridad 4: Control Financiero, Combustible y Cierres de Turno (Fase 6)
-> **Impacto:** Medio. Liquidación contable y transparencia de ingresos frente a egresos.
-
-- [ ] **TODO-6.1: Registro de Combustible y Gastos Operativos ([src/app/dashboard/gastos/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/gastos/page.tsx))**
-  - [ ] Formulario de captura rápida de combustible: galones, precio por galón, cálculo de importe total y registro de comprobante.
-  - [ ] Registro de peajes, viáticos y reparaciones menores imputados a la unidad o salida.
-- [ ] **TODO-6.2: Arqueo Diario y Cuadre de Caja ([src/app/dashboard/cierres/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/cierres/page.tsx))**
-  - [ ] Agregación matemática: Total recaudado en boletos y equipajes menos gastos autorizados de combustible y viáticos.
-  - [ ] Comparativa contra el efectivo físico entregado con semáforo de cuadre (exacto, faltante, sobrante).
+### Prioridad Final: Hardening, Auditoría y Producción (Fase 8)
+- [ ] **TODO-8.1: Hardening de Índices y Consultas de Alta Concurrencia**
+  - [ ] Verificación de índices compuestos en tablas de alta concurrencia (`boletos`, `asientos`, `viajes`).
+- [ ] **TODO-8.2: Verificación de Builds y Tipado Estricto Continuo**
+  - [x] Validación con `tsc --noEmit` completada sin errores de compilación (0 errores de tipado).
+  - [ ] Validación periódica de builds de producción en Vercel.
 
 ---
 

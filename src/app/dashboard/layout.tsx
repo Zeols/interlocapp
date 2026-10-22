@@ -17,6 +17,10 @@ import {
   mdiChevronDown,
   mdiBus,
   mdiAccountMultiple,
+  mdiCashRegister,
+  mdiGasStation,
+  mdiFinance,
+  mdiQrcodeScan,
 } from "@mdi/js";
 import { Logo } from "@/frontend/components/ui/Logo";
 import { getCurrentUserAction, logoutAction } from "@/backend/actions/auth";
@@ -98,6 +102,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     ? [
         { name: "Resumen", path: "/dashboard", icon: mdiViewDashboard },
         { name: "Salidas", path: "/dashboard/viajes", icon: mdiBus },
+        { name: "Validar Boletos", path: "/validar-boleto", icon: mdiQrcodeScan },
       ]
     : [
         { name: "Resumen", path: "/dashboard", icon: mdiViewDashboard },
@@ -105,10 +110,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           ? [{ name: "Cooperativas", path: "/dashboard/cooperativas", icon: mdiDomain }]
           : []),
         { name: "Salidas y Despacho", path: "/dashboard/viajes", icon: mdiBus },
+        { name: "Taquilla POS", path: "/dashboard/pos", icon: mdiCashRegister },
         { name: "Flota", path: "/dashboard/flota", icon: mdiBusDoubleDecker },
         { name: "Personal", path: "/dashboard/choferes", icon: mdiAccountGroup },
+        { name: "Gastos y Diesel", path: "/dashboard/gastos", icon: mdiGasStation },
+        { name: "Cierres de Caja", path: "/dashboard/cierres", icon: mdiFinance },
         { name: "Usuarios", path: "/dashboard/usuarios", icon: mdiAccountMultiple },
         { name: "Rutas", path: "/dashboard/rutas", icon: mdiMapMarkerPath },
+        { name: "Validar Boletos", path: "/validar-boleto", icon: mdiQrcodeScan },
       ];
 
   const handleToggleSidebar = () => {
