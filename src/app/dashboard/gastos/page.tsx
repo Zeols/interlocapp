@@ -187,10 +187,10 @@ export default function GastosPage() {
             Módulo Financiero
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Control de Gastos y Combustible
+            Gastos
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Registro de egresos operativos para liquidaciones y arqueos de caja.
+            Registro de egresos operativos y combustible para liquidaciones y arqueos.
           </p>
         </div>
 

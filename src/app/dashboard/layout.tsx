@@ -113,7 +113,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         { name: "Taquilla POS", path: "/dashboard/pos", icon: mdiCashRegister },
         { name: "Flota", path: "/dashboard/flota", icon: mdiBusDoubleDecker },
         { name: "Personal", path: "/dashboard/choferes", icon: mdiAccountGroup },
-        { name: "Gastos y Diesel", path: "/dashboard/gastos", icon: mdiGasStation },
+        { name: "Gastos", path: "/dashboard/gastos", icon: mdiGasStation },
         { name: "Cierres de Caja", path: "/dashboard/cierres", icon: mdiFinance },
         { name: "Usuarios", path: "/dashboard/usuarios", icon: mdiAccountMultiple },
         { name: "Rutas", path: "/dashboard/rutas", icon: mdiMapMarkerPath },

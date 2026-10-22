@@ -452,6 +452,14 @@ export async function sendTicketEmail(data: TicketEmailData) {
                     </table>
                   </div>
 
+                  <!-- Código QR de Abordaje Único -->
+                  <div style="text-align: center; margin: 24px 0 16px 0; padding: 20px; background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 14px;">
+                    <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #64748B; margin-bottom: 12px;">Código QR Oficial de Abordaje</div>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(data.ticketCode)}" width="160" height="160" alt="Código QR de Abordaje" style="display: block; margin: 0 auto; width: 160px; height: 160px; border-radius: 8px; border: 1px solid #CBD5E1; background-color: #FFFFFF; padding: 6px;" />
+                    <div style="font-family: monospace; font-size: 14px; font-weight: 800; color: #0F172A; margin-top: 10px; letter-spacing: 1.5px;">${data.ticketCode}</div>
+                    <div style="font-size: 11px; color: #64748B; margin-top: 4px;">Muestra este código al chofer o ayudante al momento de abordar</div>
+                  </div>
+
                   <div style="font-size: 12px; line-height: 1.5; color: #64748B; background-color: #FEF3C7; border: 1px solid #FDE68A; border-radius: 8px; padding: 12px; margin-top: 18px;">
                     <strong>Recomendación para el abordaje:</strong><br>
                     Te sugerimos presentarte en la terminal con al menos 15 minutos de anticipación al horario estipulado de salida.

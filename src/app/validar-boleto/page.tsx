@@ -58,6 +58,12 @@ export default function ValidarBoletoPage() {
   const [filtroManifiesto, setFiltroManifiesto] = useState<"todos" | "abordados" | "pendientes">("todos");
   const [currentUser, setCurrentUser] = useState<{ nombre: string; rolNombre: string; cooperativaNombre?: string } | null>(null);
 
+  // Estados de escáner con cámara
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [isCheckingCamera, setIsCheckingCamera] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
   // Cargar usuario y viaje
   const loadData = async () => {
     setLoadingManifiesto(true);
@@ -88,9 +94,8 @@ export default function ValidarBoletoPage() {
     loadData();
   }, []);
 
-  const handleValidar = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!codigoInput.trim()) return;
+  const ejecutarValidacion = async (codigo: string) => {
+    if (!codigo.trim()) return;
 
     setLoadingValidacion(true);
     setFeedbackError(null);
@@ -98,11 +103,10 @@ export default function ValidarBoletoPage() {
     setAlreadyBoardedNotice(false);
 
     try {
-      const res = await validarBoletoAction(codigoInput.trim());
+      const res = await validarBoletoAction(codigo.trim());
       if (res.success && res.data) {
         setResultado(res.data);
         setCodigoInput("");
-        // Refrescar manifiesto para actualizar contadores
         loadData();
       } else {
         if (res.alreadyBoarded && res.data) {
@@ -118,6 +122,118 @@ export default function ValidarBoletoPage() {
       setLoadingValidacion(false);
     }
   };
+
+  const handleValidar = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!codigoInput.trim()) return;
+    await ejecutarValidacion(codigoInput);
+  };
+
+  // Verificación y apertura de la cámara del dispositivo
+  const checkAndOpenCamera = async () => {
+    setFeedbackError(null);
+    setIsCheckingCamera(true);
+
+    if (typeof window === "undefined" || !navigator?.mediaDevices?.getUserMedia) {
+      setFeedbackError("Este navegador o dispositivo no soporta acceso a la cámara.");
+      setIsCheckingCamera(false);
+      return;
+    }
+
+    try {
+      // 1. Verificar si existen dispositivos de videoinput conectados
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter((d) => d.kind === "videoinput");
+
+      if (videoDevices.length === 0) {
+        setFeedbackError("No se detectó ninguna cámara física conectada en este dispositivo.");
+        setIsCheckingCamera(false);
+        return;
+      }
+
+      // 2. Solicitar flujo de video (priorizando cámara trasera en móviles)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } },
+        audio: false,
+      });
+
+      setCameraStream(stream);
+      setShowCameraModal(true);
+    } catch (err: any) {
+      console.error("Error al acceder a la cámara:", err);
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        setFeedbackError("Permiso de cámara denegado. Concede permiso de cámara en los ajustes de tu navegador.");
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        setFeedbackError("No se encontró ninguna cámara disponible en el equipo.");
+      } else {
+        setFeedbackError("No se pudo iniciar la cámara: " + (err.message || "Error desconocido."));
+      }
+    } finally {
+      setIsCheckingCamera(false);
+    }
+  };
+
+  const cerrarCamara = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+    setShowCameraModal(false);
+  };
+
+  // Detección automática en video con BarcodeDetector
+  useEffect(() => {
+    if (showCameraModal && cameraStream && videoRef.current) {
+      videoRef.current.srcObject = cameraStream;
+      videoRef.current.play().catch(() => {});
+
+      let active = true;
+      let detector: any = null;
+      if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+        try {
+          detector = new (window as any).BarcodeDetector({
+            formats: ["qr_code", "code_128", "code_39"],
+          });
+        } catch {
+          detector = null;
+        }
+      }
+
+      const interval = setInterval(async () => {
+        if (!active || !detector || !videoRef.current) return;
+        try {
+          if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+            const detected = await detector.detect(videoRef.current);
+            if (detected && detected.length > 0) {
+              const code = detected[0].rawValue;
+              if (code) {
+                active = false;
+                cerrarCamara();
+                setCodigoInput(code);
+                ejecutarValidacion(code);
+              }
+            }
+          }
+        } catch {
+          // Errores de frame intermedio ignorados
+        }
+      }, 350);
+
+      return () => {
+        active = false;
+        clearInterval(interval);
+      };
+    }
+  }, [showCameraModal, cameraStream]);
+
+  // Limpiar stream al desmontar el componente
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, [cameraStream]);
 
   const boletosFiltrados = (manifiesto?.boletos || []).filter((b) => {
     if (filtroManifiesto === "abordados") return b.estado === "ABORDADO";
@@ -245,7 +361,7 @@ export default function ValidarBoletoPage() {
             </p>
           </div>
 
-          <form onSubmit={handleValidar} className="flex flex-col sm:flex-row items-center gap-3">
+          <form onSubmit={handleValidar} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
             <div className="relative flex-1 w-full">
               <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
                 <Icon path={mdiTicketConfirmationOutline} size={0.75} />
@@ -261,9 +377,24 @@ export default function ValidarBoletoPage() {
             </div>
 
             <button
+              type="button"
+              onClick={checkAndOpenCamera}
+              disabled={isCheckingCamera}
+              className="w-full sm:w-auto px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold text-xs sm:text-sm rounded-xl transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              title="Abrir cámara del dispositivo para escanear código QR"
+            >
+              {isCheckingCamera ? (
+                <div className="w-4 h-4 border-2 border-slate-400 border-t-slate-900 rounded-full animate-spin" />
+              ) : (
+                <Icon path={mdiCamera} size={0.75} className="text-primary" />
+              )}
+              <span>{isCheckingCamera ? "Verificando..." : "Escanear con Cámara"}</span>
+            </button>
+
+            <button
               type="submit"
               disabled={loadingValidacion || !codigoInput.trim()}
-              className="w-full sm:w-auto px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full sm:w-auto px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {loadingValidacion ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -311,7 +442,7 @@ export default function ValidarBoletoPage() {
                   </div>
                   <div>
                     <h3 className="font-extrabold text-sm sm:text-base leading-tight">
-                      {alreadyBoardedNotice ? "Boleto Ya Abordado Anteriormente" : "¡Boleto Validado y Abordado con Éxito!"}
+                      {alreadyBoardedNotice ? "Boleto Ya Abordado Anteriormente" : "Boleto Validado y Abordado Correctamente"}
                     </h3>
                     <p className="text-xs opacity-80 mt-0.5">
                       {resultado.codigoBoleto} • {resultado.cooperativaNombre}
@@ -463,6 +594,73 @@ export default function ValidarBoletoPage() {
           </div>
         )}
       </div>
+
+      {/* MODAL ESCÁNER DE CÁMARA */}
+      {showCameraModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl text-white">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="p-1.5 rounded-lg bg-primary/20 text-primary border border-primary/30">
+                  <Icon path={mdiCamera} size={0.7} />
+                </span>
+                <div>
+                  <h3 className="font-bold text-sm sm:text-base leading-tight">Escanear Boleto con Cámara</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Apunta hacia el código QR impreso o digital</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={cerrarCamara}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                title="Cerrar cámara"
+              >
+                <Icon path={mdiClose} size={0.7} />
+              </button>
+            </div>
+
+            {/* Video Viewport with Scan Reticle */}
+            <div className="relative bg-black aspect-square flex items-center justify-center overflow-hidden">
+              <video
+                ref={videoRef}
+                playsInline
+                autoPlay
+                muted
+                className="w-full h-full object-cover"
+              />
+
+              {/* Viewfinder Overlay */}
+              <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+                <div className="w-56 h-56 sm:w-60 sm:h-60 border-2 border-primary/70 rounded-2xl relative shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]">
+                  {/* Reticle corner marks */}
+                  <span className="absolute -top-1 -left-1 w-5 h-5 border-t-4 border-l-4 border-emerald-400 rounded-tl-sm" />
+                  <span className="absolute -top-1 -right-1 w-5 h-5 border-t-4 border-r-4 border-emerald-400 rounded-tr-sm" />
+                  <span className="absolute -bottom-1 -left-1 w-5 h-5 border-b-4 border-l-4 border-emerald-400 rounded-bl-sm" />
+                  <span className="absolute -bottom-1 -right-1 w-5 h-5 border-b-4 border-r-4 border-emerald-400 rounded-br-sm" />
+                </div>
+                <p className="text-xs text-white/90 bg-black/70 px-3 py-1 rounded-full mt-4 backdrop-blur-xs font-medium">
+                  Alinea el código QR dentro del recuadro
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between gap-3 text-xs">
+              <span className="text-slate-400 text-[11px]">
+                Validación y detección automática
+              </span>
+              <button
+                type="button"
+                onClick={cerrarCamara}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold rounded-xl transition-colors cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

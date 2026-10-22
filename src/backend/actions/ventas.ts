@@ -331,11 +331,14 @@ export async function procesarVentaBoletos(data: VentaInput) {
           const fechaStr = new Date(viajeInfo.fecha).toLocaleDateString('es-NI', { dateStyle: 'medium' });
           const horaStr = new Date(viajeInfo.hrSalidaProgramada).toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' });
 
+          const primerBoletoId = resultado.boletosCreados[0]?.idBoleto;
+          const ticketCodeUnico = primerBoletoId ? `BOLETO-${primerBoletoId}` : `TK-${resultado.nuevaVenta.idVenta}`;
+
           await Promise.race([
             sendTicketEmail({
               to: session.correo,
               passengerName: session.nombre || 'Pasajero',
-              ticketCode: `TK-${resultado.nuevaVenta.idVenta}`,
+              ticketCode: ticketCodeUnico,
               origin: origen,
               destination: destino,
               departureDate: fechaStr,

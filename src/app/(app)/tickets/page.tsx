@@ -221,27 +221,16 @@ export default function TicketsPage() {
               Salida: {selectedTicket.fecha} · {selectedTicket.horaSalida}
             </p>
 
-            {/* Visualizador QR de Alta Densidad */}
+            {/* Visualizador QR Escaneable Oficial */}
             <div className="bg-white p-4 rounded-2xl border-2 border-dashed border-gray-300 inline-flex flex-col items-center justify-center mb-5 shadow-xs">
-              <div className="w-44 h-44 bg-slate-900 rounded-xl p-3 flex flex-col items-center justify-center text-white relative">
-                <div className="w-full h-full grid grid-cols-6 grid-rows-6 gap-1 bg-white p-2 rounded-lg">
-                  {Array.from({ length: 36 }).map((_, idx) => {
-                    const isCorner =
-                      idx === 0 || idx === 1 || idx === 4 || idx === 5 ||
-                      idx === 6 || idx === 7 || idx === 10 || idx === 11 ||
-                      idx === 24 || idx === 25 || idx === 28 || idx === 29 ||
-                      idx === 30 || idx === 31 || idx === 34 || idx === 35 ||
-                      idx === 14 || idx === 21;
-                    return (
-                      <div
-                        key={idx}
-                        className={`rounded-xs ${
-                          isCorner ? "bg-slate-900" : idx % 2 === 0 ? "bg-slate-900" : "bg-slate-100"
-                        }`}
-                      />
-                    );
-                  })}
-                </div>
+              <div className="w-44 h-44 bg-white rounded-xl p-2 flex flex-col items-center justify-center border border-gray-200">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
+                    selectedTicket.codigoBoleto
+                  )}`}
+                  alt={selectedTicket.codigoBoleto}
+                  className="w-40 h-40 object-contain rounded-lg"
+                />
               </div>
               <span className="mt-2.5 font-mono font-bold text-xs text-gray-900 tracking-wider">
                 {selectedTicket.codigoBoleto}
