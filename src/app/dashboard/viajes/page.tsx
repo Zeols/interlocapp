@@ -1016,8 +1016,9 @@ export default function SalidasViajesPage() {
                   Autobús Disponible *
                 </label>
                 {recursosDespacho.unidades.length === 0 ? (
-                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs">
-                    ⚠️ No hay unidades en estado <strong>DISPONIBLE</strong> en este momento. Finaliza un viaje previo o registra unidades en la sección Flota.
+                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs flex items-center gap-2">
+                    <Icon path={mdiAlertCircleOutline} size={0.7} className="text-amber-600 shrink-0" />
+                    <span>No hay unidades en estado <strong>DISPONIBLE</strong> en este momento. Finaliza un viaje previo o registra unidades en la sección Flota.</span>
                   </div>
                 ) : (
                   <select
@@ -1042,8 +1043,9 @@ export default function SalidasViajesPage() {
                   Chofer Titular *
                 </label>
                 {recursosDespacho.choferes.length === 0 ? (
-                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs">
-                    ⚠️ No hay choferes activos registrados en la cooperativa.
+                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs flex items-center gap-2">
+                    <Icon path={mdiAlertCircleOutline} size={0.7} className="text-amber-600 shrink-0" />
+                    <span>No hay choferes activos registrados en la cooperativa.</span>
                   </div>
                 ) : (
                   <select

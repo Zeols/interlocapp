@@ -256,7 +256,7 @@ export default function ProfilePage() {
       if (res.success) {
         setBiometricFeedback({
           type: "success",
-          message: "¡Huella verificada correctamente! Tu sensor biométrico está funcionando al 100%.",
+          message: "Huella verificada correctamente. El sensor biométrico se encuentra operativo.",
         });
       } else {
         setBiometricFeedback({

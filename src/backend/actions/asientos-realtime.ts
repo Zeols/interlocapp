@@ -210,7 +210,7 @@ export async function bloquearAsientoTemporalAction(data: {
       expiraEn: expiraEnMs,
     });
 
-    // 🚀 EMISIÓN WEBSOCKET GLOBAL VÍA PUSHER
+    // Emisión WebSocket vía Pusher
     await broadcastSeatUpdate({
       idViaje,
       idAsiento,
@@ -254,7 +254,7 @@ export async function liberarAsientoTemporalAction(data: {
       temporaryLocks.delete(lockKey);
     }
 
-    // 🚀 EMISIÓN WEBSOCKET GLOBAL VÍA PUSHER
+    // Emisión WebSocket vía Pusher
     await broadcastSeatUpdate({
       idViaje,
       idAsiento,
@@ -284,7 +284,7 @@ export async function notificarCompraAsientoRealtimeAction(data: {
     const lockKey = getLockKey(idViaje, idAsiento);
     temporaryLocks.delete(lockKey);
 
-    // 🚀 EMISIÓN WEBSOCKET GLOBAL VÍA PUSHER
+    // Emisión WebSocket vía Pusher
     await broadcastSeatUpdate({
       idViaje,
       idAsiento,

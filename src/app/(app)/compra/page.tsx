@@ -465,7 +465,7 @@ function PurchaseContent() {
               <span className="inline-block bg-primary/10 text-primary font-bold text-xs uppercase tracking-wider px-3 py-1 rounded-full mb-2">
                 Pago confirmado
               </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-6 tracking-tight">¡Compra realizada!</h2>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-6 tracking-tight">Compra confirmada</h2>
 
               <div className="w-full bg-gray-50/80 border border-gray-100 rounded-2xl p-5 mb-6 text-left">
                 <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-200/80">

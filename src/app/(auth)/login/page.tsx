@@ -127,7 +127,7 @@ function LoginFormContent() {
         return;
       }
 
-      setSuccessMessage(`¡Bienvenido de vuelta, ${response.data?.user.nombre || "usuario"}!`);
+      setSuccessMessage(`Sesión iniciada correctamente como ${response.data?.user.nombre || "usuario"}.`);
       const targetUrl = redirectParam || response.data?.redirectUrl || "/home";
       setTimeout(() => {
         router.push(targetUrl);
@@ -206,7 +206,7 @@ function LoginFormContent() {
                   <div className="flex items-start gap-2.5">
                     <Icon path={mdiAlertCircleOutline} size={0.8} className="shrink-0 mt-0.5 text-emerald-600" />
                     <div>
-                      <p className="font-bold">¡Solicitud de Cooperativa Registrada!</p>
+                      <p className="font-bold">Solicitud de cooperativa registrada</p>
                       <p className="mt-0.5 text-emerald-700">Tu cooperativa y credenciales han sido recibidas y están en proceso de verificación por la administración central. Te notificaremos por correo en cuanto sea activada.</p>
                     </div>
                   </div>

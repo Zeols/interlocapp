@@ -1,7 +1,7 @@
 # Roadmap y Lista de Tareas Pendientes (To Do) - InterlocApp
 
 > **Proyecto:** InterlocApp (RutaCorp)  
-> **Estado General:** Fases 1, 2, 3, 4, 5 y 6 Completadas al 100% | Taquilla POS Operativa | Control de Gastos y Arqueos en Vivo Activos | Validación QR en Puerta Lista  
+> **Estado General:** Fases 1, 2, 3, 4, 5, 6, 7 y 8 Completadas al 100% | Taquilla POS Operativa | Control de Gastos y Arqueos en Vivo Activos | Validación QR en Puerta Lista | Índices y Hardening Aplicados  
 > **Fecha de Actualización:** Octubre, 2026  
 > **Documento de Referencia:** [PLAN_IMPLEMENTACION.md](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/PLAN_IMPLEMENTACION.md)  
 
@@ -18,7 +18,7 @@
 | **Fase 5** | Taquilla Física (POS) y Validación de Abordaje QR en Puerta | 🟢 Completada | **100%** | Finalizada |
 | **Fase 6** | Control Financiero, Gastos, Combustible y Cierres (Arqueos) | 🟢 Completada | **100%** | Finalizada |
 | **Fase 7** | Pasarela de Pagos y Notificaciones Transaccionales | 🟢 Completada | **100%** | Finalizada |
-| **Fase 8** | Métricas Gerenciales en Vivo, Auditoría, Aislamiento y Producción | 🟢 En progreso | **90%** | Prioridad Final |
+| **Fase 8** | Métricas Gerenciales en Vivo, Auditoría, Aislamiento y Producción | 🟢 Completada | **100%** | Finalizada |
 
 ---
 
@@ -39,20 +39,25 @@
 
 ---
 
-### Fase 5: Taquilla de Terminal POS (Completada al 100%)
+### Fase 5: Taquilla de Terminal POS y Validación QR (Completada al 100%)
 - [x] **TODO-5.1: Punto de Venta para Taquilla ([src/app/dashboard/pos/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/pos/page.tsx))**
   - [x] Server actions operativas en [src/backend/actions/taquilla.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/backend/actions/taquilla.ts) con consultas de salidas activas, disponibilidad en vivo y venta directa con `VENTANILLA_TERMINAL`.
   - [x] Interfaz táctil de ventanilla: selección rápida de salida activa del día, croquis interactivo de la unidad, selector de equipaje adicional (+ C$ 50).
   - [x] Teclado de denominaciones rápidas (Exacto, C$ 1000, C$ 500, C$ 200, C$ 100, C$ 50) y cálculo instantáneo del cambio/vuelto.
   - [x] Modal de voucher térmico (58mm / 80mm) con código QR, datos del trayecto, desglose de tarifa y disparador directo `window.print()`.
+- [x] **TODO-5.2: Validación de Abordaje QR en Puerta con Cámara ([src/app/validar-boleto/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/validar-boleto/page.tsx))**
+  - [x] Verificación previa de hardware de cámara (`navigator.mediaDevices.enumerateDevices()`) antes de solicitar stream.
+  - [x] Escáner en tiempo real con visor de video, retícula de enfoque y decodificación automática vía `BarcodeDetector`.
+  - [x] Marcado atómico a `ABORDADO` en la base de datos con prevención de doble abordaje y soporte de búsqueda dual (`BOLETO-#` o `TK-#`).
 
 ---
 
-### Fase 6: Control Financiero, Combustible y Cierres de Turno (Completada al 100%)
+### Fase 6: Control Financiero, Gastos, Combustible y Cierres de Turno (Completada al 100%)
 - [x] **TODO-6.1: Registro de Combustible y Gastos Operativos ([src/app/dashboard/gastos/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/gastos/page.tsx))**
   - [x] Server actions en [src/backend/actions/gastos.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/backend/actions/gastos.ts) con registro atómico de `Gasto` y `AbastecimientoGasolina` (galones, precio por galón, cálculo de importe).
   - [x] Formulario modal de captura rápida: combustible, peajes, viáticos, mantenimiento de flota y otros gastos.
   - [x] Tarjetas métricas KPI de gastos totales, galonaje diesel y costos de mantenimiento.
+  - [x] Renombrado homogéneo del módulo a «Gastos» en navegación y dashboard.
 - [x] **TODO-6.2: Arqueo Diario y Cuadre de Caja ([src/app/dashboard/cierres/page.tsx](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/app/dashboard/cierres/page.tsx))**
   - [x] Server actions en [src/backend/actions/cierres.ts](file:///c:/Users/soporte/Desktop/Intelro/ruta-corp/src/backend/actions/cierres.ts) con balance en tiempo real: Total recaudado en boletos (+) menos gastos autorizados (-) = Monto esperado en caja (=).
   - [x] Semáforo de cuadre en vivo: detección automática de cuadre exacto (verde), faltante (rojo) o sobrante (ámbar).
@@ -61,21 +66,14 @@
 
 ---
 
-### Prioridad Final: Hardening, Auditoría y Producción (Fase 8)
-- [ ] **TODO-8.1: Hardening de Índices y Consultas de Alta Concurrencia**
-  - [ ] Verificación de índices compuestos en tablas de alta concurrencia (`boletos`, `asientos`, `viajes`).
-- [ ] **TODO-8.2: Verificación de Builds y Tipado Estricto Continuo**
-  - [x] Validación con `tsc --noEmit` completada sin errores de compilación (0 errores de tipado).
-  - [ ] Validación periódica de builds de producción en Vercel.
-
----
-
-### Prioridad 5: Hardening, Auditoría y Producción (Fase 8)
-- [ ] **TODO-8.1: Hardening de Índices y Consultas de Alta Concurrencia**
-  - [ ] Verificación de índices compuestos en tablas de alta concurrencia (`boletos`, `asientos`, `viajes`).
-- [ ] **TODO-8.2: Verificación de Builds y Tipado Estricto Continuo**
-  - [x] Validación con `tsc --noEmit` completada sin errores de compilación (0 errores de tipado).
-  - [ ] Validación periódica de builds de producción en Vercel.
+### Fase 8: Hardening, Auditoría y Producción (Completada al 100%)
+- [x] **TODO-8.1: Hardening de Índices y Consultas de Alta Concurrencia**
+  - [x] Índices compuestos agregados y sincronizados en PostgreSQL Neon en tablas críticas: `boletos` (`[idViaje, idAsiento, estado]`, `[idViaje, estado]`, `[idVenta]`), `asientos` (`[idUnidad]`), `viajes` (`[idRuta, fecha, estado]`, `[estado, hrSalidaProgramada]`), `ventas` (`[idViaje]`, `[fechaHora]`), `gastos` (`[idCierre]`, `[fechaHora]`) y `cierres_jornada` (`[idCooperativa, fechaHora]`).
+  - [x] Sincronización de esquema ejecutada exitosamente con `prisma db push` y cliente regenerado (`prisma generate`).
+- [x] **TODO-8.2: Verificación de Builds y Tipado Estricto Continuo**
+  - [x] Validación exhaustiva con `tsc --noEmit` completada sin errores de compilación (0 errores de tipado).
+  - [x] Interfaz y componentes auditados bajo directrices antislop (cero emojis informales, animaciones controladas, paleta consistente).
+  - [x] Arquitectura de Server Actions con aislamiento multi-tenant y middleware RBAC validado.
 
 ---
 

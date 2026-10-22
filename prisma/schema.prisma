@@ -189,6 +189,7 @@ model CierreJornada {
   usuario     Usuario     @relation(fields: [idUsuario], references: [idUsuario])
   gastos      Gasto[]
 
+  @@index([idCooperativa, fechaHora])
   @@map("cierres_jornada")
 }
 
@@ -204,6 +205,8 @@ model Gasto {
   cierreJornada          CierreJornada?          @relation(fields: [idCierre], references: [idCierre], onDelete: SetNull)
   abastecimientoGasolina AbastecimientoGasolina?
 
+  @@index([idCierre])
+  @@index([fechaHora])
   @@map("gastos")
 }
 
@@ -280,6 +283,7 @@ model Asiento {
   unidad  Unidad   @relation(fields: [idUnidad], references: [idUnidad], onDelete: Cascade)
   boletos Boleto[]
 
+  @@index([idUnidad])
   @@map("asientos")
 }
 
@@ -383,6 +387,8 @@ model Viaje {
   ventas         Venta[]
   boletos        Boleto[]
 
+  @@index([idRuta, fecha, estado])
+  @@index([estado, hrSalidaProgramada])
   @@map("viajes")
 }
 
@@ -458,6 +464,8 @@ model Venta {
   tipoVenta TipoVenta @relation(fields: [idTipoVenta], references: [idTipoVenta])
   boletos   Boleto[]
 
+  @@index([idViaje])
+  @@index([fechaHora])
   @@map("ventas")
 }
 
@@ -478,6 +486,9 @@ model Boleto {
   tarifa   Tarifa     @relation(fields: [idTarifa], references: [idTarifa])
   equipaje Equipaje?
 
+  @@index([idViaje, idAsiento, estado])
+  @@index([idViaje, estado])
+  @@index([idVenta])
   @@map("boletos")
 }
 
