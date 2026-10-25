@@ -101,7 +101,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const menuItems = isAyudante
     ? [
         { name: "Resumen", path: "/dashboard", icon: mdiViewDashboard },
-        { name: "Salidas", path: "/dashboard/viajes", icon: mdiBus },
+        { name: "Viaje", path: "/dashboard/ayudante", icon: mdiBus },
         { name: "Validar Boletos", path: "/validar-boleto", icon: mdiQrcodeScan },
       ]
     : [

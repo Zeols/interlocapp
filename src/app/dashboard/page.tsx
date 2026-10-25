@@ -13,6 +13,7 @@ import {
   mdiCheckCircle,
   mdiMapMarkerRadius,
   mdiShieldAccount,
+  mdiAlertCircleOutline,
 } from "@mdi/js";
 import { AnimatedCircularProgressBar } from "@/registry/magicui/animated-circular-progress-bar";
 import { getDashboardStatsAction } from "@/backend/actions/ventas";
@@ -44,7 +45,7 @@ interface DashboardMetrics {
   ultimasVentas: VentaResumenItem[];
 }
 
-export default function DashboardHome() {
+export default function DashboardHome(){
   const { formatPrice } = useCurrency();
   const { selectedCoopId, selectedCoop, isSuperAdmin } = useTenant();
   const [data, setData] = useState<DashboardMetrics | null>(null);
@@ -55,6 +56,34 @@ export default function DashboardHome() {
   const [viajeActivo, setViajeActivo] = useState<any>(null);
   const [paradaActualIndex, setParadaActualIndex] = useState<number>(0);
   const [actualizando, setActualizando] = useState(false);
+
+  // Estados para control de tiempo (cooldown) y modales / popups estéticos
+  const [ultimoTiempoActualizacion, setUltimoTiempoActualizacion] = useState<number>(0);
+  const [tiempoRestanteCooldown, setTiempoRestanteCooldown] = useState<number>(0);
+
+  const [modalConfirmacion, setModalConfirmacion] = useState<{
+    isOpen: boolean;
+    index: number;
+    paradaId: number;
+    nombreParada: string;
+    esUltimaParada: boolean;
+  }>({
+    isOpen: false,
+    index: 0,
+    paradaId: 0,
+    nombreParada: "",
+    esUltimaParada: false,
+  });
+
+  const [alertaSistema, setAlertaSistema] = useState<{
+    isOpen: boolean;
+    titulo: string;
+    mensaje: string;
+  }>({
+    isOpen: false,
+    titulo: "",
+    mensaje: "",
+  });
 
   const fetchMetrics = async () => {
     setLoading(true);
@@ -92,19 +121,81 @@ export default function DashboardHome() {
     fetchMetrics();
   }, [selectedCoopId]);
 
+   // Efecto para la cuenta regresiva del cooldown (2 minutos = 120 segundos)
+  useEffect(() => {
+    let intervalo: any = null;
+    if (tiempoRestanteCooldown > 0) {
+      intervalo = setInterval(() => {
+        setTiempoRestanteCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(intervalo);
+  }, [tiempoRestanteCooldown]);
+
   const rolUsuario = (session?.rolNombre || "").trim().toUpperCase();
   const isAyudante = rolUsuario === "AYUDANTE";
 
-  // Función interactiva para actualizar la parada actual en la base de datos
-  const handleSeleccionarParada = async (index: number, paradaId: number) => {
+  // Función al intentar cambiar de parada con validación estricta de orden y cooldown
+  const handleIntentarCambiarParada = (index: number, paradaId: number, nombreParada: string) => {
     if (!viajeActivo?.idViaje || viajeActivo?.estado === "FINALIZADO") return;
+
+ if (index > paradaActualIndex + 1) {
+      setAlertaSistema({
+        isOpen: true,
+        titulo: "Orden Secuencial Incorrecto",
+        mensaje: `Debes marcar las estaciones en orden secuencial. No puedes saltarte a la estación #${index + 1} (${nombreParada}) sin haber pasado por las anteriores.`,
+      });      return;
+    }
+
+    // VALIDACIÓN 2: Si hace clic en una estación que ya pasó o ya es la actual, no hace falta forzar cooldown restrictivo si solo re-clica, 
+    // pero si intenta avanzar a la siguiente, evaluamos el tiempo de recarga (Cooldown de 2 min / 120 seg)  
+
+      if (index > paradaActualIndex) {
+      const COOLDOWN_SEGUNDOS = 120;
+      const ahora = Date.now();
+      const segundosTranscurridos = (ahora - ultimoTiempoActualizacion) / 1000;
+
+      if (ultimoTiempoActualizacion > 0 && segundosTranscurridos < COOLDOWN_SEGUNDOS) {
+        const restante = Math.ceil(COOLDOWN_SEGUNDOS - segundosTranscurridos);
+        const min = Math.floor(restante / 60);
+        const seg = restante % 60;
+
+        setAlertaSistema({
+          isOpen: true,
+          titulo: "Tiempo de Espera Activo",
+          mensaje: `Debes esperar ${min}m ${seg}s más antes de reportar que te moviste al siguiente punto de la ruta.`,
+        });
+       return;
+      }
+    }
+    // Detectar si es la última parada (Terminal)
+    const esUltima = index === viajeActivo.paradas.length - 1;
+
+    // Abrir el popup de confirmación correspondiente
+    setModalConfirmacion({
+      isOpen: true,
+      index,
+      paradaId,
+      nombreParada,
+      esUltimaParada: esUltima,
+    });
+  };
+
+  // Función ejecutada cuando el usuario CONFIRMA en el popup
+    const confirmarCambioParada = async () => {
+    const { index, paradaId } = modalConfirmacion;
+    setModalConfirmacion({ isOpen: false, index: 0, paradaId: 0, nombreParada: "", esUltimaParada: false });
+
+
     setParadaActualIndex(index);
     setActualizando(true);
     try {
       const res = await actualizarParadaActualAction(viajeActivo.idViaje, paradaId);
       if (res.success) {
-        // Refrescamos para capturar el estado actualizado (ej: FINALIZADO) de inmediato
-        await fetchMetrics();
+
+        setUltimoTiempoActualizacion(Date.now());
+        setTiempoRestanteCooldown(120); // Activa los 2 minutos de recarga para el siguiente avance
+        await fetchMetrics(); // Refrescamos para capturar el estado actualizado (ej: FINALIZADO) de inmediato
       }
     } catch (err) {
       console.error("Error al actualizar la parada actual:", err);
@@ -196,7 +287,9 @@ export default function DashboardHome() {
               <p className="text-xs text-slate-500 mt-1">
                 {esFinalizado 
                   ? "Este viaje ha concluido. Las estaciones están bloqueadas hasta una nueva asignación." 
-                  : "Toca la estación actual por la que vas transitando para actualizar el estado del viaje."}
+                  : tiempoRestanteCooldown > 0 
+                  ? `Tiempo de espera para avanzar al siguiente punto: ${Math.floor(tiempoRestanteCooldown / 60)}m ${tiempoRestanteCooldown % 60}s`
+                  : "Toca la siguiente estación secuencial por la que vas transitando para actualizar el viaje."}
               </p>
             </div>
 
@@ -230,20 +323,23 @@ export default function DashboardHome() {
                 {viajeActivo.paradas.map((parada: any, index: number) => {
                   const isPassedOrCurrent = index <= paradaActualIndex;
                   const isCurrent = index === paradaActualIndex;
+                  const esSiguientePermitida = index === paradaActualIndex + 1;
 
                   return (
                     <button
                       key={parada.id}
-                      disabled={esFinalizado} // 👈 Bloquea los puntos al finalizar
-                      onClick={() => handleSeleccionarParada(index, parada.id)}
-                      className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between relative overflow-hidden ${
+                      disabled={esFinalizado || actualizando}
+                      onClick={() => handleIntentarCambiarParada(index, parada.id, parada.nombre)}
+                      className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between relative overflow-hidden cursor-pointer ${
                         esFinalizado
                           ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed opacity-90 shadow-none"
                           : isCurrent
-                          ? "bg-primary text-white border-primary shadow-md ring-2 ring-primary/20 cursor-pointer"
+                          ? "bg-primary text-white border-primary shadow-md ring-2 ring-primary/20"
                           : isPassedOrCurrent
-                          ? "bg-slate-900 text-white border-slate-900 cursor-pointer"
-                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 cursor-pointer"
+                          ? "bg-slate-900 text-white border-slate-900"
+                          : esSiguientePermitida
+                          ? "bg-slate-50 text-slate-900 border-primary/60 hover:border-primary hover:bg-primary/5 ring-1 ring-primary/30"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
                       }`}
                     >
                       <div className="flex items-center justify-between w-full mb-2">
@@ -253,13 +349,17 @@ export default function DashboardHome() {
                           #{index + 1}
                         </span>
                         {isCurrent && !esFinalizado ? (
-                          <span className="flex items-center gap-1.5 text-[10px] font-bold bg-white text-primary px-2 py-0.5 rounded">
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                            {actualizando ? "Guardando..." : "Actual"}
+                          <span className="flex items-center gap-1 text-[10px] font-bold bg-white text-primary px-1.5 py-0.5 rounded">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
+                            {actualizando ? "Guardando..." : "Aquí"} 
                           </span>
                         ) : isPassedOrCurrent || esFinalizado ? (
                           <Icon path={mdiCheckCircle} size={0.6} className={esFinalizado ? "text-emerald-600" : "text-emerald-400"} />
-                        ) : null}
+                           ) : esSiguientePermitida ? (
+                          <span className="text-[9px] font-bold text-primary uppercase bg-primary/10 px-1 py-0.5 rounded">Siguiente</span>
+                           ) : ( 
+                            <span className="text-[9px] font-bold text-slate-400 uppercase bg-slate-100 px-1 py-0.5 rounded">Bloqueado</span>
+                        )}
                       </div>
                       <p className="text-xs font-bold leading-snug line-clamp-2">
                         {parada.nombre}
@@ -272,18 +372,116 @@ export default function DashboardHome() {
               <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
                 <span className="text-slate-600 font-medium">
                   {esFinalizado ? (
-                    <strong className="text-amber-800">Viaje concluido. En espera de una nueva asignación de ruta.</strong>
+                     <strong className="text-amber-800"> Viaje finalizado con éxito. Esperando nueva asignación de ruta.</strong>
                   ) : (
-                    <span>Posición actual en ruta: <strong className="text-slate-900">{viajeActivo.paradas[paradaActualIndex]?.nombre}</strong></span>
+                    <span> Posición actual en ruta: <strong className="text-slate-900">{viajeActivo.paradas[paradaActualIndex]?.nombre}</strong></span>
                   )}
                 </span>
-                <span className="text-emerald-700 font-bold">
+                <span className="text-emerald-600 font-bold">
                   Sincronizado con base de datos
                 </span>
               </div>
             </div>
           )}
         </div>
+        {/* ========================================== */}
+        {/* POPUP / MODAL DE CONFIRMACIÓN DE PARADA     */}
+        {/* ========================================== */}
+        {modalConfirmacion.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                  modalConfirmacion.esUltimaParada ? "bg-amber-100 text-amber-800" : "bg-primary/10 text-primary"
+                }`}>
+                  <Icon path={modalConfirmacion.esUltimaParada ? mdiCheckCircle : mdiAlertCircleOutline} size={1.2} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {modalConfirmacion.esUltimaParada ? "¡Finalizar Viaje y Terminal!" : "Confirmar Cambio de Posición"}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Estación seleccionada: <strong className="text-slate-700">{modalConfirmacion.nombreParada}</strong>
+                  </p>
+                </div>
+              </div>
+
+              <div className={`p-3.5 rounded-xl border text-xs leading-relaxed ${
+                modalConfirmacion.esUltimaParada 
+                  ? "bg-amber-50/70 border-amber-200 text-amber-900 font-medium" 
+                  : "bg-slate-50 border-slate-200 text-slate-600"
+              }`}>
+                {modalConfirmacion.esUltimaParada ? (
+                  <p>
+                     <strong>¡Atención!</strong> Está a punto de finalizar el viaje actual. Al confirmar, se cerrará el despacho, se liberará la unidad y los asientos volverán a estar disponibles. <strong>Esta acción no se puede revertir.</strong>
+                  </p>
+                ) : (
+                  <p>
+                    ¿Estás seguro de avanzar al siguiente punto de ruta: <strong>{modalConfirmacion.nombreParada}</strong>? Se activará un control de tiempo para la siguiente actualización.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setModalConfirmacion({ isOpen: false, index: 0, paradaId: 0, nombreParada: "", esUltimaParada: false })}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmarCambioParada}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-all cursor-pointer ${
+                    modalConfirmacion.esUltimaParada 
+                      ? "bg-amber-600 hover:bg-amber-700" 
+                      : "bg-primary hover:bg-primary/90"
+                  }`}
+                >
+                  {modalConfirmacion.esUltimaParada ? "Confirmar y Finalizar Viaje" : "Sí, Actualizar Punto"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* MODAL DE ALERTA DEL SISTEMA (Estético)     */}
+        {/* ========================================== */}
+        {alertaSistema.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                  <Icon path={mdiAlertCircleOutline} size={1.2} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {alertaSistema.titulo}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Aviso operativo del sistema
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl border bg-amber-50/70 border-amber-200 text-amber-900 text-xs leading-relaxed font-medium">
+                <p>{alertaSistema.mensaje}</p>
+              </div>
+
+              <div className="flex items-center justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setAlertaSistema({ isOpen: false, titulo: "", mensaje: "" })}
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 transition-colors cursor-pointer shadow-md"
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
