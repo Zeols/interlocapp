@@ -17,9 +17,12 @@ import {
   mdiCheckCircleOutline,
   mdiAlertCircleOutline,
   mdiBus,
-  mdiTicketConfirmationOutline,
   mdiDeleteOutline,
   mdiSwapHorizontal,
+  mdiKeyVariant,
+  mdiEyeOutline,
+  mdiEyeOffOutline,
+  mdiLockReset,
 } from "@mdi/js";
 import {
   getUsuariosAdminAction,
@@ -27,6 +30,7 @@ import {
   getRoles,
   deleteUsuarioAction,
   reasignarCooperativaUsuarioAction,
+  adminCambiarPasswordUsuarioAction,
 } from "@/backend/actions/usuarios";
 import { formatManaguaDate } from "@/lib/date-time";
 import { getCurrentUserAction } from "@/backend/actions/auth";
@@ -67,6 +71,19 @@ export default function UsuariosPage() {
   const [deleteModalUser, setDeleteModalUser] = useState<UsuarioItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Estados para Reasignación de Cooperativa (exclusivo Super Admin)
+  const [reasignarModalUser, setReasignarModalUser] = useState<UsuarioItem | null>(null);
+  const [reasignarNuevaCoop, setReasignarNuevaCoop] = useState<string>("");
+  const [reasignando, setReasignando] = useState(false);
+
+  // Estados para Modificar Contraseña (Super Admin / Admin)
+  const [passwordModalUser, setPasswordModalUser] = useState<UsuarioItem | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
   // Cargar usuario en sesión activa
   useEffect(() => {
     async function loadCurrent() {
@@ -82,7 +99,7 @@ export default function UsuariosPage() {
     loadCurrent();
   }, []);
 
-  // Campos del formulario
+  // Campos del formulario nuevo usuario
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
   const [correo, setCorreo] = useState("");
@@ -145,14 +162,10 @@ export default function UsuariosPage() {
     try {
       const res = await deleteUsuarioAction(deleteModalUser.idUsuario);
       if (res.success) {
-        if (res.error) {
-          setFeedback({ type: "success", text: res.error });
-        } else {
-          setFeedback({
-            type: "success",
-            text: `El usuario "${deleteModalUser.nombreCompleto}" (@${deleteModalUser.usuario}) fue eliminado correctamente.`,
-          });
-        }
+        setFeedback({
+          type: "success",
+          text: `El usuario "${deleteModalUser.nombreCompleto}" (@${deleteModalUser.usuario}) fue eliminado correctamente.`,
+        });
         setDeleteModalUser(null);
         await fetchData();
       } else {
@@ -165,11 +178,7 @@ export default function UsuariosPage() {
     }
   };
 
-  // Estados para Reasignación de Cooperativa (exclusivo Super Admin)
-  const [reasignarModalUser, setReasignarModalUser] = useState<UsuarioItem | null>(null);
-  const [reasignarNuevaCoop, setReasignarNuevaCoop] = useState<string>("");
-  const [reasignando, setReasignando] = useState(false);
-
+  // Manejador para Reasignación de Cooperativa
   const handleOpenReasignar = (user: UsuarioItem) => {
     setReasignarModalUser(user);
     setReasignarNuevaCoop(user.idCooperativa ? String(user.idCooperativa) : "");
@@ -178,14 +187,15 @@ export default function UsuariosPage() {
   const handleReasignarCooperativa = async () => {
     if (!reasignarModalUser) return;
     setReasignando(true);
-    setFeedback(null);
     try {
-      const nuevaCoopId = reasignarNuevaCoop ? Number(reasignarNuevaCoop) : null;
-      const res = await reasignarCooperativaUsuarioAction(reasignarModalUser.idUsuario, nuevaCoopId);
+      const res = await reasignarCooperativaUsuarioAction(
+        reasignarModalUser.idUsuario,
+        reasignarNuevaCoop ? Number(reasignarNuevaCoop) : null
+      );
       if (res.success) {
         setFeedback({
           type: "success",
-          text: `Cooperativa reasignada exitosamente para ${reasignarModalUser.nombreCompleto}.`,
+          text: `Cooperativa de @${reasignarModalUser.usuario} actualizada a "${res.data?.cooperativaNombre || 'Sin asignar'}".`,
         });
         setReasignarModalUser(null);
         await fetchData();
@@ -193,12 +203,72 @@ export default function UsuariosPage() {
         setFeedback({ type: "error", text: res.error || "No se pudo reasignar la cooperativa." });
       }
     } catch {
-      setFeedback({ type: "error", text: "Error de servidor al reasignar cooperativa." });
+      setFeedback({ type: "error", text: "Error al reasignar cooperativa." });
     } finally {
       setReasignando(false);
     }
   };
 
+  // Manejador para Cambio de Contraseña
+  const handleOpenPasswordModal = (user: UsuarioItem) => {
+    setPasswordModalUser(user);
+    setNewPassword("");
+    setConfirmPassword("");
+    setShowNewPassword(false);
+    setPasswordError(null);
+  };
+
+  const generarPasswordSegura = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$";
+    let pass = "Ruta";
+    for (let i = 0; i < 6; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setNewPassword(pass);
+    setConfirmPassword(pass);
+    setShowNewPassword(true);
+  };
+
+  const handleCambiarPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordModalUser) return;
+
+    if (newPassword.trim().length < 6) {
+      setPasswordError("La nueva contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Las contraseñas no coinciden. Verifícalas.");
+      return;
+    }
+
+    setChangingPassword(true);
+    setPasswordError(null);
+
+    try {
+      const res = await adminCambiarPasswordUsuarioAction(
+        passwordModalUser.idUsuario,
+        newPassword.trim()
+      );
+
+      if (res.success) {
+        setFeedback({
+          type: "success",
+          text: `Contraseña de @${passwordModalUser.usuario} (${passwordModalUser.nombreCompleto}) actualizada exitosamente.`,
+        });
+        setPasswordModalUser(null);
+      } else {
+        setPasswordError(res.error || "No se pudo actualizar la contraseña.");
+      }
+    } catch (err: any) {
+      setPasswordError(err.message || "Error al cambiar contraseña.");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  // Apertura y reset de formulario de nuevo usuario
   const handleOpenModal = () => {
     setNombre("");
     setApellido("");
@@ -207,48 +277,46 @@ export default function UsuariosPage() {
     setUsuario("");
     setPassword("");
     setIdCooperativa(selectedCoopId !== "ALL" ? selectedCoopId : "");
-    if (roles.length > 0) {
-      const defaultRol = isSuperAdmin 
-        ? roles.find((r) => r.nombre === "PASAJERO") || roles[0]
-        : roles.find((r) => r.nombre === "CHOFER") || roles[0];
-      setIdRol(defaultRol.idRol);
-    }
-    setFeedback(null);
     setShowModal(true);
   };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
-    setFeedback(null);
+    if (!nombre.trim() || !usuario.trim() || !correo.trim() || !idRol) {
+      setFeedback({ type: "error", text: "Por favor completa todos los campos requeridos." });
+      return;
+    }
 
+    setSaving(true);
     try {
       const res = await createUsuarioByAdminAction({
         nombre: nombre.trim(),
-        apellido: apellido.trim() || undefined,
-        correo: correo.trim(),
+        apellido: apellido.trim(),
+        usuario: usuario.trim(),
+        correo: correo.trim().toLowerCase(),
         telefono: telefono.trim() || undefined,
-        usuario: usuario.trim() || undefined,
+        idRol: Number(idRol),
+        idCooperativa: idCooperativa ? Number(idCooperativa) : undefined,
         password: password.trim() || undefined,
-        idRol,
-        idCooperativa: idCooperativa ? Number(idCooperativa) : null,
       });
 
       if (res.success) {
-        setFeedback({ type: "success", text: `Usuario "${res.data?.nombre}" registrado exitosamente.` });
+        setFeedback({
+          type: "success",
+          text: `Usuario @${usuario} registrado exitosamente con rol ${roles.find((r) => r.idRol === Number(idRol))?.nombre || ""}.`,
+        });
         setShowModal(false);
-        fetchData();
+        await fetchData();
       } else {
         setFeedback({ type: "error", text: res.error || "No se pudo registrar el usuario." });
       }
     } catch {
-      setFeedback({ type: "error", text: "Error de servidor al guardar el usuario." });
+      setFeedback({ type: "error", text: "Error de conexión al guardar usuario." });
     } finally {
       setSaving(false);
     }
   };
 
-  // Filtrar roles permitidos según permisos
   const rolesDisponiblesForm = isSuperAdmin
     ? roles
     : roles.filter((r) => ["CHOFER", "AYUDANTE", "TAQUILLERO", "ADMIN_COOP"].includes(r.nombre));
@@ -258,17 +326,17 @@ export default function UsuariosPage() {
       {/* Alerta de Feedback Global */}
       {feedback && (
         <div
-          className={`p-4 rounded-xl border text-sm font-semibold flex items-center justify-between gap-3 shadow-2xs ${
+          className={`p-4 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 shadow-2xs ${
             feedback.type === "success"
               ? "bg-emerald-50 text-emerald-900 border-emerald-200"
-              : "bg-red-50 text-red-900 border-red-200"
+              : "bg-rose-50 text-rose-900 border-rose-200"
           }`}
         >
           <div className="flex items-center gap-2.5">
             <Icon
               path={feedback.type === "success" ? mdiCheckCircleOutline : mdiAlertCircleOutline}
-              size={0.8}
-              className={feedback.type === "success" ? "text-emerald-600 shrink-0" : "text-red-600 shrink-0"}
+              size={0.75}
+              className={feedback.type === "success" ? "text-emerald-600 shrink-0" : "text-rose-600 shrink-0"}
             />
             <span>{feedback.text}</span>
           </div>
@@ -284,8 +352,8 @@ export default function UsuariosPage() {
       {/* Cabecera Principal */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Icon path={mdiAccountMultiple} size={0.85} className="text-primary" />
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Icon path={mdiAccountMultiple} size={0.8} className="text-slate-800" />
             Gestión de Usuarios y Accesos
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
@@ -297,19 +365,19 @@ export default function UsuariosPage() {
 
         <button
           onClick={handleOpenModal}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm transition-all shadow-xs cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm transition-all shadow-2xs cursor-pointer shrink-0 self-start sm:self-auto"
         >
-          <Icon path={mdiPlus} size={0.7} />
+          <Icon path={mdiPlus} size={0.65} />
           <span>Registrar Nuevo Usuario</span>
         </button>
       </div>
 
       {/* Barra de Filtros y Búsqueda */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
         <form onSubmit={handleSearchSubmit} className="relative w-full md:w-80">
           <Icon
             path={mdiMagnify}
-            size={0.75}
+            size={0.7}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
           />
           <input
@@ -321,10 +389,10 @@ export default function UsuariosPage() {
           />
         </form>
 
-        <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+        <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 flex-wrap sm:flex-nowrap">
           {/* Filtro por Rol */}
           <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs shrink-0">
-            <Icon path={mdiShieldAccount} size={0.65} className="text-slate-400" />
+            <Icon path={mdiShieldAccount} size={0.6} className="text-slate-400" />
             <span className="text-slate-500 font-medium">Rol:</span>
             <select
               value={filtroRol}
@@ -343,7 +411,7 @@ export default function UsuariosPage() {
           {/* Filtro por Cooperativa (Solo visible para Super Admin) */}
           {isSuperAdmin && cooperativas.length > 0 && (
             <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs shrink-0">
-              <Icon path={mdiDomain} size={0.65} className="text-slate-400" />
+              <Icon path={mdiDomain} size={0.6} className="text-slate-400" />
               <span className="text-slate-500 font-medium">Cooperativa:</span>
               <select
                 value={filtroCoop}
@@ -366,13 +434,13 @@ export default function UsuariosPage() {
             className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer shrink-0"
             title="Recargar usuarios"
           >
-            <Icon path={mdiRefresh} size={0.7} className={loading ? "animate-spin text-slate-900" : ""} />
+            <Icon path={mdiRefresh} size={0.65} className={loading ? "animate-spin text-slate-900" : ""} />
           </button>
         </div>
       </div>
 
-      {/* TABLA DE USUARIOS CON SKELETON */}
-      <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden">
+      {/* TABLA DE USUARIOS */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
         {loading ? (
           <div className="p-6 space-y-4">
             {Array.from({ length: 6 }).map((_, idx) => (
@@ -401,7 +469,7 @@ export default function UsuariosPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-200">
+              <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-200 text-[10px]">
                 <tr>
                   <th className="py-3 px-4">Usuario / Nombre</th>
                   <th className="py-3 px-4">Rol del Sistema</th>
@@ -412,7 +480,7 @@ export default function UsuariosPage() {
                   <th className="py-3 px-4 text-center">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 font-medium">
                 {usuarios.map((u) => {
                   const isBusRole = ["CHOFER", "AYUDANTE", "TAQUILLERO", "CHEQUEADOR"].includes(u.rolNombre);
                   return (
@@ -494,12 +562,24 @@ export default function UsuariosPage() {
                         </span>
                       </td>
 
-                      <td className="py-3 px-4 text-center text-slate-400 text-[11px]">
+                      <td className="py-3 px-4 text-center text-slate-400 text-[11px] font-mono">
                         {formatManaguaDate(u.createdAt, "short")}
                       </td>
 
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-1">
+                          {/* Botón Cambiar Contraseña (Super Admin y Admin) */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenPasswordModal(u)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-amber-700 hover:bg-amber-50 border border-transparent hover:border-amber-200 transition-all cursor-pointer inline-flex items-center justify-center"
+                            title={`Modificar contraseña de ${u.nombreCompleto}`}
+                            aria-label="Modificar contraseña"
+                          >
+                            <Icon path={mdiKeyVariant} size={0.65} />
+                          </button>
+
+                          {/* Botón Reasignar Cooperativa (Exclusivo Super Admin) */}
                           {isSuperAdmin && (
                             <button
                               type="button"
@@ -508,21 +588,22 @@ export default function UsuariosPage() {
                               title={`Reasignar cooperativa de ${u.nombreCompleto}`}
                               aria-label="Reasignar cooperativa"
                             >
-                              <Icon path={mdiSwapHorizontal} size={0.7} />
+                              <Icon path={mdiSwapHorizontal} size={0.65} />
                             </button>
                           )}
 
+                          {/* Botón Eliminar */}
                           {currentUser?.idUsuario === u.idUsuario ? (
                             <span className="text-[10px] text-slate-400 font-medium italic px-1">Tú</span>
                           ) : (!isSuperAdmin && u.rolNombre === "SUPER_ADMIN") ? null : (
                             <button
                               type="button"
                               onClick={() => setDeleteModalUser(u)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all cursor-pointer inline-flex items-center justify-center"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-all cursor-pointer inline-flex items-center justify-center"
                               title={`Eliminar usuario @${u.usuario}`}
                               aria-label="Eliminar usuario"
                             >
-                              <Icon path={mdiDeleteOutline} size={0.7} />
+                              <Icon path={mdiDeleteOutline} size={0.65} />
                             </button>
                           )}
                         </div>
@@ -536,9 +617,155 @@ export default function UsuariosPage() {
         )}
       </div>
 
-      {/* MODAL PARA CREAR NUEVO USUARIO */}
+      {/* MODAL 1: CAMBIAR CONTRASEÑA (SUPER ADMIN / ADMIN) */}
+      {passwordModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full overflow-hidden animate-in zoom-in-95">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center border border-amber-200 shrink-0">
+                  <Icon path={mdiKeyVariant} size={0.7} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Modificar Contraseña</h3>
+                  <p className="text-xs text-slate-500">
+                    Restablecimiento directo de credenciales de acceso
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPasswordModalUser(null)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <Icon path={mdiClose} size={0.7} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCambiarPassword} className="p-5 space-y-4 text-xs">
+              {/* Ficha estructurada Clave-Valor (Ley de Miller: chunking de información) */}
+              <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden text-xs">
+                <div className="bg-slate-100/80 px-3 py-1.5 border-b border-slate-200 font-bold text-[10px] uppercase tracking-wider text-slate-600">
+                  Ficha de la Cuenta a Modificar
+                </div>
+                <div className="divide-y divide-slate-200/70">
+                  <div className="flex items-center justify-between py-2 px-3">
+                    <span className="text-slate-500 font-medium">Nombre Completo:</span>
+                    <span className="font-bold text-slate-900">{passwordModalUser.nombreCompleto}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 px-3">
+                    <span className="text-slate-500 font-medium">Usuario / Handle:</span>
+                    <span className="font-mono font-semibold text-slate-800">@{passwordModalUser.usuario}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 px-3">
+                    <span className="text-slate-500 font-medium">Correo Electrónico:</span>
+                    <span className="text-slate-700">{passwordModalUser.correo}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 px-3">
+                    <span className="text-slate-500 font-medium">Rol en Sistema:</span>
+                    <span className="px-2 py-0.5 rounded bg-slate-200 font-bold text-[10px] text-slate-800">
+                      {passwordModalUser.rolNombre}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 px-3">
+                    <span className="text-slate-500 font-medium">Cooperativa:</span>
+                    <span className="font-semibold text-slate-800">{passwordModalUser.cooperativaNombre}</span>
+                  </div>
+                </div>
+              </div>
+
+              {passwordError && (
+                <div className="p-2.5 bg-rose-50 text-rose-800 border border-rose-200 rounded-lg font-semibold flex items-center gap-2">
+                  <Icon path={mdiAlertCircleOutline} size={0.6} />
+                  <span>{passwordError}</span>
+                </div>
+              )}
+
+              {/* Input Nueva Contraseña */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-slate-700 uppercase tracking-wider text-[10px]">
+                    Nueva Contraseña
+                  </label>
+                  <button
+                    type="button"
+                    onClick={generarPasswordSegura}
+                    className="text-[11px] text-slate-700 hover:text-slate-900 font-semibold underline underline-offset-2 cursor-pointer"
+                  >
+                    Generar segura
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres..."
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg py-2 pl-3 pr-10 text-xs font-mono text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    title={showNewPassword ? "Ocultar" : "Mostrar"}
+                  >
+                    <Icon path={showNewPassword ? mdiEyeOffOutline : mdiEyeOutline} size={0.65} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirmar Contraseña */}
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 uppercase tracking-wider text-[10px]">
+                  Confirmar Nueva Contraseña
+                </label>
+                <input
+                  type={showNewPassword ? "text" : "password"}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repite la contraseña..."
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg py-2 px-3 text-xs font-mono text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white"
+                />
+              </div>
+
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                El usuario podrá ingresar inmediatamente con esta nueva contraseña desde cualquier dispositivo.
+              </p>
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setPasswordModalUser(null)}
+                  disabled={changingPassword}
+                  className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={changingPassword}
+                  className="px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all cursor-pointer shadow-2xs disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {changingPassword ? (
+                    <>
+                      <Icon path={mdiLoading} size={0.6} className="animate-spin" />
+                      <span>Guardando...</span>
+                    </>
+                  ) : (
+                    "Establecer Contraseña"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: CREAR NUEVO USUARIO */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
           <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden animate-in zoom-in-95">
             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <div>
@@ -553,78 +780,100 @@ export default function UsuariosPage() {
                 onClick={() => setShowModal(false)}
                 className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 cursor-pointer"
               >
-                <Icon path={mdiClose} size={0.8} />
+                <Icon path={mdiClose} size={0.7} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateSubmit} className="p-5 sm:p-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <form onSubmit={handleCreateSubmit} className="p-5 sm:p-6 space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Nombre *</label>
+                  <label className="block text-[10px] font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Nombres *
+                  </label>
                   <input
                     type="text"
                     required
                     value={nombre}
                     onChange={(e) => setNombre(e.target.value)}
                     placeholder="Ej: Carlos"
-                    className="w-full bg-slate-50 border border-slate-200 text-xs sm:text-sm rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:bg-white focus:border-slate-400"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Apellido</label>
+                  <label className="block text-[10px] font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Apellidos
+                  </label>
                   <input
                     type="text"
                     value={apellido}
                     onChange={(e) => setApellido(e.target.value)}
-                    placeholder="Ej: Morales (opcional)"
-                    className="w-full bg-slate-50 border border-slate-200 text-xs sm:text-sm rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:bg-white focus:border-slate-400"
+                    placeholder="Ej: Alvarado"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Correo Electrónico *</label>
-                <input
-                  type="email"
-                  required
-                  value={correo}
-                  onChange={(e) => setCorreo(e.target.value)}
-                  placeholder="usuario@ejemplo.com"
-                  className="w-full bg-slate-50 border border-slate-200 text-xs sm:text-sm rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:bg-white focus:border-slate-400"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Teléfono</label>
-                  <input
-                    type="tel"
-                    maxLength={8}
-                    value={telefono}
-                    onChange={(e) => setTelefono(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                    placeholder="8 dígitos (opcional)"
-                    className="w-full bg-slate-50 border border-slate-200 text-xs sm:text-sm rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:bg-white focus:border-slate-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Nombre de Usuario</label>
+                  <label className="block text-[10px] font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Nombre de Usuario (@) *
+                  </label>
                   <input
                     type="text"
+                    required
                     value={usuario}
-                    onChange={(e) => setUsuario(e.target.value)}
-                    placeholder="Autogenerado si está vacío"
-                    className="w-full bg-slate-50 border border-slate-200 text-xs sm:text-sm rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:bg-white focus:border-slate-400"
+                    onChange={(e) => setUsuario(e.target.value.toLowerCase().replace(/\s+/g, ""))}
+                    placeholder="Ej: calvarado"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-mono text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Correo Electrónico *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={correo}
+                    onChange={(e) => setCorreo(e.target.value)}
+                    placeholder="correo@ejemplo.com"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Teléfono con código de país unificado (Ley de Parkinson: autocompletado y formato asistido) */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Rol a Asignar *</label>
+                  <label className="block text-[10px] font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Teléfono Celular
+                  </label>
+                  <div className="flex items-center rounded-lg border border-slate-300 bg-slate-50 overflow-hidden focus-within:border-slate-900 focus-within:bg-white transition-colors">
+                    <div className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 border-r border-slate-200 text-slate-700 text-xs font-bold shrink-0 select-none">
+                      <span>🇳🇮</span>
+                      <span>+505</span>
+                    </div>
+                    <input
+                      type="tel"
+                      maxLength={8}
+                      value={telefono}
+                      onChange={(e) => setTelefono(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                      placeholder="8888 8888"
+                      className="w-full bg-transparent px-3 py-2 text-slate-900 focus:outline-none text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Rol Operativo *
+                  </label>
                   <select
                     value={idRol}
                     onChange={(e) => setIdRol(Number(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 text-xs sm:text-sm rounded-xl px-3 py-2 text-slate-900 font-semibold focus:outline-none focus:bg-white focus:border-slate-400 cursor-pointer"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-semibold text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white cursor-pointer"
                   >
                     {rolesDisponiblesForm.map((r) => (
                       <option key={r.idRol} value={r.idRol}>
@@ -633,45 +882,61 @@ export default function UsuariosPage() {
                     ))}
                   </select>
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Cooperativa {isSuperAdmin ? "(Opcional si es Super/Pasajero)" : "(Fijada a tu cooperativa)"}
-                  </label>
-                  {isSuperAdmin ? (
-                    <select
-                      value={idCooperativa}
-                      onChange={(e) => setIdCooperativa(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 text-xs sm:text-sm rounded-xl px-3 py-2 text-slate-900 font-semibold focus:outline-none focus:bg-white focus:border-slate-400 cursor-pointer"
-                    >
-                      <option value="">Sin Cooperativa (Global / Pasajero)</option>
-                      {cooperativas.map((c) => (
-                        <option key={c.idCooperativa} value={c.idCooperativa.toString()}>
-                          {c.nombre}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      disabled
-                      value={cooperativas.find((c) => c.idCooperativa.toString() === selectedCoopId)?.nombre || "Tu Cooperativa"}
-                      className="w-full bg-slate-100 border border-slate-200 text-xs sm:text-sm rounded-xl px-3 py-2 text-slate-600 font-medium cursor-not-allowed"
-                    />
-                  )}
-                </div>
               </div>
 
+              {/* Asignación de Cooperativa */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Contraseña Inicial (Opcional)
+                <label className="block text-[10px] font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Cooperativa de Transporte
                 </label>
+                {isSuperAdmin ? (
+                  <select
+                    value={idCooperativa}
+                    onChange={(e) => setIdCooperativa(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-semibold text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white cursor-pointer"
+                  >
+                    <option value="">Sin cooperativa asignada (Acceso Global / Pasajero)</option>
+                    {cooperativas.map((c) => (
+                      <option key={c.idCooperativa} value={c.idCooperativa}>
+                        {c.nombre}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-700 font-semibold flex items-center gap-1.5">
+                    <Icon path={mdiDomain} size={0.55} className="text-slate-500" />
+                    <span>Tu Cooperativa Asignada</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Contraseña Inicial con generación automática (Ley de Parkinson) */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[10px] font-semibold text-slate-700 uppercase tracking-wider">
+                    Contraseña Inicial (Opcional)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$";
+                      let pass = "Ruta";
+                      for (let i = 0; i < 6; i++) {
+                        pass += chars.charAt(Math.floor(Math.random() * chars.length));
+                      }
+                      setPassword(pass);
+                    }}
+                    className="text-[11px] text-slate-700 hover:text-slate-900 font-semibold underline underline-offset-2 cursor-pointer"
+                  >
+                    Generar segura
+                  </button>
+                </div>
                 <input
-                  type="password"
+                  type="text"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Por defecto: RutaCorp2026!"
-                  className="w-full bg-slate-50 border border-slate-200 text-xs sm:text-sm rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:bg-white focus:border-slate-400"
+                  placeholder="Por defecto: RutaCorp2026! o presiona Generar segura"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-mono text-slate-900 focus:outline-none focus:border-slate-900 focus:bg-white"
                 />
               </div>
 
@@ -679,30 +944,37 @@ export default function UsuariosPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-lg shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  {saving && <Icon path={mdiLoading} size={0.65} className="animate-spin" />}
-                  <span>{saving ? "Registrando..." : "Crear Usuario"}</span>
+                  {saving ? (
+                    <>
+                      <Icon path={mdiLoading} size={0.6} className="animate-spin" />
+                      <span>Guardando...</span>
+                    </>
+                  ) : (
+                    "Registrar Usuario"
+                  )}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-      {/* MODAL DE CONFIRMACIÓN PARA ELIMINAR USUARIO */}
+
+      {/* MODAL 3: CONFIRMAR ELIMINACIÓN DE USUARIO */}
       {deleteModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-2xs animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
           <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0 border border-red-100">
-                <Icon path={mdiDeleteOutline} size={1} />
+              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-100">
+                <Icon path={mdiDeleteOutline} size={0.8} />
               </div>
               <div>
                 <h3 className="font-bold text-slate-900 text-base">¿Eliminar Usuario?</h3>
@@ -712,13 +984,34 @@ export default function UsuariosPage() {
               </div>
             </div>
 
-            <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-100 text-xs space-y-1.5">
-              <p className="font-bold text-slate-900 text-sm">{deleteModalUser.nombreCompleto}</p>
-              <p className="font-mono text-slate-500 text-[11px]">@{deleteModalUser.usuario} • {deleteModalUser.correo}</p>
-              <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-600">
-                <span className="px-2 py-0.5 rounded-md bg-slate-200/80 font-semibold">{deleteModalUser.rolNombre}</span>
-                <span>•</span>
-                <span>{deleteModalUser.cooperativaNombre}</span>
+            {/* Ficha estructurada Clave-Valor (Ley de Miller: chunking de información) */}
+            <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden text-xs">
+              <div className="bg-slate-100/80 px-3 py-1.5 border-b border-slate-200 font-bold text-[10px] uppercase tracking-wider text-slate-600">
+                Detalles del Usuario
+              </div>
+              <div className="divide-y divide-slate-200/70">
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Nombre:</span>
+                  <span className="font-bold text-slate-900">{deleteModalUser.nombreCompleto}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Usuario (@):</span>
+                  <span className="font-mono font-semibold text-slate-800">@{deleteModalUser.usuario}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Correo:</span>
+                  <span className="text-slate-700">{deleteModalUser.correo}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Rol:</span>
+                  <span className="px-2 py-0.5 rounded bg-slate-200 font-bold text-[10px] text-slate-800">
+                    {deleteModalUser.rolNombre}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Cooperativa:</span>
+                  <span className="font-semibold text-slate-800">{deleteModalUser.cooperativaNombre}</span>
+                </div>
               </div>
             </div>
 
@@ -727,7 +1020,7 @@ export default function UsuariosPage() {
                 type="button"
                 onClick={() => setDeleteModalUser(null)}
                 disabled={deleting}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+                className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
               >
                 Cancelar
               </button>
@@ -735,22 +1028,23 @@ export default function UsuariosPage() {
                 type="button"
                 disabled={deleting}
                 onClick={handleDeleteUsuario}
-                className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-all cursor-pointer shadow-2xs disabled:opacity-50 flex items-center gap-1.5"
               >
-                {deleting && <Icon path={mdiLoading} size={0.65} className="animate-spin" />}
+                {deleting && <Icon path={mdiLoading} size={0.6} className="animate-spin" />}
                 <span>{deleting ? "Eliminando..." : "Eliminar Cuenta"}</span>
               </button>
             </div>
           </div>
         </div>
       )}
-      {/* MODAL DE CONFIRMACIÓN PARA REASIGNAR COOPERATIVA (SUPER_ADMIN) */}
+
+      {/* MODAL 4: REASIGNAR COOPERATIVA (SUPER_ADMIN) */}
       {reasignarModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-2xs animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
           <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center shrink-0 border border-slate-200">
-                <Icon path={mdiSwapHorizontal} size={1} />
+              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center shrink-0 border border-slate-200">
+                <Icon path={mdiSwapHorizontal} size={0.8} />
               </div>
               <div>
                 <h3 className="font-bold text-slate-900 text-base">Reasignar Cooperativa</h3>
@@ -760,25 +1054,42 @@ export default function UsuariosPage() {
               </div>
             </div>
 
-            <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200/80 text-xs space-y-1.5">
-              <p className="font-bold text-slate-900 text-sm">{reasignarModalUser.nombreCompleto}</p>
-              <p className="font-mono text-slate-500 text-[11px]">@{reasignarModalUser.usuario} • {reasignarModalUser.correo}</p>
-              <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-600">
-                <span className="px-2 py-0.5 rounded-md bg-slate-200/80 font-semibold">{reasignarModalUser.rolNombre}</span>
-                <span>•</span>
-                <span className="text-slate-500">Actual: <strong className="text-slate-800">{reasignarModalUser.cooperativaNombre}</strong></span>
+            {/* Ficha estructurada Clave-Valor (Ley de Miller: chunking de información) */}
+            <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden text-xs">
+              <div className="bg-slate-100/80 px-3 py-1.5 border-b border-slate-200 font-bold text-[10px] uppercase tracking-wider text-slate-600">
+                Datos del Colaborador
+              </div>
+              <div className="divide-y divide-slate-200/70">
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Nombre Completo:</span>
+                  <span className="font-bold text-slate-900">{reasignarModalUser.nombreCompleto}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Usuario (@):</span>
+                  <span className="font-mono font-semibold text-slate-800">@{reasignarModalUser.usuario}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Rol Operativo:</span>
+                  <span className="px-2 py-0.5 rounded bg-slate-200 font-bold text-[10px] text-slate-800">
+                    {reasignarModalUser.rolNombre}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Cooperativa Actual:</span>
+                  <span className="font-bold text-slate-800">{reasignarModalUser.cooperativaNombre}</span>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                <Icon path={mdiDomain} size={0.6} className="text-slate-400" />
+            <div className="space-y-1.5 text-xs">
+              <label className="font-semibold text-slate-700 flex items-center gap-1.5 text-[10px] uppercase tracking-wider">
+                <Icon path={mdiDomain} size={0.55} className="text-slate-400" />
                 Nueva Cooperativa Asignada:
               </label>
               <select
                 value={reasignarNuevaCoop}
                 onChange={(e) => setReasignarNuevaCoop(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-slate-400"
+                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:border-slate-900 cursor-pointer"
               >
                 <option value="">Sin cooperativa asignada (Acceso Global / Independiente)</option>
                 {cooperativas.map((c) => (
@@ -794,7 +1105,7 @@ export default function UsuariosPage() {
                 type="button"
                 onClick={() => setReasignarModalUser(null)}
                 disabled={reasignando}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+                className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
               >
                 Cancelar
               </button>
@@ -802,9 +1113,9 @@ export default function UsuariosPage() {
                 type="button"
                 disabled={reasignando}
                 onClick={handleReasignarCooperativa}
-                className="px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+                className="px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all cursor-pointer shadow-2xs disabled:opacity-50 flex items-center gap-1.5"
               >
-                {reasignando && <Icon path={mdiLoading} size={0.65} className="animate-spin" />}
+                {reasignando && <Icon path={mdiLoading} size={0.6} className="animate-spin" />}
                 <span>{reasignando ? "Reasignando..." : "Confirmar Cambio"}</span>
               </button>
             </div>

@@ -894,6 +894,24 @@ export default function SalidasViajesPage() {
                     required
                     className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
                   />
+                  {/* Atajos de hora frecuente (Ley de Parkinson: reducir fricción de entrada) */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <span className="text-[10px] text-slate-400 font-medium mr-0.5">Sugeridas:</span>
+                    {["06:00", "07:00", "08:30", "12:00", "14:00", "17:00"].map((h) => (
+                      <button
+                        key={h}
+                        type="button"
+                        onClick={() => setFormHora(h)}
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                          formHora === h
+                            ? "bg-slate-900 text-white"
+                            : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                        }`}
+                      >
+                        {h}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -987,19 +1005,34 @@ export default function SalidasViajesPage() {
               </button>
             </div>
 
-            {/* Resumen del viaje seleccionado */}
-            <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 mb-4 space-y-1 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900 text-sm">
-                  {viajeSeleccionado.rutaNombre}
-                </span>
-                <span className="font-extrabold text-[10px] uppercase px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
-                  {viajeSeleccionado.sentido}
-                </span>
+            {/* Ficha estructurada Clave-Valor del viaje (Ley de Miller: chunking de información) */}
+            <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden text-xs mb-4">
+              <div className="bg-slate-100/80 px-3 py-1.5 border-b border-slate-200 font-bold text-[10px] uppercase tracking-wider text-slate-600 flex items-center justify-between">
+                <span>Itinerario a Despachar</span>
+                <span className="font-mono text-slate-500">Salida #{viajeSeleccionado.idViaje}</span>
               </div>
-              <p className="text-slate-500">
-                Salida Programada: <strong className="text-slate-700">{formatHora(viajeSeleccionado.hrSalidaProgramada)}</strong> ({formatFechaCorta(viajeSeleccionado.fecha)})
-              </p>
+              <div className="divide-y divide-slate-200/70">
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Ruta Oficial:</span>
+                  <span className="font-bold text-slate-900">{viajeSeleccionado.rutaNombre}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Sentido:</span>
+                  <span className="font-bold text-[10px] uppercase px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                    {viajeSeleccionado.sentido}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Salida Programada:</span>
+                  <span className="font-semibold text-slate-800">
+                    {formatHora(viajeSeleccionado.hrSalidaProgramada)} ({formatFechaCorta(viajeSeleccionado.fecha)})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Cooperativa:</span>
+                  <span className="font-semibold text-slate-800">{viajeSeleccionado.cooperativaNombre || "Cooperativa"}</span>
+                </div>
+              </div>
             </div>
 
             {errorDespacho && (
@@ -1250,8 +1283,39 @@ export default function SalidasViajesPage() {
             <h3 className="text-base font-bold text-slate-900">
               ¿Finalizar Viaje #{viajeSeleccionado.idViaje}?
             </h3>
-            <p className="text-xs text-slate-500 mt-1 mb-5">
-              Esta acción marcará el viaje como <strong>FINALIZADO</strong>, registrará la hora de llegada real y liberará el autobús <strong>#{viajeSeleccionado.unidad?.numeroUnidad}</strong> a estado disponible para nuevas salidas.
+            <p className="text-xs text-slate-500 mt-1 mb-4">
+              Verifica los datos del servicio antes de asentar el cierre de recorrido y liberar la unidad.
+            </p>
+
+            {/* Ficha estructurada Clave-Valor (Ley de Miller: chunking) */}
+            <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden text-xs text-left mb-4">
+              <div className="bg-slate-100/80 px-3 py-1.5 border-b border-slate-200 font-bold text-[10px] uppercase tracking-wider text-slate-600">
+                Resumen de la Salida
+              </div>
+              <div className="divide-y divide-slate-200/70">
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Ruta:</span>
+                  <span className="font-bold text-slate-900">{viajeSeleccionado.rutaNombre}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Autobús:</span>
+                  <span className="font-bold text-slate-800">
+                    {viajeSeleccionado.unidad?.numeroUnidad ? `Bus #${viajeSeleccionado.unidad.numeroUnidad} (${viajeSeleccionado.unidad.placa})` : "Sin asignar"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Chofer:</span>
+                  <span className="font-semibold text-slate-800">{viajeSeleccionado.tripulacion.chofer?.nombre || "No asignado"}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Salida Programada:</span>
+                  <span className="font-semibold text-slate-700">{formatHora(viajeSeleccionado.hrSalidaProgramada)}</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 mb-4 text-left leading-relaxed">
+              <strong>Efecto operativo:</strong> El autobús volverá al estado <em>Disponible</em> en el patio para nuevas asignaciones de ruta.
             </p>
 
             <div className="flex items-center justify-center gap-3">
@@ -1289,8 +1353,33 @@ export default function SalidasViajesPage() {
               ¿Cancelar Salida #{viajeSeleccionado.idViaje}?
             </h3>
             <p className="text-xs text-slate-500 text-center mt-1 mb-4">
-              La salida será marcada como <strong>CANCELADA</strong> y la unidad/asientos vinculados volverán a estar disponibles.
+              Verifica el viaje a cancelar y libera los recursos asignados.
             </p>
+
+            {/* Ficha estructurada Clave-Valor (Ley de Miller) */}
+            <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden text-xs mb-4">
+              <div className="bg-slate-100/80 px-3 py-1.5 border-b border-slate-200 font-bold text-[10px] uppercase tracking-wider text-slate-600">
+                Detalles de la Salida
+              </div>
+              <div className="divide-y divide-slate-200/70">
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Ruta:</span>
+                  <span className="font-bold text-slate-900">{viajeSeleccionado.rutaNombre}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Sentido:</span>
+                  <span className="font-bold text-[10px] uppercase px-2 py-0.5 rounded bg-slate-200 text-slate-800">
+                    {viajeSeleccionado.sentido}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Fecha y Hora:</span>
+                  <span className="font-semibold text-slate-700">
+                    {formatHora(viajeSeleccionado.hrSalidaProgramada)} ({formatFechaCorta(viajeSeleccionado.fecha)})
+                  </span>
+                </div>
+              </div>
+            </div>
 
             <div className="mb-4">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">

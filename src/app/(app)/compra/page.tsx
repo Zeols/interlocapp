@@ -214,7 +214,7 @@ function PurchaseContent() {
 
           {/* Croquis de Asientos Responsivo */}
           <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-2xs">
-            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 pb-3 border-b border-slate-100">
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-100">
               <div>
                 <h2 className="text-base font-bold text-slate-900">
                   Selección de Asientos
@@ -224,11 +224,28 @@ function PurchaseContent() {
                 </p>
               </div>
 
-              {isLoading && (
-                <span className="text-xs font-semibold text-slate-400 animate-pulse">
-                  Actualizando asientos...
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {isLoading && (
+                  <span className="text-xs font-semibold text-slate-400 animate-pulse">
+                    Actualizando...
+                  </span>
+                )}
+                {/* Botón de auto-selección inteligente (Ley de Parkinson: reducción de esfuerzo) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const primerLibre = seats.find((s) => s.estado === "DISPONIBLE" && !s.esMio);
+                    if (primerLibre) {
+                      handleSeatClick(primerLibre);
+                    }
+                  }}
+                  disabled={seats.filter((s) => s.estado === "DISPONIBLE").length === 0}
+                  className="px-3 py-1.5 text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer disabled:opacity-40 shrink-0 border border-slate-200"
+                  title="Seleccionar el primer asiento libre disponible"
+                >
+                  Asignar primer libre
+                </button>
+              </div>
             </div>
 
             {/* Contenedor del Autobús con protección responsive */}
@@ -402,34 +419,57 @@ function PurchaseContent() {
           </div>
         </div>
 
-        {/* Right Column: Resumen de Pago */}
+        {/* Right Column: Resumen de Pago estructurado (Ley de Miller: chunking de información) */}
         <div className="w-full lg:w-80 shrink-0 lg:sticky lg:top-20">
           <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 text-slate-900 shadow-2xs space-y-4">
             <h2 className="text-base font-bold text-slate-900 pb-2 border-b border-slate-100">
               Resumen de Compra
             </h2>
 
-            <div className="space-y-3 text-xs">
-              <div className="flex items-start justify-between">
+            {/* Chunk 1: Itinerario */}
+            <div className="bg-slate-50 rounded-lg p-3 border border-slate-200/80 text-xs space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Trayecto:</span>
+                <span className="font-bold text-slate-900">{trip.origin} → {trip.destination}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Salida:</span>
+                <span className="font-semibold text-slate-800">{trip.departure}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Empresa:</span>
+                <span className="font-medium text-slate-700 truncate max-w-[140px]">{trip.cooperative}</span>
+              </div>
+            </div>
+
+            {/* Chunk 2: Desglose de Pasaje y Equipaje */}
+            <div className="divide-y divide-slate-100 text-xs">
+              <div className="py-2 flex items-start justify-between">
                 <div>
-                  <p className="text-slate-600 font-semibold">Boletos ({selectedSeats.length})</p>
-                  {selectedSeats.length > 0 && (
+                  <p className="text-slate-700 font-semibold">Boletos ({selectedSeats.length})</p>
+                  {selectedSeats.length > 0 ? (
                     <p className="text-[11px] text-slate-500 font-mono mt-0.5">
-                      Asientos: {selectedSeats.map((s) => `#${s.numero}`).join(", ")}
+                      Asiento{selectedSeats.length > 1 ? "s" : ""}: {selectedSeats.map((s) => `#${s.numero}`).join(", ")}
                     </p>
+                  ) : (
+                    <p className="text-[11px] text-amber-700 mt-0.5">Selecciona tus asientos</p>
                   )}
                 </div>
                 <p className="font-bold text-slate-900">{fmt(ticketTotal)}</p>
               </div>
 
               {baggage > 0 && (
-                <div className="flex items-start justify-between">
-                  <p className="text-slate-600 font-semibold">Equipaje extra ({baggage})</p>
+                <div className="py-2 flex items-start justify-between">
+                  <div>
+                    <p className="text-slate-700 font-semibold">Equipaje extra</p>
+                    <p className="text-[11px] text-slate-500 font-mono mt-0.5">{baggage} bulto{baggage > 1 ? "s" : ""}</p>
+                  </div>
                   <p className="font-bold text-slate-900">{fmt(baggageTotal)}</p>
                 </div>
               )}
             </div>
 
+            {/* Chunk 3: Total Final */}
             <div className="pt-3 border-t border-slate-200 flex items-baseline justify-between">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total a pagar</span>
               <span className="text-2xl font-black text-slate-900">{fmt(total)}</span>
@@ -492,29 +532,43 @@ function PurchaseContent() {
                 Compra Confirmada
               </h2>
 
-              <div className="w-full bg-slate-50 border border-slate-200 rounded-lg p-4 mb-4 text-left space-y-2 text-xs">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                    <Icon path={mdiBus} size={0.6} className="text-slate-700" />
-                    <span>{trip.origin} → {trip.destination}</span>
-                  </div>
+              {/* Ficha Clave-Valor estructurada del Comprobante (Ley de Miller) */}
+              <div className="w-full bg-slate-50 border border-slate-200 rounded-lg overflow-hidden mb-4 text-left text-xs">
+                <div className="bg-slate-100/80 px-3 py-1.5 border-b border-slate-200 font-bold text-[10px] uppercase tracking-wider text-slate-600 flex items-center justify-between">
+                  <span>Comprobante de Boletos</span>
                   <span className="font-black text-slate-900">{fmt(total)}</span>
                 </div>
-
-                {selectedSeats.length > 0 && (
-                  <p className="text-slate-600">
-                    Asiento{selectedSeats.length > 1 ? "s" : ""}:{" "}
-                    <span className="font-bold text-slate-900">
-                      #{selectedSeats.map((s) => s.numero).join(", #")}
-                    </span>
-                  </p>
-                )}
-                <p className="text-slate-500">
-                  Salida: <span className="font-semibold text-slate-800">{trip.departure}</span> · {trip.cooperative}
-                </p>
+                <div className="divide-y divide-slate-200/70">
+                  <div className="flex items-center justify-between py-2 px-3">
+                    <span className="text-slate-500 font-medium">Recorrido:</span>
+                    <span className="font-bold text-slate-900">{trip.origin} → {trip.destination}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 px-3">
+                    <span className="text-slate-500 font-medium">Salida:</span>
+                    <span className="font-semibold text-slate-800">{trip.departure}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 px-3">
+                    <span className="text-slate-500 font-medium">Cooperativa:</span>
+                    <span className="font-medium text-slate-700">{trip.cooperative}</span>
+                  </div>
+                  {selectedSeats.length > 0 && (
+                    <div className="flex items-center justify-between py-2 px-3">
+                      <span className="text-slate-500 font-medium">Asientos:</span>
+                      <span className="font-bold text-slate-900">
+                        #{selectedSeats.map((s) => s.numero).join(", #")}
+                      </span>
+                    </div>
+                  )}
+                  {baggage > 0 && (
+                    <div className="flex items-center justify-between py-2 px-3">
+                      <span className="text-slate-500 font-medium">Equipaje extra:</span>
+                      <span className="font-semibold text-slate-800">{baggage} bulto{baggage > 1 ? "s" : ""}</span>
+                    </div>
+                  )}
+                </div>
 
                 {ventaConfirmada?.boletos && ventaConfirmada.boletos.length > 0 && (
-                  <div className="pt-2 border-t border-slate-200">
+                  <div className="p-3 bg-white border-t border-slate-200">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                       Códigos de Boleto (Offline QR Disponible)
                     </p>
@@ -522,7 +576,7 @@ function PurchaseContent() {
                       {ventaConfirmada.boletos.map((b) => (
                         <span
                           key={b.idBoleto}
-                          className="px-2 py-0.5 bg-white border border-slate-300 rounded font-mono font-bold text-slate-900 text-xs"
+                          className="px-2 py-0.5 bg-slate-50 border border-slate-300 rounded font-mono font-bold text-slate-900 text-xs"
                         >
                           {b.codigoBoleto}
                         </span>

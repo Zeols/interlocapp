@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Icon from "@mdi/react";
 import {
@@ -18,6 +18,8 @@ import {
   mdiCheckCircleOutline,
   mdiAlertCircleOutline,
   mdiPrinter,
+  mdiCashCheck,
+  mdiInformationOutline,
 } from "@mdi/js";
 import {
   getPasajerosDescensoParadaAction,
@@ -76,6 +78,15 @@ export function AyudanteOperationalPanel({
   const libres = operacionAyudante?.asientosDisponibles?.length || 0;
   const totalVendidos = operacionAyudante?.totalVendidos || 0;
 
+  // Ley de Parkinson: Preselección automática del primer asiento libre disponible
+  useEffect(() => {
+    if (showVentaModal && tipoAsiento === "ASIENTO" && !asientoVentaId) {
+      if (operacionAyudante?.asientosDisponibles?.length > 0) {
+        setAsientoVentaId(operacionAyudante.asientosDisponibles[0].idAsiento);
+      }
+    }
+  }, [showVentaModal, tipoAsiento, operacionAyudante]);
+
   // Abrir modal de verificación al pasar de parada
   const handleAbrirModalParada = async (index: number, parada: any) => {
     if (!viajeActivo?.idViaje || esFinalizado) return;
@@ -125,7 +136,7 @@ export function AyudanteOperationalPanel({
     }
   };
 
-  // Emitir venta de boleto a bordo (en el camino)
+  // Emitir venta de boleto a bordo
   const handleEmitirVentaABordo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!viajeActivo?.idViaje) return;
@@ -142,33 +153,41 @@ export function AyudanteOperationalPanel({
 
       if (res.success && res.data) {
         setTicketEmitido(res.data);
+        setEfectivoRecibido("");
+        setAsientoVentaId(null);
         await onRefresh();
       } else {
-        setFeedback({ type: "error", text: res.error || "No se pudo emitir el boleto a bordo." });
+        setFeedback({ type: "error", text: res.error || "No se pudo registrar la venta a bordo." });
       }
-    } catch {
-      setFeedback({ type: "error", text: "Error de conexión al emitir boleto a bordo." });
+    } catch (err: any) {
+      setFeedback({ type: "error", text: err.message || "Error al procesar la venta." });
     } finally {
       setGuardandoVenta(false);
     }
   };
 
+  const handleToggleSeleccionDescenso = (idBoleto: number) => {
+    setDescendidosSeleccionados((prev) =>
+      prev.includes(idBoleto) ? prev.filter((id) => id !== idBoleto) : [...prev, idBoleto]
+    );
+  };
+
   return (
-    <div className="space-y-5 animate-in fade-in duration-200">
-      {/* Alerta de Feedback */}
+    <div className="space-y-6">
+      {/* Feedback Toast */}
       {feedback && (
         <div
           className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-3 shadow-2xs ${
             feedback.type === "success"
               ? "bg-emerald-50 text-emerald-900 border-emerald-200"
-              : "bg-red-50 text-red-900 border-red-200"
+              : "bg-rose-50 text-rose-900 border-rose-200"
           }`}
         >
           <div className="flex items-center gap-2">
             <Icon
               path={feedback.type === "success" ? mdiCheckCircleOutline : mdiAlertCircleOutline}
               size={0.75}
-              className={feedback.type === "success" ? "text-emerald-600 shrink-0" : "text-red-600 shrink-0"}
+              className={feedback.type === "success" ? "text-emerald-600 shrink-0" : "text-rose-600 shrink-0"}
             />
             <span>{feedback.text}</span>
           </div>
@@ -181,220 +200,187 @@ export function AyudanteOperationalPanel({
         </div>
       )}
 
-      {/* Cabecera Operativa con Acciones Rápidas */}
-      <div className="bg-white rounded-xl border border-slate-200/80 p-5 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-md bg-slate-100 text-slate-800 border border-slate-200">
-              <Icon path={mdiBus} size={0.7} />
-            </span>
-            <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-              Panel Operativo de Ayudante
-            </h1>
-          </div>
-          <p className="text-xs text-slate-500 font-medium">
-            Unidad: <strong className="text-slate-800">Bus #{viajeActivo?.busNumero || "S/A"}</strong> ({viajeActivo?.busPlaca || "N/A"}) · Operador: {session?.nombre || "Ayudante"}
+      {/* Cabecera Operativa */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Icon path={mdiBus} size={0.85} className="text-primary" />
+            Panel Operativo de Ayudante en Ruta
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Control de aforo en carretera, descensos por parada y venta de boletos en ruta.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
           <button
-            type="button"
-            disabled={!viajeActivo || esFinalizado}
             onClick={() => {
-              setShowVentaModal(true);
               setTicketEmitido(null);
+              setShowVentaModal(true);
             }}
-            className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold text-xs flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50 transition-colors"
+            disabled={!viajeActivo || esFinalizado}
+            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
           >
-            <Icon path={mdiCashRegister} size={0.7} />
-            <span>Vender Boleto a Bordo</span>
+            <Icon path={mdiCashRegister} size={0.65} />
+            <span>Vender Boleto en Ruta</span>
           </button>
 
           <Link
             href="/validar-boleto"
-            className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold text-xs flex items-center gap-2 cursor-pointer shadow-xs transition-colors"
+            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
           >
-            <Icon path={mdiQrcodeScan} size={0.7} />
-            <span>Escanear QR</span>
+            <Icon path={mdiQrcodeScan} size={0.65} />
+            <span>Validar QR</span>
           </Link>
 
           <button
-            type="button"
             onClick={onRefresh}
             disabled={loading}
-            className="p-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors"
-            title="Refrescar aforo"
+            className="p-2 border border-slate-200 rounded-lg bg-white text-slate-600 hover:bg-slate-50 cursor-pointer transition-colors"
+            title="Refrescar estado"
           >
             <Icon path={mdiRefresh} size={0.7} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
       </div>
 
-      {/* 4 Métricas de Aforo y Capacidad */}
+      {/* 4 Métricas de Aforo y Ocupación (Ley de Miller: 4 unidades significativas) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs space-y-1">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Aforo a Bordo</span>
-            <Icon path={mdiSeatPassenger} size={0.7} className="text-slate-400" />
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider">Pasajeros a Bordo</span>
+            <Icon path={mdiSeatPassenger} size={0.65} className="text-slate-700" />
           </div>
-          <p className="text-xl font-extrabold text-slate-900">
-            {aBordo} <span className="text-xs font-normal text-slate-500">/ {capacidad} cap.</span>
-          </p>
-          <p className="text-[11px] text-slate-500">Pasajeros actualmente en viaje</p>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-2xl font-bold text-slate-900">{aBordo}</span>
+            <span className="text-xs text-slate-400 font-medium">/ {capacidad} cap.</span>
+          </div>
+          <span className="text-[10px] text-slate-500 block mt-1">Ocupación en tiempo real</span>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs space-y-1">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Asientos Libres</span>
-            <Icon path={mdiHumanGreetingProximity} size={0.7} className="text-emerald-600" />
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider">Asientos Libres</span>
+            <Icon path={mdiCheckCircle} size={0.65} className="text-emerald-600" />
           </div>
-          <p className="text-xl font-extrabold text-emerald-700">{libres}</p>
-          <p className="text-[11px] text-slate-500">Disponibles para venta en ruta</p>
+          <span className="text-2xl font-bold text-emerald-700">{libres}</span>
+          <span className="text-[10px] text-slate-500 block mt-1">Disponibles para venta</span>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs space-y-1">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Boletos Turno</span>
-            <Icon path={mdiTicketConfirmationOutline} size={0.7} className="text-slate-400" />
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider">Boletos Turno</span>
+            <Icon path={mdiTicketConfirmationOutline} size={0.65} className="text-slate-700" />
           </div>
-          <p className="text-xl font-extrabold text-slate-900">{totalVendidos}</p>
-          <p className="text-[11px] text-slate-500">Emitidos (Ventanilla + A bordo)</p>
+          <span className="text-2xl font-bold text-slate-900">{totalVendidos}</span>
+          <span className="text-[10px] text-slate-500 block mt-1">Taquilla + cobros a bordo</span>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs space-y-1">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Próxima Parada</span>
-            <Icon path={mdiMapMarkerRadius} size={0.7} className="text-primary" />
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider">Próxima Parada</span>
+            <Icon path={mdiMapMarkerRadius} size={0.65} className="text-primary" />
           </div>
-          <p className="text-sm font-bold text-slate-900 truncate" title={proximaParada?.nombre || "Destino Final"}>
-            {proximaParada?.nombre || "Destino Final"}
-          </p>
-          <p className="text-[11px] text-slate-500">Estación programada</p>
+          <span className="text-sm font-bold text-slate-900 truncate block mt-1">
+            {proximaParada?.nombre || (esFinalizado ? "Destino Final" : "En Terminal")}
+          </span>
+          <span className="text-[10px] text-slate-400 block mt-0.5 font-mono">
+            {proximaParada ? `Parada #${paradaActualIndex + 2}` : "Viaje completado"}
+          </span>
         </div>
       </div>
 
-      {/* Sección de Ruta Activa y Paradas Interactivas */}
-      <div className="bg-white rounded-xl border border-slate-200/80 shadow-2xs p-5 sm:p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+      {/* Recorrido de Paradas con Modal de Verificación */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-2xs p-5 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                esFinalizado 
-                  ? "bg-amber-50 text-amber-800 border-amber-200" 
-                  : viajeActivo 
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-200" 
-                  : "bg-slate-100 text-slate-700 border-slate-200"
-              }`}>
-                {esFinalizado ? "Viaje Finalizado" : viajeActivo ? "Viaje en Curso" : "Sin Viaje Asignado"}
-              </span>
-
-              {viajeActivo && (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-slate-100 text-slate-800 border border-slate-200 uppercase">
-                  {viajeActivo.sentido || "IDA"}
-                </span>
-              )}
-
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-                {viajeActivo?.rutaNombre || "No hay ruta activa asignada para hoy"}
-              </h2>
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Toca la siguiente estación para verificar los pasajeros que descienden y liberar sus asientos.
+            <h3 className="text-sm font-bold text-slate-900">
+              Estaciones de la Ruta ({paradasList.length} Puntos)
+            </h3>
+            <p className="text-xs text-slate-500">
+              Toca una parada para registrar descensos de pasajeros y liberar asientos automáticamente.
             </p>
           </div>
-
-          {proximaParada && !esFinalizado && (
-            <button
-              type="button"
-              onClick={() => handleAbrirModalParada(paradaActualIndex + 1, proximaParada)}
-              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors self-start sm:self-auto"
-            >
-              <span>Avanzar a {proximaParada.nombre}</span>
-            </button>
-          )}
+          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+            {viajeActivo?.busNumero ? `Unidad #${viajeActivo.busNumero}` : "Sin Unidad"}
+          </span>
         </div>
 
-        {!viajeActivo ? (
-          <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-500 text-xs">
-            No tienes un viaje o asignación activa en este momento. Comunícate con el administrador de la cooperativa si esto es un error.
+        {paradasList.length === 0 ? (
+          <div className="p-8 text-center text-xs text-slate-400">
+            No hay ruta asignada o el viaje no contiene puntos de control intermedios.
           </div>
         ) : (
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5">
-              {paradasList.map((parada: any, index: number) => {
-                const isPassedOrCurrent = index <= paradaActualIndex;
-                const isCurrent = index === paradaActualIndex;
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {paradasList.map((parada: any, idx: number) => {
+              const esPasada = idx <= paradaActualIndex;
+              const esSiguiente = idx === paradaActualIndex + 1;
 
-                return (
+              return (
+                <div
+                  key={parada.id}
+                  className={`p-3.5 rounded-lg border transition-all flex items-center justify-between gap-3 ${
+                    esPasada
+                      ? "bg-slate-50/80 border-slate-200 text-slate-600"
+                      : esSiguiente
+                      ? "bg-white border-primary/60 ring-1 ring-primary/20 shadow-2xs"
+                      : "bg-white border-slate-200 text-slate-800"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span
+                      className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${
+                        esPasada
+                          ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                          : esSiguiente
+                          ? "bg-slate-900 text-white"
+                          : "bg-slate-100 text-slate-600 border border-slate-200"
+                      }`}
+                    >
+                      {idx + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-bold text-xs truncate text-slate-900">{parada.nombre}</p>
+                      <p className="text-[10px] text-slate-400">
+                        {esPasada ? "Completada" : esSiguiente ? "Siguiente parada" : "En camino"}
+                      </p>
+                    </div>
+                  </div>
+
                   <button
-                    key={parada.id}
+                    type="button"
+                    onClick={() => handleAbrirModalParada(idx, parada)}
                     disabled={esFinalizado}
-                    onClick={() => handleAbrirModalParada(index, parada)}
-                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between relative overflow-hidden ${
-                      esFinalizado
-                        ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed opacity-90 shadow-none"
-                        : isCurrent
-                        ? "bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-900/10 cursor-pointer"
-                        : isPassedOrCurrent
-                        ? "bg-slate-800 text-white border-slate-800 cursor-pointer"
-                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 cursor-pointer"
+                    className={`px-2.5 py-1.5 rounded text-[11px] font-semibold transition-colors cursor-pointer shrink-0 ${
+                      esSiguiente
+                        ? "bg-slate-900 hover:bg-slate-800 text-white shadow-2xs"
+                        : "bg-slate-100 hover:bg-slate-200 text-slate-700"
                     }`}
                   >
-                    <div className="flex items-center justify-between w-full mb-2">
-                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                        isCurrent || isPassedOrCurrent || esFinalizado ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
-                      }`}>
-                        #{index + 1}
-                      </span>
-                      {isCurrent && !esFinalizado ? (
-                        <span className="flex items-center gap-1 text-[10px] font-bold bg-emerald-600 text-white px-2 py-0.5 rounded">
-                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                          Estación Actual
-                        </span>
-                      ) : isPassedOrCurrent || esFinalizado ? (
-                        <Icon path={mdiCheckCircle} size={0.6} className="text-emerald-400" />
-                      ) : null}
-                    </div>
-                    <p className="text-xs font-bold leading-snug line-clamp-2">
-                      {parada.nombre}
-                    </p>
+                    {esPasada ? "Revisar" : "Llegar"}
                   </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
-              <span className="text-slate-600 font-medium">
-                {esFinalizado ? (
-                  <strong className="text-amber-800">Viaje concluido. En espera de una nueva asignación de ruta.</strong>
-                ) : (
-                  <span>Estación actual: <strong className="text-slate-900">{paradaActual?.nombre}</strong></span>
-                )}
-              </span>
-              <span className="text-emerald-700 font-bold">
-                Sincronizado con base de datos
-              </span>
-            </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* MODAL 1: VERIFICACIÓN AL PASAR DE PARADA (DESCENSO DE PASAJEROS) */}
+      {/* MODAL 1: VERIFICACIÓN AL PASAR DE PARADA (DESCENSO Y LIBERACIÓN DE ASIENTOS) */}
       {modalPasoParada && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-2xs animate-fadeIn">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2.5">
-                <span className="p-1.5 rounded-lg bg-slate-100 text-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="p-1 rounded bg-slate-100 text-slate-800">
                   <Icon path={mdiMapMarkerRadius} size={0.7} />
                 </span>
                 <div>
                   <h3 className="font-bold text-slate-900 text-sm sm:text-base">
-                    Confirmar Arribo a Estación
+                    Llegada a {modalPasoParada.parada.nombre}
                   </h3>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Estación: <strong className="text-slate-800">{modalPasoParada.parada.nombre}</strong>
+                  <p className="text-xs text-slate-500">
+                    Confirma los pasajeros que bajan en esta estación
                   </p>
                 </div>
               </div>
@@ -408,61 +394,52 @@ export function AyudanteOperationalPanel({
             </div>
 
             {loadingDescenso ? (
-              <div className="py-8 flex flex-col items-center justify-center space-y-2">
-                <div className="w-6 h-6 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin" />
-                <p className="text-xs text-slate-500">Consultando pasajeros con destino en esta parada...</p>
+              <div className="py-8 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                <Icon path={mdiLoading} size={0.7} className="animate-spin" />
+                <span>Consultando lista de descensos...</span>
+              </div>
+            ) : pasajerosDescenso.length === 0 ? (
+              /* Ley de Miller: Información clara y estructurada */
+              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 text-center space-y-1">
+                <p className="font-bold text-xs text-slate-800">Ningún pasajero tiene destino en esta parada</p>
+                <p className="text-[11px] text-slate-500">
+                  Todos los pasajeros a bordo continúan hacia estaciones posteriores.
+                </p>
               </div>
             ) : (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-700">Pasajeros que descienden aquí:</span>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-                    {pasajerosDescenso.length} pasajeros
-                  </span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold px-1">
+                  <span>Pasajeros con boleto a esta parada ({pasajerosDescenso.length})</span>
+                  <span>Seleccionar para liberar</span>
                 </div>
-
-                {pasajerosDescenso.length === 0 ? (
-                  <div className="p-4 bg-slate-50 rounded-lg border border-slate-200/80 text-center text-xs text-slate-500">
-                    Ningún boleto registrado tiene programado descender en esta parada.
-                  </div>
-                ) : (
-                  <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 divide-y divide-slate-100">
-                    {pasajerosDescenso.map((p) => {
-                      const isChecked = descendidosSeleccionados.includes(p.idBoleto);
-                      return (
-                        <label
-                          key={p.idBoleto}
-                          className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 cursor-pointer text-xs"
-                        >
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setDescendidosSeleccionados((prev) => [...prev, p.idBoleto]);
-                                } else {
-                                  setDescendidosSeleccionados((prev) => prev.filter((id) => id !== p.idBoleto));
-                                }
-                              }}
-                              className="w-4 h-4 rounded text-slate-900 focus:ring-slate-400"
-                            />
-                            <span className="font-mono text-slate-500 text-[11px]">{p.codigoBoleto}</span>
-                          </div>
-                          <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
-                            Asiento #{p.asientoNumero}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-
-                <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-[11px] text-amber-900 space-y-1">
-                  <p className="font-semibold">Liberación de Asientos:</p>
-                  <p className="text-amber-800">
-                    Al confirmar el arribo, los asientos de los pasajeros seleccionados quedarán libres de inmediato para permitir nuevas ventas a bordo.
-                  </p>
+                <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                  {pasajerosDescenso.map((pasajero: any) => {
+                    const isChecked = descendidosSeleccionados.includes(pasajero.idBoleto);
+                    return (
+                      <div
+                        key={pasajero.idBoleto}
+                        onClick={() => handleToggleSeleccionDescenso(pasajero.idBoleto)}
+                        className={`p-2.5 rounded-lg border flex items-center justify-between cursor-pointer transition-colors ${
+                          isChecked
+                            ? "bg-emerald-50/70 border-emerald-300 text-emerald-950"
+                            : "bg-white border-slate-200 text-slate-700"
+                        }`}
+                      >
+                        <div>
+                          <p className="font-bold text-xs">{pasajero.nombrePasajero || "Pasajero a bordo"}</p>
+                          <p className="text-[10px] font-mono text-slate-500">
+                            Boleto #{pasajero.codigoBoleto} · Asiento #{pasajero.asientoNumero || "De pie"}
+                          </p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          className="w-4 h-4 rounded text-slate-900 border-slate-300 cursor-pointer"
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -471,8 +448,7 @@ export function AyudanteOperationalPanel({
               <button
                 type="button"
                 onClick={() => setModalPasoParada(null)}
-                disabled={confirmandoPaso}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+                className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
               >
                 Cancelar
               </button>
@@ -480,7 +456,7 @@ export function AyudanteOperationalPanel({
                 type="button"
                 disabled={confirmandoPaso || loadingDescenso}
                 onClick={handleConfirmarPasoParada}
-                className="px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+                className="px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all cursor-pointer shadow-2xs disabled:opacity-50 flex items-center gap-1.5"
               >
                 {confirmandoPaso && <Icon path={mdiLoading} size={0.6} className="animate-spin" />}
                 <span>{confirmandoPaso ? "Registrando paso..." : "Confirmar Paso y Descenso"}</span>
@@ -492,7 +468,7 @@ export function AyudanteOperationalPanel({
 
       {/* MODAL 2: VENTA DE BOLETO A BORDO (EN EL CAMINO) */}
       {showVentaModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-2xs animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
           <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2.5">
@@ -518,14 +494,14 @@ export function AyudanteOperationalPanel({
             </div>
 
             {ticketEmitido ? (
-              /* Ticket Recién Emitido con Código QR Offline */
+              /* Ticket Emitido con Estructuración Clave-Valor (Ley de Miller) */
               <div className="space-y-4">
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center flex flex-col items-center">
                   <p className="font-bold text-slate-900 text-sm uppercase">{ticketEmitido.cooperativaNombre}</p>
                   <p className="text-[11px] text-slate-500 font-medium">Comprobante Oficial a Bordo</p>
                   <p className="text-xs font-mono font-bold text-slate-900 mt-1">{ticketEmitido.codigoBoleto}</p>
 
-                  <div className="my-3 p-2 bg-white rounded-lg border border-slate-200">
+                  <div className="my-3 p-2 bg-white rounded-lg border border-slate-200 shadow-2xs">
                     <QRCodeOffline
                       value={encodeBoletoQRPayload({
                         idBoleto: ticketEmitido.idBoleto,
@@ -537,23 +513,24 @@ export function AyudanteOperationalPanel({
                     />
                   </div>
 
-                  <div className="w-full text-xs space-y-1 text-slate-700 border-t border-dashed border-slate-200 pt-2 font-mono">
-                    <div className="flex justify-between">
-                      <span>Destino:</span>
+                  {/* Chunking de Especificaciones del Boleto */}
+                  <div className="w-full text-xs space-y-1.5 text-slate-700 border-t border-slate-200 pt-2.5">
+                    <div className="flex justify-between py-0.5 border-b border-slate-100">
+                      <span className="text-slate-500">Destino:</span>
                       <strong className="text-slate-900">{ticketEmitido.destino}</strong>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Ubicación:</span>
+                    <div className="flex justify-between py-0.5 border-b border-slate-100">
+                      <span className="text-slate-500">Ubicación:</span>
                       <strong className="text-slate-900">
                         {ticketEmitido.asiento === "De pie" ? "De pie (Sin asiento)" : `Asiento #${ticketEmitido.asiento}`}
                       </strong>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Total Cobrado:</span>
+                    <div className="flex justify-between py-0.5 border-b border-slate-100">
+                      <span className="text-slate-500">Monto Cobrado:</span>
                       <strong className="text-emerald-700">C$ {ticketEmitido.monto.toFixed(2)}</strong>
                     </div>
                     {ticketEmitido.cambio > 0 && (
-                      <div className="flex justify-between text-slate-500">
+                      <div className="flex justify-between py-0.5 text-slate-600 font-semibold">
                         <span>Cambio Entregado:</span>
                         <span>C$ {ticketEmitido.cambio.toFixed(2)}</span>
                       </div>
@@ -565,7 +542,7 @@ export function AyudanteOperationalPanel({
                   <button
                     type="button"
                     onClick={() => setTicketEmitido(null)}
-                    className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold text-xs transition-colors cursor-pointer"
+                    className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold text-xs transition-colors cursor-pointer shadow-2xs"
                   >
                     Emitir Otro Boleto
                   </button>
@@ -580,9 +557,9 @@ export function AyudanteOperationalPanel({
               </div>
             ) : (
               /* Formulario de Emisión */
-              <form onSubmit={handleEmitirVentaABordo} className="space-y-3.5">
+              <form onSubmit={handleEmitirVentaABordo} className="space-y-3.5 text-xs">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Estación de Destino:</label>
+                  <label className="font-semibold text-slate-700">Estación de Destino:</label>
                   <select
                     value={destinoSeleccionadoId || ""}
                     onChange={(e) => {
@@ -593,7 +570,7 @@ export function AyudanteOperationalPanel({
                         setMontoVenta(matchTarifa.monto);
                       }
                     }}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:border-slate-400"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-semibold text-slate-900 focus:outline-none focus:border-slate-900"
                   >
                     {operacionAyudante?.paradas?.map((p: any) => (
                       <option key={p.idPunto} value={p.idPunto}>
@@ -603,16 +580,16 @@ export function AyudanteOperationalPanel({
                   </select>
                 </div>
 
-                {/* Modalidad de Asiento: Asiento Asignado vs De Pie */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Modalidad de Pasaje:</label>
+                {/* Modalidad de Asiento (Ley de Hick: 2 opciones claras) */}
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700">Modalidad de Pasaje:</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setTipoAsiento("ASIENTO")}
                       className={`py-2 px-3 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
                         tipoAsiento === "ASIENTO"
-                          ? "bg-slate-900 text-white border-slate-900"
+                          ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
                           : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                       }`}
                     >
@@ -626,7 +603,7 @@ export function AyudanteOperationalPanel({
                       }}
                       className={`py-2 px-3 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
                         tipoAsiento === "DE_PIE"
-                          ? "bg-slate-900 text-white border-slate-900"
+                          ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
                           : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                       }`}
                     >
@@ -637,8 +614,8 @@ export function AyudanteOperationalPanel({
 
                 {tipoAsiento === "ASIENTO" && (
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700">
-                      Seleccionar Asiento Libre ({operacionAyudante?.asientosDisponibles?.length || 0} disponibles):
+                    <label className="font-semibold text-slate-700">
+                      Asiento ({operacionAyudante?.asientosDisponibles?.length || 0} disponibles):
                     </label>
                     {operacionAyudante?.asientosDisponibles?.length === 0 ? (
                       <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200">
@@ -648,7 +625,7 @@ export function AyudanteOperationalPanel({
                       <select
                         value={asientoVentaId || ""}
                         onChange={(e) => setAsientoVentaId(Number(e.target.value))}
-                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:border-slate-400"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-semibold text-slate-900 focus:outline-none focus:border-slate-900"
                       >
                         <option value="">Seleccionar número de asiento...</option>
                         {operacionAyudante?.asientosDisponibles?.map((a: any) => (
@@ -663,19 +640,19 @@ export function AyudanteOperationalPanel({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700">Monto Pasaje (C$):</label>
+                    <label className="font-semibold text-slate-700">Monto Pasaje (C$):</label>
                     <input
                       type="number"
                       min="1"
                       step="1"
                       value={montoVenta}
                       onChange={(e) => setMontoVenta(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-slate-400"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-bold text-slate-900 focus:outline-none focus:border-slate-900"
                       required
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700">Efectivo Recibido (C$):</label>
+                    <label className="font-semibold text-slate-700">Efectivo Recibido (C$):</label>
                     <input
                       type="number"
                       min="0"
@@ -683,15 +660,38 @@ export function AyudanteOperationalPanel({
                       placeholder="Ej: 100"
                       value={efectivoRecibido}
                       onChange={(e) => setEfectivoRecibido(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-slate-400"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-medium text-slate-900 focus:outline-none focus:border-slate-900"
                     />
                   </div>
                 </div>
 
+                {/* Ley de Parkinson: Rellenado automático y sugerencias de cobro rápido */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                  <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                    Cobro Rápido:
+                  </span>
+                  {[montoVenta, 100, 200, 500]
+                    .filter((val, idx, arr) => val >= montoVenta && arr.indexOf(val) === idx)
+                    .map((val) => (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setEfectivoRecibido(String(val))}
+                        className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors cursor-pointer border ${
+                          Number(efectivoRecibido) === val
+                            ? "bg-slate-900 text-white border-slate-900"
+                            : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        {val === montoVenta ? "Exacto" : `C$ ${val}`}
+                      </button>
+                    ))}
+                </div>
+
                 {efectivoRecibido && Number(efectivoRecibido) >= montoVenta && (
                   <div className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200 flex justify-between items-center text-xs">
-                    <span className="text-emerald-800 font-semibold">Cambio / Vuelto:</span>
-                    <strong className="text-emerald-900 text-sm">
+                    <span className="text-emerald-800 font-semibold">Cambio / Vuelto a Entregar:</span>
+                    <strong className="text-emerald-900 text-sm font-black">
                       C$ {(Number(efectivoRecibido) - montoVenta).toFixed(2)}
                     </strong>
                   </div>
@@ -709,7 +709,7 @@ export function AyudanteOperationalPanel({
                   <button
                     type="submit"
                     disabled={guardandoVenta || (tipoAsiento === "ASIENTO" && !asientoVentaId)}
-                    className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs disabled:opacity-50 flex items-center gap-1.5"
                   >
                     {guardandoVenta && <Icon path={mdiLoading} size={0.6} className="animate-spin" />}
                     <span>{guardandoVenta ? "Emitiendo..." : "Emitir Boleto a Bordo"}</span>
@@ -723,4 +723,3 @@ export function AyudanteOperationalPanel({
     </div>
   );
 }
-

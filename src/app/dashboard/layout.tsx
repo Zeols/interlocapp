@@ -107,7 +107,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const navigationSections: NavSection[] = useMemo(() => {
     const sections: NavSection[] = [];
 
-    // 1. Resumen General (Todos los roles acceden al inicio de su panel)
+    // 1. Resumen General
     sections.push({
       title: "PANEL PRINCIPAL",
       items: [
@@ -126,7 +126,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     if (isSuperAdmin || isAyudante) {
       operacionesItems.push({ name: "Modo Ayudante", path: "/dashboard/ayudante", icon: mdiBusSide });
     }
-    // Todos los roles de campo pueden validar boletos
     operacionesItems.push({ name: "Validar Boletos", path: "/validar-boleto", icon: mdiQrcodeScan });
 
     if (operacionesItems.length > 0) {
@@ -220,7 +219,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const userInitial = userName.charAt(0).toUpperCase();
 
   const getRolBadge = () => {
-    if (isSuperAdmin) return { label: "Super Admin", color: "bg-slate-900 text-white" };
+    if (isSuperAdmin) return { label: "Super Admin", color: "bg-slate-900 text-white border-slate-900" };
     if (isAdminCoop) return { label: "Admin Coop", color: "bg-indigo-50 text-indigo-700 border-indigo-200" };
     if (isTaquillero) return { label: "Taquillero", color: "bg-emerald-50 text-emerald-700 border-emerald-200" };
     if (isChequeador) return { label: "Chequeador", color: "bg-amber-50 text-amber-700 border-amber-200" };
@@ -252,7 +251,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         }`}
       >
         {/* Cabecera del Sidebar */}
-        <div className="p-4 border-b border-slate-100">
+        <div className="p-4 border-b border-slate-100 shrink-0">
           <div className="flex items-center justify-between">
             <Link href="/dashboard" className="flex items-center gap-2.5">
               <Logo size={0.85} />
@@ -289,7 +288,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
         {/* Selector de cooperativa en móvil si es Super Admin */}
         {isSuperAdmin && cooperativas.length > 0 && (
-          <div className="p-3 border-b border-slate-100 lg:hidden bg-slate-50/60">
+          <div className="p-3 border-b border-slate-100 lg:hidden bg-slate-50/60 shrink-0">
             <label className="text-[11px] font-medium text-slate-500 mb-1 flex items-center gap-1.5">
               <Icon path={mdiDomain} size={0.55} className="text-slate-400" />
               Filtrar por Cooperativa:
@@ -309,8 +308,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        {/* Navegación por Secciones Estructuradas */}
-        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
+        {/* Navegación por Secciones Estructuradas con scroll fino y estilizado */}
+        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-300">
           {navigationSections.map((sec) => (
             <div key={sec.title} className="space-y-1">
               <span className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
@@ -341,7 +340,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Footer del Sidebar: Perfil de usuario y Cerrar Sesión */}
-        <div className="p-3 border-t border-slate-100 space-y-2">
+        <div className="p-3 border-t border-slate-100 space-y-2 shrink-0">
           <Link
             href="/dashboard/perfil"
             onClick={() => setMobileMenuOpen(false)}
@@ -351,10 +350,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
               <img
                 src={userFoto}
                 alt={userName}
-                className="w-7 h-7 rounded-full object-cover border border-slate-200"
+                className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
               />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs">
+              <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
                 {userInitial}
               </div>
             )}
@@ -381,10 +380,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         }`}
       >
         <header className="h-14 sm:h-15 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={handleToggleSidebar}
-              className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80 shadow-2xs transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80 shadow-2xs transition-colors cursor-pointer shrink-0"
               title={sidebarOpen ? "Colapsar panel lateral" : "Expandir panel lateral"}
               aria-label="Alternar panel lateral"
             >
@@ -414,16 +413,16 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Si es Super Admin, selector de Cooperativa global en Header */}
             {isSuperAdmin && cooperativas.length > 0 && (
-              <div className="hidden md:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs">
-                <Icon path={mdiDomain} size={0.6} className="text-slate-400" />
-                <span className="text-slate-500 font-medium">Cooperativa:</span>
+              <div className="hidden md:flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs">
+                <Icon path={mdiDomain} size={0.6} className="text-slate-400 shrink-0" />
+                <span className="text-slate-500 font-medium shrink-0">Cooperativa:</span>
                 <select
                   value={selectedCoopId}
                   onChange={(e) => setSelectedCoopId(e.target.value)}
-                  className="bg-transparent font-semibold text-slate-800 focus:outline-none cursor-pointer"
+                  className="bg-transparent font-semibold text-slate-800 focus:outline-none cursor-pointer max-w-[140px] lg:max-w-[180px] truncate"
                 >
                   <option value="ALL">Todas (Vista Global)</option>
                   {cooperativas.map((c) => (
@@ -443,20 +442,20 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
               >
                 <div className="text-right hidden sm:block">
                   <p className="text-xs font-semibold text-slate-900 leading-none">{userName}</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5 max-w-[140px] truncate">{userEmail}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5 max-w-[140px] truncate hidden lg:block">{userEmail}</p>
                 </div>
                 {userFoto ? (
                   <img
                     src={userFoto}
                     alt={userName}
-                    className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-2xs"
+                    className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-slate-200 border border-slate-300 text-slate-700 flex items-center justify-center font-bold text-xs">
+                  <div className="w-8 h-8 rounded-full bg-slate-200 border border-slate-300 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
                     {userInitial}
                   </div>
                 )}
-                <Icon path={mdiChevronDown} size={0.5} className="text-slate-400 hidden sm:block" />
+                <Icon path={mdiChevronDown} size={0.5} className="text-slate-400 hidden sm:block shrink-0" />
               </button>
 
               {userDropdownOpen && (
@@ -486,8 +485,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {/* Content Viewport */}
-        <div className="flex-1 bg-slate-50">
+        {/* Content Viewport con padding canónico estándar */}
+        <div className="flex-1 bg-slate-50 p-4 sm:p-6 lg:p-8 w-full max-w-7xl mx-auto">
           {children}
         </div>
       </main>
