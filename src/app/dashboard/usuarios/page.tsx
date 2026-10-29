@@ -19,13 +19,16 @@ import {
   mdiBus,
   mdiTicketConfirmationOutline,
   mdiDeleteOutline,
+  mdiSwapHorizontal,
 } from "@mdi/js";
 import {
   getUsuariosAdminAction,
   createUsuarioByAdminAction,
   getRoles,
   deleteUsuarioAction,
+  reasignarCooperativaUsuarioAction,
 } from "@/backend/actions/usuarios";
+import { formatManaguaDate } from "@/lib/date-time";
 import { getCurrentUserAction } from "@/backend/actions/auth";
 import { useTenant } from "@/frontend/context/TenantContext";
 
@@ -159,6 +162,40 @@ export default function UsuariosPage() {
       setFeedback({ type: "error", text: "Error de conexión al eliminar usuario." });
     } finally {
       setDeleting(false);
+    }
+  };
+
+  // Estados para Reasignación de Cooperativa (exclusivo Super Admin)
+  const [reasignarModalUser, setReasignarModalUser] = useState<UsuarioItem | null>(null);
+  const [reasignarNuevaCoop, setReasignarNuevaCoop] = useState<string>("");
+  const [reasignando, setReasignando] = useState(false);
+
+  const handleOpenReasignar = (user: UsuarioItem) => {
+    setReasignarModalUser(user);
+    setReasignarNuevaCoop(user.idCooperativa ? String(user.idCooperativa) : "");
+  };
+
+  const handleReasignarCooperativa = async () => {
+    if (!reasignarModalUser) return;
+    setReasignando(true);
+    setFeedback(null);
+    try {
+      const nuevaCoopId = reasignarNuevaCoop ? Number(reasignarNuevaCoop) : null;
+      const res = await reasignarCooperativaUsuarioAction(reasignarModalUser.idUsuario, nuevaCoopId);
+      if (res.success) {
+        setFeedback({
+          type: "success",
+          text: `Cooperativa reasignada exitosamente para ${reasignarModalUser.nombreCompleto}.`,
+        });
+        setReasignarModalUser(null);
+        await fetchData();
+      } else {
+        setFeedback({ type: "error", text: res.error || "No se pudo reasignar la cooperativa." });
+      }
+    } catch {
+      setFeedback({ type: "error", text: "Error de servidor al reasignar cooperativa." });
+    } finally {
+      setReasignando(false);
     }
   };
 
@@ -377,7 +414,7 @@ export default function UsuariosPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {usuarios.map((u) => {
-                  const isBusRole = ["CHOFER", "AYUDANTE", "TAQUILLERO"].includes(u.rolNombre);
+                  const isBusRole = ["CHOFER", "AYUDANTE", "TAQUILLERO", "CHEQUEADOR"].includes(u.rolNombre);
                   return (
                     <tr key={u.idUsuario} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-3 px-4">
@@ -409,6 +446,8 @@ export default function UsuariosPage() {
                               ? "bg-slate-900 text-white border border-slate-900"
                               : u.rolNombre === "ADMIN_COOP"
                               ? "bg-blue-50 text-blue-700 border border-blue-200"
+                              : u.rolNombre === "CHEQUEADOR"
+                              ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
                               : isBusRole
                               ? "bg-amber-50 text-amber-800 border border-amber-200"
                               : "bg-slate-100 text-slate-700 border border-slate-200"
@@ -456,27 +495,37 @@ export default function UsuariosPage() {
                       </td>
 
                       <td className="py-3 px-4 text-center text-slate-400 text-[11px]">
-                        {new Date(u.createdAt).toLocaleDateString("es-NI", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
+                        {formatManaguaDate(u.createdAt, "short")}
                       </td>
 
                       <td className="py-3 px-4 text-center">
-                        {currentUser?.idUsuario === u.idUsuario ? (
-                          <span className="text-[10px] text-slate-400 font-medium italic">Tú</span>
-                        ) : (!isSuperAdmin && u.rolNombre === "SUPER_ADMIN") ? null : (
-                          <button
-                            type="button"
-                            onClick={() => setDeleteModalUser(u)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all cursor-pointer inline-flex items-center justify-center"
-                            title={`Eliminar usuario @${u.usuario}`}
-                            aria-label="Eliminar usuario"
-                          >
-                            <Icon path={mdiDeleteOutline} size={0.7} />
-                          </button>
-                        )}
+                        <div className="flex items-center justify-center gap-1">
+                          {isSuperAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenReasignar(u)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all cursor-pointer inline-flex items-center justify-center"
+                              title={`Reasignar cooperativa de ${u.nombreCompleto}`}
+                              aria-label="Reasignar cooperativa"
+                            >
+                              <Icon path={mdiSwapHorizontal} size={0.7} />
+                            </button>
+                          )}
+
+                          {currentUser?.idUsuario === u.idUsuario ? (
+                            <span className="text-[10px] text-slate-400 font-medium italic px-1">Tú</span>
+                          ) : (!isSuperAdmin && u.rolNombre === "SUPER_ADMIN") ? null : (
+                            <button
+                              type="button"
+                              onClick={() => setDeleteModalUser(u)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all cursor-pointer inline-flex items-center justify-center"
+                              title={`Eliminar usuario @${u.usuario}`}
+                              aria-label="Eliminar usuario"
+                            >
+                              <Icon path={mdiDeleteOutline} size={0.7} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -690,6 +739,73 @@ export default function UsuariosPage() {
               >
                 {deleting && <Icon path={mdiLoading} size={0.65} className="animate-spin" />}
                 <span>{deleting ? "Eliminando..." : "Eliminar Cuenta"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL DE CONFIRMACIÓN PARA REASIGNAR COOPERATIVA (SUPER_ADMIN) */}
+      {reasignarModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-2xs animate-fadeIn">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center shrink-0 border border-slate-200">
+                <Icon path={mdiSwapHorizontal} size={1} />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">Reasignar Cooperativa</h3>
+                <p className="text-xs text-slate-500">
+                  Transfiere a este usuario a otra entidad de transporte.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200/80 text-xs space-y-1.5">
+              <p className="font-bold text-slate-900 text-sm">{reasignarModalUser.nombreCompleto}</p>
+              <p className="font-mono text-slate-500 text-[11px]">@{reasignarModalUser.usuario} • {reasignarModalUser.correo}</p>
+              <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-600">
+                <span className="px-2 py-0.5 rounded-md bg-slate-200/80 font-semibold">{reasignarModalUser.rolNombre}</span>
+                <span>•</span>
+                <span className="text-slate-500">Actual: <strong className="text-slate-800">{reasignarModalUser.cooperativaNombre}</strong></span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                <Icon path={mdiDomain} size={0.6} className="text-slate-400" />
+                Nueva Cooperativa Asignada:
+              </label>
+              <select
+                value={reasignarNuevaCoop}
+                onChange={(e) => setReasignarNuevaCoop(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-slate-400"
+              >
+                <option value="">Sin cooperativa asignada (Acceso Global / Independiente)</option>
+                {cooperativas.map((c) => (
+                  <option key={c.idCooperativa} value={c.idCooperativa.toString()}>
+                    {c.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setReasignarModalUser(null)}
+                disabled={reasignando}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={reasignando}
+                onClick={handleReasignarCooperativa}
+                className="px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {reasignando && <Icon path={mdiLoading} size={0.65} className="animate-spin" />}
+                <span>{reasignando ? "Reasignando..." : "Confirmar Cambio"}</span>
               </button>
             </div>
           </div>

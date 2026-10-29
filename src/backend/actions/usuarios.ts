@@ -42,6 +42,16 @@ export async function createRol(nombre: string, descripcion?: string) {
 
 export async function getRoles() {
   try {
+    await prisma.rol.upsert({
+      where: { nombre: 'CHEQUEADOR' },
+      update: {},
+      create: {
+        nombre: 'CHEQUEADOR',
+        descripcion: 'Chequeador de terminal y puntos de control de ruta',
+        estado: 'ACTIVO',
+      },
+    });
+
     const roles = await prisma.rol.findMany({
       where: { estado: 'ACTIVO' },
       orderBy: { nombre: 'asc' },
@@ -500,9 +510,19 @@ export async function getPersonalOperativoAction() {
 
 export async function getRolesOperativosAction() {
   try {
+    await prisma.rol.upsert({
+      where: { nombre: 'CHEQUEADOR' },
+      update: {},
+      create: {
+        nombre: 'CHEQUEADOR',
+        descripcion: 'Chequeador de terminal y puntos de control de ruta',
+        estado: 'ACTIVO',
+      },
+    });
+
     const roles = await prisma.rol.findMany({
       where: {
-        nombre: { in: ['CHOFER', 'AYUDANTE', 'TAQUILLERO', 'ADMIN_COOP'] },
+        nombre: { in: ['CHOFER', 'AYUDANTE', 'TAQUILLERO', 'ADMIN_COOP', 'CHEQUEADOR'] },
         estado: 'ACTIVO',
       },
       orderBy: { nombre: 'asc' },
@@ -670,6 +690,75 @@ export async function deleteUsuarioAction(idUsuario: number): Promise<ActionResp
   } catch (error) {
     console.error('Error en deleteUsuarioAction:', error);
     return { success: false, error: 'No se pudo eliminar el usuario. Intenta nuevamente.' };
+  }
+}
+
+/**
+ * Reasigna un usuario a otra cooperativa (o lo desasigna).
+ * Restringido exclusivamente al SUPER_ADMIN.
+ */
+export async function reasignarCooperativaUsuarioAction(
+  idUsuario: number,
+  nuevaCooperativaId: number | null
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: 'Sesión no iniciada.' };
+    }
+
+    if (session.rolNombre !== 'SUPER_ADMIN') {
+      return {
+        success: false,
+        error: 'Privilegio insuficiente. Solo el Super Administrador puede reasignar usuarios entre cooperativas.',
+      };
+    }
+
+    const usuario = await prisma.usuario.findUnique({
+      where: { idUsuario },
+      include: { cooperativa: true, rol: true },
+    });
+
+    if (!usuario) {
+      return { success: false, error: 'El usuario especificado no existe.' };
+    }
+
+    if (nuevaCooperativaId) {
+      const coopDestino = await prisma.cooperativa.findUnique({
+        where: { idCooperativa: nuevaCooperativaId },
+      });
+      if (!coopDestino) {
+        return { success: false, error: 'La cooperativa destino seleccionada no existe.' };
+      }
+    }
+
+    const updated = await prisma.usuario.update({
+      where: { idUsuario },
+      data: {
+        idCooperativa: nuevaCooperativaId || null,
+      },
+      include: {
+        cooperativa: true,
+        rol: true,
+      },
+    });
+
+    revalidatePath('/dashboard/usuarios');
+    revalidatePath('/dashboard/choferes');
+    revalidatePath('/dashboard');
+
+    return {
+      success: true,
+      data: {
+        idUsuario: updated.idUsuario,
+        nombre: `${updated.nombre} ${updated.apellido}`.trim(),
+        cooperativaNombre: updated.cooperativa?.nombre || 'Sin cooperativa',
+      },
+    };
+  } catch (error) {
+    console.error('Error en reasignarCooperativaUsuarioAction:', error);
+    return { success: false, error: 'Ocurrió un error al reasignar la cooperativa del usuario.' };
+
   }
 }
 

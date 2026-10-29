@@ -11,6 +11,7 @@ import {
 } from "@mdi/js";
 import { useCurrency } from "@/frontend/context/CurrencyContext";
 import { getMisBoletosAction, type MiBoletoItem } from "@/backend/actions/boletos";
+import { QRCodeOffline, encodeBoletoQRPayload } from "@/frontend/components/ui/QRCodeOffline";
 
 export default function TicketsPage() {
   const { formatPrice } = useCurrency();
@@ -221,18 +222,20 @@ export default function TicketsPage() {
               Salida: {selectedTicket.fecha} · {selectedTicket.horaSalida}
             </p>
 
-            {/* Visualizador QR Escaneable Oficial */}
-            <div className="bg-white p-4 rounded-xl border border-gray-200 inline-flex flex-col items-center justify-center mb-5 shadow-xs">
-              <div className="w-44 h-44 bg-white rounded-lg p-2 flex flex-col items-center justify-center border border-gray-100">
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
-                    selectedTicket.codigoBoleto
-                  )}`}
+            {/* Visualizador QR Escaneable Oficial (100% Offline) */}
+            <div className="bg-white p-4 rounded-xl border border-slate-200 inline-flex flex-col items-center justify-center mb-5 shadow-xs">
+              <div className="w-44 h-44 bg-white rounded-lg p-2 flex flex-col items-center justify-center border border-slate-100">
+                <QRCodeOffline
+                  value={encodeBoletoQRPayload({
+                    idBoleto: Number(selectedTicket.codigoBoleto.replace(/\D/g, "")),
+                    asiento: selectedTicket.asientoNumero,
+                    codigoBoleto: selectedTicket.codigoBoleto,
+                  })}
+                  size={160}
                   alt={selectedTicket.codigoBoleto}
-                  className="w-40 h-40 object-contain rounded-md"
                 />
               </div>
-              <span className="mt-2.5 font-mono font-bold text-xs text-gray-900 tracking-wider">
+              <span className="mt-2.5 font-mono font-bold text-xs text-slate-900 tracking-wider">
                 {selectedTicket.codigoBoleto}
               </span>
             </div>

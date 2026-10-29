@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { getSession } from '../lib/session';
 import { sendTicketEmail } from '../lib/mail';
 import { notificarCompraAsientoRealtimeAction } from './asientos-realtime';
+import { getNowInManagua, formatManaguaTime, formatManaguaDate } from '@/lib/date-time';
 
 // Interfaces
 export interface EquipajeInput {
@@ -232,7 +233,7 @@ export async function procesarVentaBoletos(data: VentaInput) {
       });
 
       // c) Crear Boletos e integrar su Equipaje correspondiente
-      const boletosCreados: Array<{ idBoleto: number; idAsiento: number; monto: number }> = [];
+      const boletosCreados: Array<{ idBoleto: number; idAsiento: number | null; monto: number }> = [];
 
       for (const item of data.boletos) {
         const tarifaIdFinal = item.idTarifa && item.idTarifa > 0 ? item.idTarifa : fallbackTarifaId;
@@ -512,7 +513,7 @@ export async function getDashboardStatsAction(idCooperativa?: number) {
           tipoVenta: v.tipoVenta.nombre,
           rutaNombre: v.viaje?.ruta?.nombre || 'Ruta sin asignar',
           boletosCantidad: v.boletos.length,
-          asientosNumeros: v.boletos.map((b) => b.asiento.numero),
+          asientosNumeros: v.boletos.map((b) => b.asiento?.numero || 'De pie'),
           fechaHora: v.fechaHora.toISOString(),
         })),
       },
@@ -537,3 +538,184 @@ export async function getDashboardStatsAction(idCooperativa?: number) {
   }
 }
 
+
+
+export interface VentaABordoInput {
+  idViaje: number;
+  idTarifa?: number;
+  idPuntoDestino?: number;
+  idAsiento?: number | null;
+  monto: number;
+  efectivoRecibido?: number;
+}
+
+/**
+ * Emite un boleto en el camino (A_BORDO) por parte del ayudante o chofer.
+ * Soporta venta con asiento fijo o boleto de tramo intermedio de pie.
+ * El boleto se registra de inmediato como ABORDADO.
+ */
+export async function venderBoletoABordoAction(data: VentaABordoInput): Promise<{
+  success: boolean;
+  data?: {
+    idBoleto: number;
+    codigoBoleto: string;
+    asiento: string;
+    monto: number;
+    cambio: number;
+    origen: string;
+    destino: string;
+    horaSalida: string;
+    fechaHora: string;
+    cooperativaNombre: string;
+    busNumero: string;
+  };
+  error?: string;
+}> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: 'Debes iniciar sesión para registrar ventas a bordo.' };
+    }
+
+    const viaje = await prisma.viaje.findUnique({
+      where: { idViaje: data.idViaje },
+      include: {
+        ruta: {
+          include: {
+            cooperativa: true,
+            puntosRuta: {
+              include: { punto: true },
+              orderBy: { orden: 'asc' },
+            },
+            tarifas: {
+              include: { puntoOrigen: true, puntoDestino: true },
+            },
+          },
+        },
+        despacho: {
+          include: {
+            asignacionUnidad: {
+              include: { unidad: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!viaje) {
+      return { success: false, error: 'El viaje especificado no existe.' };
+    }
+
+    // Tipo de venta A_BORDO
+    const tipoVenta = await prisma.tipoVenta.upsert({
+      where: { nombre: 'A_BORDO' },
+      update: {},
+      create: {
+        nombre: 'A_BORDO',
+        descripcion: 'Venta directa en ruta por la tripulación',
+        estado: 'ACTIVO',
+      },
+    });
+
+    // Validar asiento si fue especificado
+    let numeroAsiento = 'De pie';
+    if (data.idAsiento) {
+      const ocupado = await prisma.boleto.findFirst({
+        where: {
+          idViaje: data.idViaje,
+          idAsiento: data.idAsiento,
+          estado: { in: ['PAGADO', 'ABORDADO', 'RESERVADO'] },
+        },
+      });
+
+      if (ocupado) {
+        return { success: false, error: 'El asiento seleccionado ya se encuentra ocupado.' };
+      }
+
+      const asientoRecord = await prisma.asiento.findUnique({
+        where: { idAsiento: data.idAsiento },
+      });
+      if (asientoRecord) {
+        numeroAsiento = asientoRecord.numero;
+      }
+    }
+
+    // Resolver tarifa
+    let tarifaId = data.idTarifa;
+    let destinoNombre = 'Tramo Ruta';
+    let origenNombre = viaje.ruta.puntosRuta[0]?.punto.nombre || 'Terminal';
+
+    if (!tarifaId && data.idPuntoDestino) {
+      const tarifaMatch = viaje.ruta.tarifas.find(
+        (t) => t.idPuntoDestino === data.idPuntoDestino && t.estado === 'ACTIVO'
+      );
+      if (tarifaMatch) {
+        tarifaId = tarifaMatch.idTarifa;
+        destinoNombre = tarifaMatch.puntoDestino?.nombre || destinoNombre;
+      }
+    }
+
+    if (!tarifaId) {
+      const tarifaFallback = viaje.ruta.tarifas.find((t) => t.estado === 'ACTIVO') || viaje.ruta.tarifas[0];
+      if (!tarifaFallback) {
+        return { success: false, error: 'No se encontraron tarifas configuradas para esta ruta.' };
+      }
+      tarifaId = tarifaFallback.idTarifa;
+      destinoNombre = tarifaFallback.puntoDestino?.nombre || viaje.ruta.puntosRuta[viaje.ruta.puntosRuta.length - 1]?.punto.nombre || 'Destino';
+    }
+
+    const efectivo = Number(data.efectivoRecibido ?? data.monto);
+    const cambio = Math.max(0, efectivo - data.monto);
+    const fechaHoraManagua = getNowInManagua();
+
+    const resultado = await prisma.$transaction(async (tx) => {
+      const venta = await tx.venta.create({
+        data: {
+          idViaje: data.idViaje,
+          idTipoVenta: tipoVenta.idTipoVenta,
+          total: data.monto,
+          estado: 'COMPLETADA',
+          fechaHora: fechaHoraManagua,
+        },
+      });
+
+      const boleto = await tx.boleto.create({
+        data: {
+          idVenta: venta.idVenta,
+          idViaje: data.idViaje,
+          idAsiento: data.idAsiento || null,
+          idTarifa: tarifaId!,
+          monto: data.monto,
+          estado: 'ABORDADO',
+          fechaHora: fechaHoraManagua,
+        },
+      });
+
+      return { venta, boleto };
+    });
+
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/viajes');
+    revalidatePath('/validar-boleto');
+
+    return {
+      success: true,
+      data: {
+        idBoleto: resultado.boleto.idBoleto,
+        codigoBoleto: `BOLETO-${resultado.boleto.idBoleto}`,
+        asiento: numeroAsiento,
+        monto: Number(resultado.boleto.monto),
+        cambio,
+        origen: origenNombre,
+        destino: destinoNombre,
+        horaSalida: formatManaguaTime(viaje.hrSalidaProgramada),
+        fechaHora: formatManaguaDate(fechaHoraManagua, 'short'),
+        cooperativaNombre: viaje.ruta.cooperativa.nombre,
+        busNumero: viaje.despacho?.asignacionUnidad.unidad.numeroUnidad || 'N/A',
+      },
+    };
+  } catch (error) {
+    console.error('Error al vender boleto a bordo:', error);
+    return { success: false, error: 'No se pudo emitir el boleto a bordo.' };
+  }
+}

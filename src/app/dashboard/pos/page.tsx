@@ -26,6 +26,7 @@ import {
   ResultadoVentaTaquilla,
 } from "@/backend/actions/taquilla";
 import { useCurrency } from "@/frontend/context/CurrencyContext";
+import { QRCodeOffline, encodeBoletoQRPayload } from "@/frontend/components/ui/QRCodeOffline";
 
 export default function PosPage() {
   const { formatPrice, currency, exchangeRate } = useCurrency();
@@ -524,12 +525,22 @@ export default function PosPage() {
                 </div>
               </div>
 
-              {/* Mini QR térmico */}
+              {/* QR térmico escaneable 100% offline */}
               <div className="pt-3 text-center border-t border-dashed border-slate-300 flex flex-col items-center">
-                <div className="w-24 h-24 bg-white border border-slate-300 p-1.5 rounded-lg grid grid-cols-4 grid-rows-4 gap-0.5">
-                  {Array.from({ length: 16 }).map((_, i) => (
-                    <div key={i} className={`rounded-xs ${i % 2 === 0 ? "bg-slate-900" : "bg-white"}`} />
-                  ))}
+                <div className="w-24 h-24 bg-white border border-slate-300 p-1.5 rounded-lg flex items-center justify-center">
+                  <QRCodeOffline
+                    value={
+                      reciboVenta.boletos.length > 0
+                        ? encodeBoletoQRPayload({
+                            idBoleto: reciboVenta.boletos[0].idBoleto,
+                            codigoBoleto: reciboVenta.boletos[0].codigoBoleto,
+                            asiento: reciboVenta.boletos[0].numeroAsiento,
+                          })
+                        : reciboVenta.codigoVenta
+                    }
+                    size={84}
+                    alt="Voucher QR"
+                  />
                 </div>
                 <span className="text-[9px] text-slate-500 mt-1">Escanee al abordar la unidad</span>
               </div>
