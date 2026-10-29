@@ -4,7 +4,7 @@ import { prisma } from '../db';
 import { getSession } from '../lib/session';
 import { revalidatePath } from 'next/cache';
 
-const OPERATIONAL_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO', 'CHOFER', 'AYUDANTE'];
+const OPERATIONAL_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO', 'CHOFER', 'AYUDANTE', 'CHEQUEADOR'];
 
 export interface ResultadoValidacionBoleto {
   idBoleto: number;
@@ -161,7 +161,7 @@ export async function validarBoletoAction(
           nuevoEstado: boleto.estado,
           fechaValidacion: boleto.fechaHora.toISOString(),
           pasajeroNombre: 'Pasajero Verificado',
-          asientoNumero: boleto.asiento.numero,
+          asientoNumero: boleto.asiento?.numero || 'De pie',
           origen,
           destino,
           unidadNumero: boleto.viaje.despacho?.asignacionUnidad.unidad.numeroUnidad || 'S/N',
@@ -230,7 +230,7 @@ export async function validarBoletoAction(
         nuevoEstado: boletoActualizado.estado,
         fechaValidacion: new Date().toISOString(),
         pasajeroNombre: 'Pasajero con Boleto Oficial',
-        asientoNumero: boletoActualizado.asiento.numero,
+        asientoNumero: boletoActualizado.asiento?.numero || 'De pie',
         origen: rutasPuntos.origen,
         destino: rutasPuntos.destino,
         unidadNumero: boletoActualizado.viaje.despacho?.asignacionUnidad.unidad.numeroUnidad || 'S/N',
@@ -344,7 +344,7 @@ export async function getManifiestoViajeAction(idViaje?: number) {
         boletos: viaje.boletos.map((b) => ({
           idBoleto: b.idBoleto,
           codigoBoleto: `BOLETO-${b.idBoleto}`,
-          asientoNumero: b.asiento.numero,
+          asientoNumero: b.asiento?.numero || 'De pie',
           monto: Number(b.monto),
           estado: b.estado,
           fechaHora: b.fechaHora.toISOString(),
@@ -423,7 +423,7 @@ export async function getMisBoletosAction(): Promise<{ success: boolean; data: M
         destino,
         fecha,
         horaSalida,
-        asientoNumero: String(b.asiento.numero),
+        asientoNumero: b.asiento ? String(b.asiento.numero) : 'De pie',
         cooperativa: b.viaje.ruta.cooperativa.nombre,
         precio: Number(b.monto),
         estado: estadoMapeado,

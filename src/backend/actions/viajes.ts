@@ -2,6 +2,8 @@
 
 import { prisma } from '../db';
 import { revalidatePath } from 'next/cache';
+import { getSession } from '../lib/session';
+import { getNowInManagua } from '@/lib/date-time';
 
 export interface ViajeInput {
   idRuta: number;
@@ -756,7 +758,7 @@ export async function getManifiestoPasajerosAction(idViaje: number) {
 
     const pasajeros = boletos.map((b) => ({
       idBoleto: b.idBoleto,
-      asientoNumero: b.asiento.numero,
+      asientoNumero: b.asiento?.numero || 'De pie',
       monto: Number(b.monto),
       estado: b.estado, // 'PAGADO' | 'ABORDADO' | 'RESERVADO'
       fechaHora: b.fechaHora.toISOString(),
@@ -1090,6 +1092,7 @@ export async function getViajeActivoAyudanteAction(idUsuario: number) {
         sentido: viajeObjetivo.sentido || 'IDA', // Incluye el sentido (IDA / RETORNO)
         busNumero: unidad.numeroUnidad || `Unidad #${unidad.idUnidad}`,
         busPlaca: unidad.placa || 'Sin placa',
+        idRuta: viajeObjetivo.idRuta,
         paradaActualId: ultimaParadaId || paradasList[0]?.id || null,
         paradas: paradasList,
       },
@@ -1193,5 +1196,456 @@ export async function actualizarParadaActualAction(idViaje: number, idPunto: num
       success: false,
       error: 'No se pudo actualizar la posición de la parada en el sistema.',
     };
+  }
+}
+
+
+/**
+ * Consulta la lista de pasajeros que descienden en una parada específica para la verificación del ayudante.
+ */
+export async function getPasajerosDescensoParadaAction(idViaje: number, idPunto: number) {
+  try {
+    const boletos = await prisma.boleto.findMany({
+      where: {
+        idViaje,
+        estado: { in: ['PAGADO', 'ABORDADO'] },
+        tarifa: {
+          idPuntoDestino: idPunto,
+        },
+      },
+      include: {
+        asiento: true,
+      },
+    });
+
+    const lista = boletos.map((b) => ({
+      idBoleto: b.idBoleto,
+      codigoBoleto: `BOLETO-${b.idBoleto}`,
+      asientoNumero: b.asiento?.numero || 'De pie',
+      monto: Number(b.monto),
+    }));
+
+    return { success: true, data: lista };
+  } catch (error) {
+    console.error('Error al consultar pasajeros de descenso:', error);
+    return { success: false, error: 'No se pudo consultar pasajeros para esta parada.', data: [] };
+  }
+}
+
+/**
+ * Registra el paso de parada por el ayudante, liberando los asientos de los pasajeros que descienden
+ * y registrando el control con timestamp oficial de Managua.
+ */
+export async function confirmarPasoParadaConDescensosAction(
+  idViaje: number,
+  idPunto: number,
+  boletosDescendidosIds: number[] = []
+) {
+  try {
+    const session = await getSession();
+    const fechaHoraManagua = getNowInManagua();
+
+    const viaje = await prisma.viaje.findUnique({
+      where: { idViaje },
+      include: {
+        ruta: {
+          include: {
+            puntosRuta: {
+              orderBy: { orden: 'asc' },
+            },
+          },
+        },
+        despacho: {
+          include: { asignacionUnidad: true },
+        },
+      },
+    });
+
+    if (!viaje) {
+      return { success: false, error: 'Viaje no encontrado.' };
+    }
+
+    const puntosRuta = viaje.ruta.puntosRuta;
+    const puntoRutaEncontrado = puntosRuta.find((pr) => pr.idPunto === idPunto);
+
+    if (!puntoRutaEncontrado) {
+      return { success: false, error: 'El punto no pertenece a la ruta de este viaje.' };
+    }
+
+    const esPuntoFinal = puntosRuta[puntosRuta.length - 1].idPuntoRuta === puntoRutaEncontrado.idPuntoRuta;
+
+    // Conteo actual de pasajeros a bordo
+    const pasajerosABordo = await prisma.boleto.count({
+      where: {
+        idViaje,
+        estado: 'ABORDADO',
+      },
+    });
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Registrar control de viaje con operador y hora Managua
+      await tx.controlViaje.create({
+        data: {
+          idViaje,
+          idPuntoRuta: puntoRutaEncontrado.idPuntoRuta,
+          idUsuario: session?.idUsuario || null,
+          tipo: 'PASO_PARADA',
+          pasajerosConteo: pasajerosABordo,
+          fechaHora: fechaHoraManagua,
+        },
+      });
+
+      // 2. Liberar asientos de boletos descendidos (si aplica)
+      if (boletosDescendidosIds.length > 0) {
+        const boletosParaLiberar = await tx.boleto.findMany({
+          where: {
+            idBoleto: { in: boletosDescendidosIds },
+          },
+          select: { idAsiento: true },
+        });
+
+        const asientosIds = boletosParaLiberar
+          .map((b) => b.idAsiento)
+          .filter((id): id is number => id !== null);
+
+        if (asientosIds.length > 0) {
+          await tx.asiento.updateMany({
+            where: { idAsiento: { in: asientosIds } },
+            data: { estado: 'DISPONIBLE' },
+          });
+        }
+      }
+
+      // 3. Si es la última parada, finalizamos el viaje
+      if (esPuntoFinal) {
+        await tx.viaje.update({
+          where: { idViaje },
+          data: {
+            estado: 'FINALIZADO',
+            hrLlegadaReal: fechaHoraManagua,
+          },
+        });
+
+        if (viaje.despacho) {
+          await tx.despacho.update({
+            where: { idViaje },
+            data: { estado: 'FINALIZADO' },
+          });
+
+          const asignacion = await tx.asignacionUnidad.update({
+            where: { idAsignacion: viaje.despacho.idAsignacion },
+            data: {
+              estado: 'FINALIZADA',
+              fechaHFin: fechaHoraManagua,
+            },
+          });
+
+          await tx.unidad.update({
+            where: { idUnidad: asignacion.idUnidad },
+            data: { estado: 'DISPONIBLE' },
+          });
+
+          await tx.asiento.updateMany({
+            where: { idUnidad: asignacion.idUnidad },
+            data: { estado: 'DISPONIBLE' },
+          });
+        }
+      }
+    });
+
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/viajes');
+    return { success: true, esPuntoFinal };
+  } catch (error) {
+    console.error('Error al confirmar paso de parada:', error);
+    return { success: false, error: 'No se pudo confirmar el paso de la parada.' };
+  }
+}
+
+
+/**
+ * Consulta los datos operativos en tiempo real para venta a bordo y aforo (ayudante/chofer).
+ */
+export async function getDatosOperacionAyudanteAction(idViaje: number) {
+  try {
+    const viaje = await prisma.viaje.findUnique({
+      where: { idViaje },
+      include: {
+        despacho: {
+          include: {
+            asignacionUnidad: {
+              include: {
+                unidad: {
+                  include: {
+                    asientos: { orderBy: { numero: 'asc' } },
+                  },
+                },
+              },
+            },
+          },
+        },
+        ruta: {
+          include: {
+            tarifas: {
+              where: { estado: 'ACTIVO' },
+              include: { puntoDestino: true, puntoOrigen: true },
+            },
+            puntosRuta: {
+              include: { punto: true },
+              orderBy: { orden: 'asc' },
+            },
+          },
+        },
+        boletos: {
+          where: {
+            estado: { in: ['PAGADO', 'ABORDADO', 'RESERVADO'] },
+          },
+          select: { idAsiento: true, estado: true },
+        },
+      },
+    });
+
+    if (!viaje) {
+      return { success: false, error: 'Viaje no encontrado.' };
+    }
+
+    const unidad = viaje.despacho?.asignacionUnidad.unidad;
+    const asientos = unidad?.asientos || [];
+    const ocupadosIds = new Set(
+      viaje.boletos.filter((b) => b.idAsiento !== null).map((b) => b.idAsiento as number)
+    );
+
+    const asientosDisponibles = asientos
+      .filter((a) => !ocupadosIds.has(a.idAsiento))
+      .map((a) => ({ idAsiento: a.idAsiento, numero: a.numero }));
+
+    const pasajerosABordo = viaje.boletos.filter((b) => b.estado === 'ABORDADO').length;
+    const totalVendidos = viaje.boletos.length;
+
+    const tarifas = viaje.ruta.tarifas.map((t) => ({
+      idTarifa: t.idTarifa,
+      idPuntoDestino: t.idPuntoDestino,
+      destino: t.puntoDestino?.nombre || 'Destino',
+      monto: Number(t.monto),
+    }));
+
+    return {
+      success: true,
+      data: {
+        capacidadTotal: asientos.length,
+        asientosDisponibles,
+        asientosOcupadosCount: ocupadosIds.size,
+        pasajerosABordo,
+        totalVendidos,
+        tarifas,
+        paradas: viaje.ruta.puntosRuta.map((pr) => ({
+          idPunto: pr.punto.idPunto,
+          nombre: pr.punto.nombre,
+          orden: pr.orden,
+        })),
+      },
+    };
+  } catch (error) {
+    console.error('Error al consultar datos de operación del ayudante:', error);
+    return { success: false, error: 'No se pudieron consultar los datos operativos.' };
+  }
+}
+
+
+export interface RegistroControlChequeadorInput {
+  idViaje: number;
+  idPuntoRuta: number;
+  pasajerosConteo: number;
+  observacion?: string;
+  tipo?: 'SALIDA_TERMINAL' | 'CONTROL_PASO';
+}
+
+/**
+ * Consulta la lista de salidas del día para el Chequeador en terminal o punto de control.
+ */
+export async function getViajesChequeadorAction(coopIdFilter?: number) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: 'Debes iniciar sesión para consultar el panel del chequeador.', data: [] };
+    }
+
+    const hoyInicio = new Date();
+    hoyInicio.setHours(0, 0, 0, 0);
+    const hoyFin = new Date();
+    hoyFin.setHours(23, 59, 59, 999);
+
+    const coopId = coopIdFilter || (session.rolNombre !== 'SUPER_ADMIN' ? (session.idCooperativa || undefined) : undefined);
+
+    const viajes = await prisma.viaje.findMany({
+      where: {
+        fecha: {
+          gte: hoyInicio,
+          lte: hoyFin,
+        },
+        ...(coopId ? { ruta: { idCooperativa: coopId } } : {}),
+      },
+      include: {
+        ruta: {
+          include: {
+            cooperativa: true,
+            puntosRuta: {
+              include: { punto: true },
+              orderBy: { orden: 'asc' },
+            },
+          },
+        },
+        despacho: {
+          include: {
+            asignacionUnidad: {
+              include: {
+                unidad: true,
+                usuario: true,
+              },
+            },
+          },
+        },
+        controlesViaje: {
+          include: {
+            puntoRuta: { include: { punto: true } },
+            usuario: true,
+          },
+          orderBy: { fechaHora: 'desc' },
+        },
+        boletos: {
+          select: {
+            idBoleto: true,
+            estado: true,
+          },
+        },
+      },
+      orderBy: { hrSalidaProgramada: 'asc' },
+    });
+
+    const items = viajes.map((v) => {
+      const unidad = v.despacho?.asignacionUnidad.unidad;
+      const puntos = v.ruta.puntosRuta;
+      const origen = puntos[0]?.punto.nombre || 'Origen';
+      const destino = puntos[puntos.length - 1]?.punto.nombre || 'Destino';
+      const ultimoControl = v.controlesViaje[0] || null;
+
+      const boletosAbordados = v.boletos.filter((b) => b.estado === 'ABORDADO').length;
+      const totalBoletos = v.boletos.length;
+
+      return {
+        idViaje: v.idViaje,
+        rutaNombre: v.ruta.nombre,
+        origen,
+        destino,
+        cooperativaNombre: v.ruta.cooperativa.nombre,
+        busNumero: unidad?.numeroUnidad || 'S/N',
+        placa: unidad?.placa || 'N/A',
+        choferNombre: v.despacho?.asignacionUnidad.usuario?.nombre
+          ? `${v.despacho.asignacionUnidad.usuario.nombre} ${v.despacho.asignacionUnidad.usuario.apellido || ''}`.trim()
+          : 'Sin conductor',
+        hrSalidaProgramada: v.hrSalidaProgramada.toISOString(),
+        estado: v.estado,
+        boletosAbordados,
+        totalBoletos,
+        puntosRuta: puntos.map((p) => ({
+          idPuntoRuta: p.idPuntoRuta,
+          idPunto: p.punto.idPunto,
+          nombre: p.punto.nombre,
+          orden: p.orden,
+        })),
+        ultimoControl: ultimoControl
+          ? {
+              idControlViaje: ultimoControl.idControlViaje,
+              puntoNombre: ultimoControl.puntoRuta.punto.nombre,
+              fechaHora: ultimoControl.fechaHora.toISOString(),
+              pasajerosConteo: ultimoControl.pasajerosConteo,
+              observacion: ultimoControl.observacion,
+              chequeador: ultimoControl.usuario?.nombre || 'Operador',
+            }
+          : null,
+      };
+    });
+
+    return { success: true, data: items };
+  } catch (error) {
+    console.error('Error en getViajesChequeadorAction:', error);
+    return { success: false, error: 'No se pudieron consultar los viajes del día.', data: [] };
+  }
+}
+
+/**
+ * Registra un control de sellado digital (salida de terminal o paso por punto de control) por el Chequeador.
+ */
+export async function registrarControlChequeadorAction(data: RegistroControlChequeadorInput) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: 'Debes iniciar sesión para registrar sellos de control.' };
+    }
+
+    const { idViaje, idPuntoRuta, pasajerosConteo, observacion, tipo = 'CONTROL_PASO' } = data;
+    const fechaHoraManagua = getNowInManagua();
+
+    const puntoRuta = await prisma.puntoRuta.findUnique({
+      where: { idPuntoRuta },
+      include: { punto: true, ruta: true },
+    });
+
+    if (!puntoRuta) {
+      return { success: false, error: 'El punto de control seleccionado no existe.' };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Crear registro en controles_viaje
+      await tx.controlViaje.create({
+        data: {
+          idViaje,
+          idPuntoRuta,
+          idUsuario: session.idUsuario,
+          pasajerosConteo,
+          observacion: observacion?.trim() || null,
+          tipo,
+          fechaHora: fechaHoraManagua,
+        },
+      });
+
+      // 2. Si el tipo es SALIDA_TERMINAL y el viaje está PROGRAMADO, lo pasamos a EN_CURSO
+      if (tipo === 'SALIDA_TERMINAL') {
+        await tx.viaje.update({
+          where: { idViaje },
+          data: {
+            estado: 'EN_CURSO',
+            hrSalidaEstimada: fechaHoraManagua,
+          },
+        });
+
+        const viajeRecord = await tx.viaje.findUnique({
+          where: { idViaje },
+          include: { despacho: true },
+        });
+
+        if (viajeRecord?.despacho) {
+          await tx.despacho.update({
+            where: { idDespacho: viajeRecord.despacho.idDespacho },
+            data: { estado: 'EN_CURSO' },
+          });
+        }
+      }
+    });
+
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/chequeador');
+    revalidatePath('/dashboard/viajes');
+
+    return {
+      success: true,
+      data: {
+        puntoNombre: puntoRuta.punto.nombre,
+        horaRegistro: fechaHoraManagua.toISOString(),
+      },
+    };
+  } catch (error) {
+    console.error('Error al registrar control del chequeador:', error);
+    return { success: false, error: 'No se pudo registrar el control de paso.' };
   }
 }

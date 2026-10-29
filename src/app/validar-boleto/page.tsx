@@ -19,6 +19,7 @@ import {
   mdiShieldCheckOutline,
 } from "@mdi/js";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { validarBoletoAction, getManifiestoViajeAction, ResultadoValidacionBoleto } from "@/backend/actions/boletos";
 import { getCurrentUserAction } from "@/backend/actions/auth";
 
@@ -48,6 +49,7 @@ interface ManifiestoData {
 }
 
 export default function ValidarBoletoPage() {
+  const router = useRouter();
   const [codigoInput, setCodigoInput] = useState("");
   const [loadingValidacion, setLoadingValidacion] = useState(false);
   const [loadingManifiesto, setLoadingManifiesto] = useState(true);
@@ -247,13 +249,21 @@ export default function ValidarBoletoPage() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 sm:px-8 py-3 shadow-2xs">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Link
-              href={currentUser?.rolNombre === "TAQUILLERO" || currentUser?.rolNombre === "ADMIN_COOP" || currentUser?.rolNombre === "SUPER_ADMIN" ? "/dashboard" : "#"}
-              className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors"
-              title="Volver al panel"
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined" && window.history.length > 1) {
+                  router.back();
+                } else {
+                  router.push("/dashboard");
+                }
+              }}
+              className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+              title="Volver a la pantalla anterior"
+              aria-label="Volver"
             >
               <Icon path={mdiArrowLeft} size={0.7} />
-            </Link>
+            </button>
             <div>
               <div className="flex items-center gap-2">
                 <span className="p-1 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
@@ -264,7 +274,7 @@ export default function ValidarBoletoPage() {
                 </h1>
               </div>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Terminal de abordaje para Ayudante, Chofer y Taquilla
+                Terminal de abordaje para Ayudante, Chofer, Chequeador y Taquilla
               </p>
             </div>
           </div>

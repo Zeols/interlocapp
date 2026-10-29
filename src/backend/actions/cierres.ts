@@ -4,10 +4,20 @@ import { prisma } from '../db';
 import { getSession } from '../lib/session';
 import { revalidatePath } from 'next/cache';
 import { EstadoCierre } from '@prisma/client';
+import { getNowInManagua, formatManaguaDate, formatManaguaDateTime } from '@/lib/date-time';
+
+export interface DenominacionConteo {
+  denominacion: number;
+  tipo: 'BILLETE' | 'MONEDA';
+  cantidad: number;
+  subtotal: number;
+}
 
 export interface ResumenArqueoEnVivo {
   fecha: string;
   totalVentas: number;
+  ventasTaquilla: number;
+  ventasABordo: number;
   totalGastos: number;
   montoEsperado: number;
   cantidadVentas: number;
@@ -19,6 +29,7 @@ export interface ResumenArqueoEnVivo {
 export interface CierreJornadaItem {
   idCierre: number;
   fechaHora: string;
+  fechaHoraFormatted: string;
   montoEsperado: number;
   montoEntregado: number;
   diferencia: number;
@@ -26,11 +37,19 @@ export interface CierreJornadaItem {
   usuarioNombre: string;
   cooperativaNombre: string;
   gastosAsociados: number;
+  observaciones?: string | null;
+  desgloseJson?: string | null;
+}
+
+export interface CerrarJornadaInput {
+  montoEntregado: number;
+  observaciones?: string;
+  desglose?: DenominacionConteo[];
 }
 
 /**
- * Calcula en tiempo real el arqueo de caja actual para la jornada:
- * Total Ventas (COMPLETADA) - Total Gastos Autorizados = Monto Esperado en Efectivo.
+ * Calcula en tiempo real el arqueo de caja actual para la jornada según la hora oficial de Managua:
+ * Total Ventas (COMPLETADA, POS + A_BORDO) - Total Gastos Pendientes = Monto Esperado en Efectivo.
  */
 export async function getArqueoEnVivoAction(): Promise<{
   success: boolean;
@@ -43,18 +62,37 @@ export async function getArqueoEnVivoAction(): Promise<{
       return { success: false, error: 'Sesión no válida.' };
     }
 
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const nowManagua = getNowInManagua();
+    // Inicio del día en hora de Managua
+    const startOfDay = new Date(nowManagua);
+    startOfDay.setHours(0, 0, 0, 0);
 
-    // 1. Total ventas completadas hoy
-    const ventasAgg = await prisma.venta.aggregate({
+    // 1. Consultar ventas completadas hoy
+    const ventasHoy = await prisma.venta.findMany({
       where: {
         fechaHora: { gte: startOfDay },
         estado: 'COMPLETADA',
       },
-      _sum: { total: true },
-      _count: { idVenta: true },
+      select: {
+        idVenta: true,
+        total: true,
+        tipoVenta: { select: { nombre: true } },
+      },
     });
+
+    let totalVentas = 0;
+    let ventasTaquilla = 0;
+    let ventasABordo = 0;
+
+    for (const v of ventasHoy) {
+      const monto = Number(v.total || 0);
+      totalVentas += monto;
+      if (v.tipoVenta?.nombre === 'A_BORDO') {
+        ventasABordo += monto;
+      } else {
+        ventasTaquilla += monto;
+      }
+    }
 
     // 2. Total gastos no cerrados hoy
     const gastosAgg = await prisma.gasto.aggregate({
@@ -66,21 +104,32 @@ export async function getArqueoEnVivoAction(): Promise<{
       _count: { idGasto: true },
     });
 
-    const totalVentas = Number(ventasAgg._sum.total || 0);
     const totalGastos = Number(gastosAgg._sum.monto || 0);
     const montoEsperado = Math.max(0, totalVentas - totalGastos);
+
+    // Cooperativa del usuario
+    let nombreCoop = 'Cooperativa de Transporte';
+    if (session.idCooperativa) {
+      const coop = await prisma.cooperativa.findUnique({
+        where: { idCooperativa: session.idCooperativa },
+        select: { nombre: true },
+      });
+      if (coop) nombreCoop = coop.nombre;
+    }
 
     return {
       success: true,
       data: {
-        fecha: now.toLocaleDateString('es-NI', { dateStyle: 'full' }),
+        fecha: formatManaguaDate(nowManagua),
         totalVentas,
+        ventasTaquilla,
+        ventasABordo,
         totalGastos,
         montoEsperado,
-        cantidadVentas: ventasAgg._count.idVenta,
+        cantidadVentas: ventasHoy.length,
         cantidadGastos: gastosAgg._count.idGasto,
         taquillero: session.nombre || 'Cajero / Taquillero',
-        cooperativa: 'COOTRANSTEL R.L.',
+        cooperativa: nombreCoop,
       },
     };
   } catch (error) {
@@ -91,11 +140,11 @@ export async function getArqueoEnVivoAction(): Promise<{
 
 /**
  * Guarda y firma el cierre de caja de la jornada:
- * Compara monto entregado vs monto esperado, calcula diferencia y vincula los gastos de hoy.
+ * Valida diferencias, exige justificación obligatoria en caso de faltante y guarda el desglose peso a peso.
  */
-export async function cerrarJornadaAction(data: {
-  montoEntregado: number;
-}): Promise<{ success: boolean; data?: CierreJornadaItem; error?: string }> {
+export async function cerrarJornadaAction(
+  input: CerrarJornadaInput
+): Promise<{ success: boolean; data?: CierreJornadaItem; error?: string }> {
   try {
     const session = await getSession();
     if (!session) {
@@ -104,15 +153,23 @@ export async function cerrarJornadaAction(data: {
 
     const arqueoRes = await getArqueoEnVivoAction();
     if (!arqueoRes.success || !arqueoRes.data) {
-      return { success: false, error: 'No se pudo obtener el arqueo previo.' };
+      return { success: false, error: 'No se pudo obtener el arqueo previo del sistema.' };
     }
 
     const montoEsperado = arqueoRes.data.montoEsperado;
-    const montoEntregado = data.montoEntregado;
+    const montoEntregado = Number(input.montoEntregado) || 0;
     const diferencia = montoEntregado - montoEsperado;
 
+    // Regla de Negocio: Si hay faltante (más de C$ 0.05), es obligatoria la justificación
+    if (diferencia < -0.05 && (!input.observaciones || input.observaciones.trim().length < 5)) {
+      return {
+        success: false,
+        error: 'Existe un faltante en caja. Debe registrar una justificación detallada antes de cerrar la jornada.',
+      };
+    }
+
     // Determinar estado según cuadre
-    const estado: EstadoCierre = Math.abs(diferencia) < 0.01 ? 'CONFIRMADO' : 'PENDIENTE';
+    const estado: EstadoCierre = Math.abs(diferencia) <= 0.05 ? 'CONFIRMADO' : 'PENDIENTE';
 
     // Determinar idCooperativa
     let idCoop = session.idCooperativa;
@@ -121,18 +178,22 @@ export async function cerrarJornadaAction(data: {
       idCoop = firstCoop ? firstCoop.idCooperativa : 1;
     }
 
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const nowManagua = getNowInManagua();
+    const startOfDay = new Date(nowManagua);
+    startOfDay.setHours(0, 0, 0, 0);
 
     const cierre = await prisma.$transaction(async (tx) => {
-      // a) Crear registro de CierreJornada
+      // 1. Crear registro de CierreJornada
       const nuevoCierre = await tx.cierreJornada.create({
         data: {
           idCooperativa: idCoop!,
           idUsuario: session.idUsuario,
+          fechaHora: nowManagua,
           montoEsperado,
           montoEntregado,
           diferencia,
+          observaciones: input.observaciones?.trim() || null,
+          desgloseJson: input.desglose && input.desglose.length > 0 ? JSON.stringify(input.desglose) : null,
           estado,
         },
         include: {
@@ -141,7 +202,7 @@ export async function cerrarJornadaAction(data: {
         },
       });
 
-      // b) Vincular gastos de hoy que estaban pendientes de cierre
+      // 2. Vincular gastos de hoy que estaban pendientes de cierre
       await tx.gasto.updateMany({
         where: {
           fechaHora: { gte: startOfDay },
@@ -163,6 +224,7 @@ export async function cerrarJornadaAction(data: {
       data: {
         idCierre: cierre.idCierre,
         fechaHora: cierre.fechaHora.toISOString(),
+        fechaHoraFormatted: formatManaguaDateTime(cierre.fechaHora),
         montoEsperado: Number(cierre.montoEsperado),
         montoEntregado: Number(cierre.montoEntregado),
         diferencia: Number(cierre.diferencia),
@@ -170,6 +232,8 @@ export async function cerrarJornadaAction(data: {
         usuarioNombre: `${cierre.usuario.nombre} ${cierre.usuario.apellido}`.trim(),
         cooperativaNombre: cierre.cooperativa.nombre,
         gastosAsociados: arqueoRes.data.cantidadGastos,
+        observaciones: cierre.observaciones,
+        desgloseJson: cierre.desgloseJson,
       },
     };
   } catch (error: any) {
@@ -179,7 +243,7 @@ export async function cerrarJornadaAction(data: {
 }
 
 /**
- * Consulta el historial de cierres de caja realizados.
+ * Consulta el historial de cierres de caja realizados con fecha de Managua y observaciones.
  */
 export async function getHistorialCierresAction(): Promise<{
   success: boolean;
@@ -205,6 +269,7 @@ export async function getHistorialCierresAction(): Promise<{
     const items: CierreJornadaItem[] = cierres.map((c) => ({
       idCierre: c.idCierre,
       fechaHora: c.fechaHora.toISOString(),
+      fechaHoraFormatted: formatManaguaDateTime(c.fechaHora),
       montoEsperado: Number(c.montoEsperado),
       montoEntregado: Number(c.montoEntregado),
       diferencia: Number(c.diferencia),
@@ -212,6 +277,8 @@ export async function getHistorialCierresAction(): Promise<{
       usuarioNombre: `${c.usuario.nombre} ${c.usuario.apellido}`.trim(),
       cooperativaNombre: c.cooperativa.nombre,
       gastosAsociados: c.gastos.length,
+      observaciones: c.observaciones,
+      desgloseJson: c.desgloseJson,
     }));
 
     return { success: true, data: items };

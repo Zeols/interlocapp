@@ -357,7 +357,7 @@ export async function venderBoletosTaquillaAction(input: {
         boletos: resVenta.data.boletos.map((b) => ({
           idBoleto: b.idBoleto,
           codigoBoleto: b.codigoBoleto,
-          numeroAsiento: asientosMap.get(b.idAsiento) || String(b.idAsiento),
+          numeroAsiento: b.idAsiento ? (asientosMap.get(b.idAsiento) || String(b.idAsiento)) : 'De pie',
           monto: b.monto,
         })),
       },

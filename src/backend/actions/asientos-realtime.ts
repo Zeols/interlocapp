@@ -110,7 +110,9 @@ export async function getAsientosViajeRealtimeAction(
     // Mapa de boletos vendidos
     const boletosOcupadosMap = new Map<number, string>();
     for (const b of viaje.boletos) {
-      boletosOcupadosMap.set(b.idAsiento, b.estado);
+      if (b.idAsiento !== null) {
+        boletosOcupadosMap.set(b.idAsiento, b.estado);
+      }
     }
 
     const now = Date.now();

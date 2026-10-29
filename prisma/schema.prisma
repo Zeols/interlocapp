@@ -166,6 +166,7 @@ model Usuario {
   asignacionesAsignadas AsignacionUnidad[] @relation("UsuarioOperario")
   cierresJornada        CierreJornada[]
   metodosPago           MetodoPagoUsuario[]
+  controlesViaje        ControlViaje[]
 
   @@map("usuarios")
 }
@@ -182,6 +183,8 @@ model CierreJornada {
   montoEsperado  Decimal      @db.Decimal(10, 2)
   montoEntregado Decimal      @db.Decimal(10, 2)
   diferencia     Decimal      @db.Decimal(10, 2)
+  observaciones  String?
+  desgloseJson   String?
   estado         EstadoCierre @default(PENDIENTE)
 
   // Relaciones
@@ -412,11 +415,18 @@ model ControlViaje {
   idControlViaje Int      @id @default(autoincrement())
   idViaje        Int
   idPuntoRuta    Int
-  fechaHora      DateTime @default(now())
+  idUsuario       Int?
+  pasajerosConteo Int?
+  observacion     String?
+  tipo            String?  @default("CONTROL_PASO")
+  fechaHora       DateTime @default(now())
 
   // Relaciones
   viaje     Viaje     @relation(fields: [idViaje], references: [idViaje], onDelete: Cascade)
   puntoRuta PuntoRuta @relation(fields: [idPuntoRuta], references: [idPuntoRuta])
+  usuario   Usuario?  @relation(fields: [idUsuario], references: [idUsuario], onDelete: SetNull)
+
+  @@index([idViaje, idPuntoRuta])
 
   @@map("controles_viaje")
 }
@@ -473,7 +483,7 @@ model Boleto {
   idBoleto  Int          @id @default(autoincrement())
   idVenta   Int
   idViaje   Int
-  idAsiento Int
+  idAsiento Int?
   idTarifa  Int
   monto     Decimal      @db.Decimal(10, 2)
   fechaHora DateTime     @default(now())
@@ -482,7 +492,7 @@ model Boleto {
   // Relaciones
   venta    Venta      @relation(fields: [idVenta], references: [idVenta], onDelete: Cascade)
   viaje    Viaje      @relation(fields: [idViaje], references: [idViaje])
-  asiento  Asiento    @relation(fields: [idAsiento], references: [idAsiento])
+  asiento  Asiento?   @relation(fields: [idAsiento], references: [idAsiento], onDelete: SetNull)
   tarifa   Tarifa     @relation(fields: [idTarifa], references: [idTarifa])
   equipaje Equipaje?
 

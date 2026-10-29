@@ -24,6 +24,7 @@ async function main() {
     { nombre: 'TAQUILLERO', descripcion: 'Taquillero de ventanilla en terminal' },
     { nombre: 'CHOFER', descripcion: 'Conductor principal de unidad' },
     { nombre: 'AYUDANTE', descripcion: 'Ayudante y cobrador de unidad' },
+    { nombre: 'CHEQUEADOR', descripcion: 'Chequeador de terminal y puntos de control de ruta' },
     { nombre: 'PASAJERO', descripcion: 'Pasajero usuario del servicio' },
   ];
 
