@@ -789,18 +789,25 @@ export default function ChoferesDashboardPage() {
 
               {/* Teléfono y Cooperativa */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Teléfono celular con código de país unificado (Ley de Parkinson) */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                    Teléfono Celular (8 dígitos)
+                    Teléfono Celular
                   </label>
-                  <input
-                    type="tel"
-                    maxLength={8}
-                    placeholder="Ej: 88889999"
-                    value={formTelefono}
-                    onChange={(e) => setFormTelefono(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs sm:text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400/20"
-                  />
+                  <div className="flex items-center rounded-lg border border-slate-200 bg-white overflow-hidden focus-within:border-slate-400 focus-within:ring-1 focus-within:ring-slate-400/20 transition-all">
+                    <div className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-50 border-r border-slate-200 text-slate-700 text-xs font-bold shrink-0 select-none">
+                      <span>🇳🇮</span>
+                      <span>+505</span>
+                    </div>
+                    <input
+                      type="tel"
+                      maxLength={8}
+                      placeholder="8888 8888"
+                      value={formTelefono}
+                      onChange={(e) => setFormTelefono(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                      className="w-full px-3 py-2 bg-transparent text-xs sm:text-sm font-normal text-slate-800 focus:outline-none"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -864,9 +871,25 @@ export default function ChoferesDashboardPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">
-                    Contraseña Temporal Asignada
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                      Contraseña Temporal Asignada
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$";
+                        let pass = "Chofer";
+                        for (let i = 0; i < 5; i++) {
+                          pass += chars.charAt(Math.floor(Math.random() * chars.length));
+                        }
+                        setFormPasswd(pass);
+                      }}
+                      className="text-[11px] text-slate-700 hover:text-slate-900 font-semibold underline underline-offset-2 cursor-pointer"
+                    >
+                      Generar segura
+                    </button>
+                  </div>
                   <input
                     type="text"
                     required
@@ -918,11 +941,48 @@ export default function ChoferesDashboardPage() {
             <div className="text-center">
               <h3 className="text-base font-bold text-slate-900">¿Retirar este colaborador?</h3>
               <p className="text-xs text-slate-500 mt-1">
-                Estás a punto de eliminar a {selectedOperario.nombre} {selectedOperario.apellido} (
-                {selectedOperario.rol.nombre}). Si tiene registros históricos de viaje, te
-                recomendamos cambiar su estado a INACTIVO.
+                Verifica los datos del registro antes de confirmar la baja operativa.
               </p>
             </div>
+
+            {/* Ficha estructurada Clave-Valor (Ley de Miller) */}
+            <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden text-xs">
+              <div className="bg-slate-100/80 px-3 py-1.5 border-b border-slate-200 font-bold text-[10px] uppercase tracking-wider text-slate-600">
+                Ficha del Colaborador
+              </div>
+              <div className="divide-y divide-slate-200/70">
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Nombre Completo:</span>
+                  <span className="font-bold text-slate-900">{selectedOperario.nombre} {selectedOperario.apellido}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Usuario (@):</span>
+                  <span className="font-mono font-semibold text-slate-800">@{selectedOperario.usuario}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Rol Operativo:</span>
+                  <span className="px-2 py-0.5 rounded bg-slate-200 font-bold text-[10px] text-slate-800">
+                    {selectedOperario.rol.nombre}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Teléfono:</span>
+                  <span className="font-mono text-slate-800">{selectedOperario.telefono ? `+505 ${selectedOperario.telefono}` : "No registrado"}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Cooperativa:</span>
+                  <span className="font-semibold text-slate-800">{selectedOperario.cooperativa?.nombre || "Sin Cooperativa"}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Estado:</span>
+                  <span className="font-semibold text-slate-700">{selectedOperario.estado}</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5 leading-relaxed">
+              <strong>Nota:</strong> Si el operario cuenta con historial de salidas, se recomienda cambiar su estado a <em>Inactivo</em> en lugar de eliminar el registro.
+            </p>
 
             <div className="flex items-center gap-2.5 pt-1">
               <button

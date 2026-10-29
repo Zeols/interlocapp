@@ -1016,10 +1016,44 @@ export default function FlotaDashboardPage() {
             <div className="text-center">
               <h3 className="text-base font-bold text-slate-900">¿Dar de baja esta unidad?</h3>
               <p className="text-xs text-slate-500 mt-1">
-                Estás a punto de eliminar la Unidad #{selectedUnidad.numeroUnidad} (Placa: {selectedUnidad.placa}).
-                Esta acción removerá sus asientos asociados.
+                Verifica los detalles del autobús antes de confirmar la baja de la flota.
               </p>
             </div>
+
+            {/* Ficha estructurada Clave-Valor (Ley de Miller: chunking de información) */}
+            <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden text-xs">
+              <div className="bg-slate-100/80 px-3 py-1.5 border-b border-slate-200 font-bold text-[10px] uppercase tracking-wider text-slate-600">
+                Ficha Técnica de la Unidad
+              </div>
+              <div className="divide-y divide-slate-200/70">
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Número de Unidad:</span>
+                  <span className="font-bold text-slate-900">Bus #{selectedUnidad.numeroUnidad}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Placa / Matrícula:</span>
+                  <span className="font-mono font-bold text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200">
+                    {selectedUnidad.placa}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Tipo de Carrocería:</span>
+                  <span className="font-semibold text-slate-800">{selectedUnidad.tipoUnidad?.nombre || "Estándar"}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Cooperativa:</span>
+                  <span className="font-semibold text-slate-800">{selectedUnidad.cooperativa?.nombre || "Cooperativa"}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Asientos Físicos:</span>
+                  <span className="font-bold text-slate-900">{selectedUnidad.asientos?.length || selectedUnidad._count?.asientos || "N/A"} puestos</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2.5 leading-relaxed">
+              <strong>Atención:</strong> Esta acción removerá permanentemente la unidad y sus croquis de asientos vinculados de la plataforma.
+            </p>
 
             <div className="flex items-center gap-2.5 pt-1">
               <button

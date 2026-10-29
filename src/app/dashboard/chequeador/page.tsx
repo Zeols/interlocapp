@@ -268,9 +268,28 @@ export default function ChequeadorPage() {
           <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin mx-auto mb-2" />
           <p className="text-xs text-slate-500">Cargando salidas del día...</p>
         </div>
-      ) : filteredViajes.length === 0 ? (
-        <div className="p-12 text-center bg-white rounded-xl border border-slate-200/80 shadow-2xs text-slate-500 text-xs">
-          No se encontraron viajes programados o activos bajo los filtros seleccionados.
+            ) : filteredViajes.length === 0 ? (
+        <div className="py-16 text-center bg-white rounded-xl border border-slate-200 shadow-2xs p-6">
+          <div className="w-12 h-12 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto mb-3 text-slate-400">
+            <Icon path={mdiBus} size={1} />
+          </div>
+          <p className="font-bold text-sm text-slate-800">No hay salidas registradas o activas</p>
+          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+            No se encontraron viajes bajo los filtros seleccionados para la jornada de hoy.
+          </p>
+          {(searchQuery.trim() || filtroCoop !== "ALL" || filtroEstado !== "ALL") && (
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                setFiltroCoop("ALL");
+                setFiltroEstado("ALL");
+              }}
+              className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+            >
+              <Icon path={mdiClose} size={0.55} />
+              <span>Restablecer filtros</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

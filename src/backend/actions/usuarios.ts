@@ -762,4 +762,77 @@ export async function reasignarCooperativaUsuarioAction(
   }
 }
 
+/**
+ * Modifica directamente la contraseña de cualquier usuario del sistema.
+ * Exclusivo para SUPER_ADMIN (y ADMIN_COOP solo para su propia cooperativa).
+ */
+export async function adminCambiarPasswordUsuarioAction(
+  idUsuario: number,
+  nuevaPassword: string
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: 'Sesión no válida.' };
+    }
 
+    const isSuperAdmin = session.rolNombre === 'SUPER_ADMIN';
+    const isAdminCoop = session.rolNombre === 'ADMIN_COOP';
+
+    if (!isSuperAdmin && !isAdminCoop) {
+      return {
+        success: false,
+        error: 'Privilegio insuficiente. Solo el Administrador puede restablecer contraseñas de usuarios.',
+      };
+    }
+
+    if (!nuevaPassword || nuevaPassword.trim().length < 6) {
+      return {
+        success: false,
+        error: 'La nueva contraseña debe tener al menos 6 caracteres.',
+      };
+    }
+
+    const usuario = await prisma.usuario.findUnique({
+      where: { idUsuario },
+      include: { rol: true },
+    });
+
+    if (!usuario) {
+      return { success: false, error: 'El usuario especificado no existe.' };
+    }
+
+    // Regla de protección RBAC:
+    // Si no es Super Admin, no puede modificar a Super Admins ni a usuarios de otra cooperativa
+    if (!isSuperAdmin) {
+      if (usuario.rol.nombre === 'SUPER_ADMIN') {
+        return { success: false, error: 'No tienes permisos para modificar a un Super Administrador.' };
+      }
+      if (usuario.idCooperativa !== session.idCooperativa) {
+        return { success: false, error: 'Solo puedes cambiar la contraseña de personal de tu propia cooperativa.' };
+      }
+    }
+
+    const hashedPassword = await hashPassword(nuevaPassword.trim());
+
+    await prisma.usuario.update({
+      where: { idUsuario },
+      data: { passwd: hashedPassword },
+    });
+
+    revalidatePath('/dashboard/usuarios');
+    revalidatePath('/dashboard/choferes');
+
+    return {
+      success: true,
+      data: {
+        idUsuario: usuario.idUsuario,
+        usuario: usuario.usuario,
+        nombre: usuario.nombre,
+      },
+    };
+  } catch (error) {
+    console.error('Error en adminCambiarPasswordUsuarioAction:', error);
+    return { success: false, error: 'Ocurrió un error al cambiar la contraseña.' };
+  }
+}

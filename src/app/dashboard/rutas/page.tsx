@@ -1274,9 +1274,42 @@ export default function RutasDashboardPage() {
             <div className="text-center">
               <h3 className="text-base font-bold text-slate-900">¿Eliminar esta ruta?</h3>
               <p className="text-xs text-slate-500 mt-1">
-                Estás a punto de eliminar la ruta &quot;{selectedRuta.nombre}&quot; junto a sus paradas y tarifas asociadas.
+                Verifica los datos del itinerario antes de proceder con la eliminación.
               </p>
             </div>
+
+            {/* Ficha estructurada Clave-Valor (Ley de Miller: chunking de información) */}
+            <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden text-xs">
+              <div className="bg-slate-100/80 px-3 py-1.5 border-b border-slate-200 font-bold text-[10px] uppercase tracking-wider text-slate-600">
+                Ficha del Itinerario
+              </div>
+              <div className="divide-y divide-slate-200/70">
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Nombre de Ruta:</span>
+                  <span className="font-bold text-slate-900">{selectedRuta.nombre}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Modalidad:</span>
+                  <span className="font-semibold text-slate-800">{selectedRuta.tipoRuta?.nombre || "Estándar"}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Paradas Definidas:</span>
+                  <span className="font-bold text-slate-900">{selectedRuta.puntosRuta?.length || 0} estaciones</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Tarifas Parametrizadas:</span>
+                  <span className="font-semibold text-slate-800">{selectedRuta.tarifas?.length || 0} tramos</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-500 font-medium">Cooperativa:</span>
+                  <span className="font-semibold text-slate-800">{selectedRuta.cooperativa?.nombre || "Cooperativa"}</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2.5 leading-relaxed">
+              <strong>Advertencia:</strong> Esta acción eliminará permanentemente la ruta junto a todas sus paradas intermedias y su matriz tarifaria.
+            </p>
 
             <div className="flex items-center gap-2.5 pt-1">
               <button
