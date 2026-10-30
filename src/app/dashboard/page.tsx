@@ -1,43 +1,28 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import Icon from "@mdi/react";
 import {
-  mdiTicketConfirmationOutline,
-  mdiBusDoubleDecker,
-  mdiCurrencyUsd,
-  mdiAccountGroup,
   mdiRefresh,
   mdiReceiptTextOutline,
-  mdiBus,
-  mdiCheckCircle,
-  mdiMapMarkerRadius,
-  mdiShieldAccount,
-  mdiCashRegister,
-  mdiQrcodeScan,
-  mdiSeatPassenger,
-  mdiHumanGreetingProximity,
-  mdiClose,
-  mdiLoading,
-  mdiCheckCircleOutline,
-  mdiAlertCircleOutline,
-  mdiPrinter,
 } from "@mdi/js";
 import { AnimatedCircularProgressBar } from "@/registry/magicui/animated-circular-progress-bar";
-import { getDashboardStatsAction, venderBoletoABordoAction } from "@/backend/actions/ventas";
+import { getDashboardStatsAction } from "@/backend/actions/ventas";
 import { useCurrency } from "@/frontend/context/CurrencyContext";
 import { useTenant } from "@/frontend/context/TenantContext";
 import { getCurrentUserAction } from "@/backend/actions/auth";
 import {
   getViajeActivoAyudanteAction,
-  actualizarParadaActualAction,
   getDatosOperacionAyudanteAction,
-  getPasajerosDescensoParadaAction,
-  confirmarPasoParadaConDescensosAction,
 } from "@/backend/actions/viajes";
-import { QRCodeOffline, encodeBoletoQRPayload } from "@/frontend/components/ui/QRCodeOffline";
 import { AyudanteOperationalPanel } from "@/frontend/components/dashboard/AyudanteOperationalPanel";
+import { PageHeader } from "@/frontend/components/ui/PageHeader";
+import { StatTile } from "@/frontend/components/ui/StatTile";
+import {
+  DateRangeFilter,
+  DateRangeValue,
+  computePresetRange,
+} from "@/frontend/components/ui/DateRangeFilter";
 
 interface VentaResumenItem {
   idVenta: number;
@@ -69,6 +54,12 @@ export default function DashboardHome() {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
 
+  // Filtro de rango de fechas (Managua America/Managua)
+  const [dateRange, setDateRange] = useState<DateRangeValue>(() => {
+    const range = computePresetRange("hoy");
+    return { ...range, preset: "hoy" };
+  });
+
   // Estados para la jornada del ayudante (conectados a la BD)
   const [viajeActivo, setViajeActivo] = useState<any>(null);
   const [paradaActualIndex, setParadaActualIndex] = useState<number>(0);
@@ -89,7 +80,6 @@ export default function DashboardHome() {
             const index = resViaje.data.paradas.findIndex((p: any) => p.id === resViaje.data.paradaActualId);
             setParadaActualIndex(index >= 0 ? index : 0);
 
-            // Cargar datos operativos de aforo y asientos disponibles
             const resOp = await getDatosOperacionAyudanteAction(resViaje.data.idViaje);
             if (resOp.success && resOp.data) {
               setOperacionAyudante(resOp.data);
@@ -102,7 +92,7 @@ export default function DashboardHome() {
       }
 
       const coopIdNumber = selectedCoopId === "ALL" ? undefined : Number(selectedCoopId);
-      const res = await getDashboardStatsAction(coopIdNumber);
+      const res = await getDashboardStatsAction(coopIdNumber, dateRange.desde, dateRange.hasta);
       if (res.success && res.data) {
         setData(res.data);
       }
@@ -115,14 +105,12 @@ export default function DashboardHome() {
 
   useEffect(() => {
     fetchMetrics();
-  }, [selectedCoopId]);
+  }, [selectedCoopId, dateRange.desde, dateRange.hasta]);
 
   const rolUsuario = (session?.rolNombre || "").trim().toUpperCase();
   const isAyudante = rolUsuario === "AYUDANTE";
 
-  // ==========================================
-  // VISTA DE JORNADA OPERATIVA PARA EL AYUDANTE
-  // ==========================================
+  // VISTA OPERATIVA AYUDANTE
   if (isAyudante) {
     return (
       <AyudanteOperationalPanel
@@ -136,118 +124,75 @@ export default function DashboardHome() {
     );
   }
 
-  // ==========================================
-  // VISTA ADMINISTRATIVA HABITUAL (Sin cambios)
-  // ==========================================
   const showPasajerosCount = isSuperAdmin && (!selectedCoopId || selectedCoopId === "ALL");
-
-  const stats = [
-    {
-      title: "Ventas de Hoy",
-      value: data ? formatPrice(data.ventasHoy) : "C$ 0.00",
-      subtext: data ? `${data.transaccionesHoy} transacciones procesadas` : "Sin cobros registrados",
-      icon: mdiCurrencyUsd,
-    },
-    {
-      title: "Boletos Emitidos",
-      value: data ? `${data.boletosCount}` : "0",
-      subtext: "Boletos validados en plataforma",
-      icon: mdiTicketConfirmationOutline,
-    },
-    {
-      title: "Flota Operativa",
-      value: data ? `${data.unidadesActivas} / ${data.totalUnidades}` : "0 / 0",
-      subtext: "Unidades en servicio activo",
-      icon: mdiBusDoubleDecker,
-    },
-    ...(showPasajerosCount
-      ? [
-          {
-            title: "Pasajeros Registrados",
-            value: data ? `${data.pasajerosCount}` : "0",
-            subtext: "Cuentas registradas en sistema",
-            icon: mdiAccountGroup,
-          },
-        ]
-      : []),
-  ];
+  const isSingleDay = dateRange.desde === dateRange.hasta;
+  const ventasLabel = dateRange.preset === "hoy"
+    ? "Ventas de Hoy"
+    : isSingleDay
+    ? `Ventas del Día (${dateRange.desde})`
+    : `Ventas del Período`;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-            Resumen de Operaciones {selectedCoop ? `(${selectedCoop.nombre})` : ""}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            {selectedCoop
-              ? `Métricas auditadas y transacciones en tiempo real de ${selectedCoop.nombre}.`
-              : "Métricas consolidadas y transacciones en tiempo real de todas las cooperativas."}
-          </p>
-        </div>
+      <PageHeader
+        title={`Resumen de Operaciones ${selectedCoop ? `(${selectedCoop.nombre})` : ""}`}
+        description={
+          selectedCoop
+            ? `Métricas auditadas y transacciones en tiempo real de ${selectedCoop.nombre}.`
+            : "Métricas consolidadas y transacciones en tiempo real de todas las cooperativas."
+        }
+      >
+        <DateRangeFilter value={dateRange} onChange={setDateRange} />
+        <button
+          onClick={fetchMetrics}
+          disabled={loading}
+          className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
+          title="Actualizar datos"
+        >
+          <Icon path={mdiRefresh} size={0.65} className={loading ? "animate-spin text-slate-900" : ""} />
+        </button>
+      </PageHeader>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchMetrics}
-            disabled={loading}
-            className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
-            title="Actualizar datos"
-          >
-            <Icon path={mdiRefresh} size={0.7} className={loading ? "animate-spin text-slate-900" : ""} />
-          </button>
-
-          <div className="text-xs text-slate-600 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs font-medium flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            {new Date().toLocaleDateString("es-NI", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className={`grid grid-cols-1 sm:grid-cols-2 ${showPasajerosCount ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-3`}>
-        {loading
-          ? Array.from({ length: showPasajerosCount ? 4 : 3 }).map((_, i) => (
-              <div key={i} className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-                <div className="space-y-2">
-                  <div className="h-3 w-24 bg-slate-200 animate-pulse rounded" />
-                  <div className="h-7 w-28 bg-slate-200 animate-pulse rounded" />
-                  <div className="h-3 w-36 bg-slate-100 animate-pulse rounded" />
-                </div>
-                <div className="w-9 h-9 rounded-lg bg-slate-100 animate-pulse shrink-0" />
-              </div>
-            ))
-          : stats.map((stat, i) => (
-              <div key={i} className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{stat.title}</p>
-                  <p className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5 tabular-nums">
-                    {stat.value}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">{stat.subtext}</p>
-                </div>
-                <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0">
-                  <Icon path={stat.icon} size={0.8} />
-                </div>
-              </div>
-            ))}
+      {/* KPI StatTiles */}
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${showPasajerosCount ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-3.5`}>
+        <StatTile
+          label={ventasLabel}
+          value={data ? formatPrice(data.ventasHoy) : "C$ 0.00"}
+          subtext={data ? `${data.transaccionesHoy} transacciones procesadas` : "Sin cobros registrados"}
+          variant="accent"
+        />
+        <StatTile
+          label="Boletos Emitidos"
+          value={data ? `${data.boletosCount}` : "0"}
+          subtext="Boletos validados en plataforma"
+        />
+        <StatTile
+          label="Flota Operativa"
+          value={data ? `${data.unidadesActivas} / ${data.totalUnidades}` : "0 / 0"}
+          subtext="Unidades en servicio activo"
+        />
+        {showPasajerosCount && (
+          <StatTile
+            label="Pasajeros Registrados"
+            value={data ? `${data.pasajerosCount}` : "0"}
+            subtext="Cuentas registradas en sistema"
+          />
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Tabla Últimas Transacciones */}
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl border border-slate-200/80 shadow-2xs h-full flex flex-col overflow-hidden">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xs h-full flex flex-col overflow-hidden">
             <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h2 className="text-sm sm:text-base font-semibold text-slate-900 tracking-tight">
+                <h2 className="text-sm font-bold text-slate-900 tracking-tight">
                   Últimas Transacciones Registradas
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">Ventas procesadas por taquilla o portal digital</p>
               </div>
               {data && data.ultimasVentas.length > 0 && (
-                <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded border border-slate-200 bg-slate-50 text-slate-700">
                   {data.ultimasVentas.length} transacciones
                 </span>
               )}
@@ -268,38 +213,38 @@ export default function DashboardHome() {
                 </div>
               ) : !data || data.ultimasVentas.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-6">
-                  <div className="w-10 h-10 bg-white rounded-lg border border-slate-200/80 shadow-2xs flex items-center justify-center mb-2.5 text-slate-400">
+                  <div className="w-10 h-10 bg-white rounded-lg border border-slate-200 shadow-2xs flex items-center justify-center mb-2.5 text-slate-400">
                     <Icon path={mdiReceiptTextOutline} size={0.9} />
                   </div>
-                  <p className="font-semibold text-slate-800 text-xs sm:text-sm">No hay transacciones registradas hoy</p>
+                  <p className="font-semibold text-slate-800 text-xs sm:text-sm">No hay transacciones registradas</p>
                   <p className="text-xs text-slate-500 mt-1 max-w-sm">
                     Las compras emitidas en taquilla y reservas en línea aparecerán automáticamente aquí.
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto border border-slate-200/80 rounded-lg">
-                  <table className="w-full text-left text-xs sm:text-sm">
+                <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                  <table className="w-full text-left text-xs">
                     <thead>
-                      <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                        <th className="px-4 py-2.5">Código</th>
-                        <th className="px-4 py-2.5">Ruta</th>
-                        <th className="px-4 py-2.5">Canal</th>
-                        <th className="px-4 py-2.5">Boletos</th>
-                        <th className="px-4 py-2.5 text-right">Monto</th>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                        <th className="px-3.5 py-2.5">Código</th>
+                        <th className="px-3.5 py-2.5">Ruta</th>
+                        <th className="px-3.5 py-2.5">Canal</th>
+                        <th className="px-3.5 py-2.5">Boletos</th>
+                        <th className="px-3.5 py-2.5 text-right">Monto</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
                       {data.ultimasVentas.map((venta) => (
                         <tr key={venta.idVenta} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="px-4 py-3 font-mono font-medium text-slate-900">#TK-{venta.idVenta}</td>
-                          <td className="px-4 py-3 text-slate-800">{venta.rutaNombre}</td>
-                          <td className="px-4 py-3">
-                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200/60">
+                          <td className="px-3.5 py-2.5 font-mono font-semibold text-slate-900">#TK-{venta.idVenta}</td>
+                          <td className="px-3.5 py-2.5 text-slate-800">{venta.rutaNombre}</td>
+                          <td className="px-3.5 py-2.5">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
                               {venta.tipoVenta}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-slate-500">{venta.boletosCantidad} asientos</td>
-                          <td className="px-4 py-3 text-right font-semibold text-primary tabular-nums">
+                          <td className="px-3.5 py-2.5 text-slate-500">{venta.boletosCantidad} asientos</td>
+                          <td className="px-3.5 py-2.5 text-right font-bold text-slate-900 tabular-nums font-mono">
                             {formatPrice(venta.total)}
                           </td>
                         </tr>
@@ -312,10 +257,11 @@ export default function DashboardHome() {
           </div>
         </div>
 
+        {/* Ocupación de Flota */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-xl border border-slate-200/80 shadow-2xs h-full flex flex-col items-center justify-between p-5">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xs h-full flex flex-col items-center justify-between p-5">
             <div className="text-center w-full">
-              <h2 className="text-sm sm:text-base font-semibold text-slate-900 tracking-tight">Ocupación de Flota</h2>
+              <h2 className="text-sm font-bold text-slate-900 tracking-tight">Ocupación de Flota</h2>
               <p className="text-xs text-slate-500 mt-0.5">Porcentaje de asientos vendidos sobre capacidad total</p>
             </div>
 
@@ -326,8 +272,8 @@ export default function DashboardHome() {
                 gaugeSecondaryColor="rgba(254, 125, 34, 0.12)"
                 className="size-32 text-xl font-bold text-slate-900"
               />
-              <div className="mt-5 text-center bg-slate-50 rounded-lg p-3 border border-slate-200/80 w-full">
-                <p className="text-primary font-semibold text-xs uppercase tracking-wider">Capacidad Disponible</p>
+              <div className="mt-5 text-center bg-slate-50 rounded-lg p-3 border border-slate-200 w-full">
+                <p className="text-[#FE7D22] font-bold text-xs uppercase tracking-wider">Capacidad Disponible</p>
                 <p className="text-slate-500 text-xs mt-0.5">Asientos disponibles para despacho inmediato</p>
               </div>
             </div>

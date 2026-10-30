@@ -31,6 +31,7 @@ import { getCurrentUserAction } from "@/backend/actions/auth";
 import { TableSkeleton } from "@/frontend/components/ui/Skeleton";
 import { Pagination } from "@/frontend/components/ui/Pagination";
 import { useTenant } from "@/frontend/context/TenantContext";
+import { PageHeader } from "@/frontend/components/ui/PageHeader";
 
 type EstadoUsuario = "ACTIVO" | "INACTIVO" | "BLOQUEADO";
 
@@ -350,20 +351,14 @@ export default function ChoferesDashboardPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Icon path={mdiAccountGroup} size={0.9} className="text-primary" />
-            Directorio de Personal {selectedCoop ? `(${selectedCoop.nombre})` : ""}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            {selectedCoop
-              ? `Gestión del personal y choferes de ${selectedCoop.nombre}.`
-              : "Directorio global de personal operativo de todas las cooperativas registradas."}
-          </p>
-        </div>
-
+      <PageHeader
+        title={`Directorio de Personal ${selectedCoop ? `(${selectedCoop.nombre})` : ""}`}
+        description={
+          selectedCoop
+            ? `Gestión del personal y choferes de ${selectedCoop.nombre}.`
+            : "Directorio global de personal operativo de todas las cooperativas registradas."
+        }
+      >
         <button
           onClick={() => {
             setFormError(null);
@@ -372,12 +367,12 @@ export default function ChoferesDashboardPage() {
             }
             setShowCreateModal(true);
           }}
-          className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
+          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
         >
-          <Icon path={mdiPlus} size={0.7} />
-          Registrar Personal
+          <Icon path={mdiPlus} size={0.65} />
+          <span>Registrar Personal</span>
         </button>
-      </div>
+      </PageHeader>
 
       {/* Banner de feedback */}
       {feedbackMsg && (
@@ -795,8 +790,7 @@ export default function ChoferesDashboardPage() {
                     Teléfono Celular
                   </label>
                   <div className="flex items-center rounded-lg border border-slate-200 bg-white overflow-hidden focus-within:border-slate-400 focus-within:ring-1 focus-within:ring-slate-400/20 transition-all">
-                    <div className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-50 border-r border-slate-200 text-slate-700 text-xs font-bold shrink-0 select-none">
-                      <span>🇳🇮</span>
+                    <div className="flex items-center px-2.5 py-2 bg-slate-50 border-r border-slate-200 text-slate-700 text-xs font-bold shrink-0 select-none">
                       <span>+505</span>
                     </div>
                     <input

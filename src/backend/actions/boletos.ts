@@ -380,8 +380,13 @@ export async function getMisBoletosAction(): Promise<{ success: boolean; data: M
       return { success: false, error: 'Debes iniciar sesión para consultar tus boletos.', data: [] };
     }
 
-    // Consultar boletos recientes en el sistema
+    // Consultar boletos pertenecientes exclusivamente al usuario en sesión
     const boletos = await prisma.boleto.findMany({
+      where: {
+        venta: {
+          idUsuarioComprador: session.idUsuario,
+        },
+      },
       take: 20,
       orderBy: { fechaHora: 'desc' },
       include: {

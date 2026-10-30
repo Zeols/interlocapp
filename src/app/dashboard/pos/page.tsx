@@ -27,6 +27,7 @@ import {
 } from "@/backend/actions/taquilla";
 import { useCurrency } from "@/frontend/context/CurrencyContext";
 import { QRCodeOffline, encodeBoletoQRPayload } from "@/frontend/components/ui/QRCodeOffline";
+import { PageHeader } from "@/frontend/components/ui/PageHeader";
 
 export default function PosPage() {
   const { formatPrice, currency, exchangeRate } = useCurrency();
@@ -169,27 +170,20 @@ export default function PosPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Header Taquilla */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Icon path={mdiCashRegister} size={0.9} className="text-slate-800" />
-            <span>Taquilla POS (Punto de Venta)</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Emisión inmediata de pasajes y vouchers térmicos con código QR.
-          </p>
-        </div>
-
+    <div className="space-y-6 animate-in fade-in duration-200">
+      <PageHeader
+        title="Taquilla POS (Punto de Venta)"
+        description="Emisión inmediata de pasajes y vouchers térmicos con código QR."
+      >
         <button
           onClick={cargarSalidas}
-          className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
+          disabled={loadingSalidas}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
         >
-          <Icon path={mdiRefresh} size={0.65} />
-          Actualizar salidas
+          <Icon path={mdiRefresh} size={0.6} className={loadingSalidas ? "animate-spin" : ""} />
+          <span>Actualizar salidas</span>
         </button>
-      </div>
+      </PageHeader>
 
       {/* Selector de Salidas del Día */}
       <div className="space-y-2">
