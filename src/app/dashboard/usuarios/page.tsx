@@ -35,6 +35,7 @@ import {
 import { formatManaguaDate } from "@/lib/date-time";
 import { getCurrentUserAction } from "@/backend/actions/auth";
 import { useTenant } from "@/frontend/context/TenantContext";
+import { PageHeader } from "@/frontend/components/ui/PageHeader";
 
 interface UsuarioItem {
   idUsuario: number;
@@ -349,28 +350,22 @@ export default function UsuariosPage() {
         </div>
       )}
 
-      {/* Cabecera Principal */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Icon path={mdiAccountMultiple} size={0.8} className="text-slate-800" />
-            Gestión de Usuarios y Accesos
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            {isSuperAdmin
-              ? "Administración global de cuentas: Super Admin, Admins de Cooperativa, Personal y Pasajeros."
-              : "Directorio de usuarios y colaboradores asignados a tu cooperativa."}
-          </p>
-        </div>
-
+      <PageHeader
+        title="Gestión de Usuarios y Accesos"
+        description={
+          isSuperAdmin
+            ? "Administración global de cuentas: Super Admin, Admins de Cooperativa, Personal y Pasajeros."
+            : "Directorio de usuarios y colaboradores asignados a tu cooperativa."
+        }
+      >
         <button
           onClick={handleOpenModal}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm transition-all shadow-2xs cursor-pointer shrink-0 self-start sm:self-auto"
+          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs sm:text-sm transition-all shadow-2xs cursor-pointer shrink-0"
         >
           <Icon path={mdiPlus} size={0.65} />
           <span>Registrar Nuevo Usuario</span>
         </button>
-      </div>
+      </PageHeader>
 
       {/* Barra de Filtros y Búsqueda */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
@@ -851,8 +846,7 @@ export default function UsuariosPage() {
                     Teléfono Celular
                   </label>
                   <div className="flex items-center rounded-lg border border-slate-300 bg-slate-50 overflow-hidden focus-within:border-slate-900 focus-within:bg-white transition-colors">
-                    <div className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 border-r border-slate-200 text-slate-700 text-xs font-bold shrink-0 select-none">
-                      <span>🇳🇮</span>
+                    <div className="flex items-center px-2.5 py-2 bg-slate-100 border-r border-slate-200 text-slate-700 text-xs font-bold shrink-0 select-none">
                       <span>+505</span>
                     </div>
                     <input

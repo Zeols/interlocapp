@@ -25,6 +25,7 @@ import {
 } from "@/backend/actions/gastos";
 import { useCurrency } from "@/frontend/context/CurrencyContext";
 import { TipoGasto } from "@prisma/client";
+import { PageHeader } from "@/frontend/components/ui/PageHeader";
 
 type RangoTiempo = "HOY" | "SEMANA" | "MES" | "TODOS";
 
@@ -236,34 +237,26 @@ export default function GastosPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Gastos Operativos
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Registro y fiscalización de egresos en ruta, combustible y taller para arqueos contables.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={cargarGastos}
-            className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors shadow-2xs cursor-pointer"
-            title="Refrescar gastos"
-          >
-            <Icon path={mdiRefresh} size={0.7} />
-          </button>
-          <button
-            onClick={() => setShowModal(true)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-all shadow-2xs cursor-pointer"
-          >
-            <Icon path={mdiPlus} size={0.65} />
-            Registrar Gasto
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Gastos Operativos"
+        description="Registro y fiscalización de egresos en ruta, combustible y taller para arqueos contables."
+      >
+        <button
+          onClick={cargarGastos}
+          disabled={loading}
+          className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors shadow-2xs cursor-pointer"
+          title="Refrescar gastos"
+        >
+          <Icon path={mdiRefresh} size={0.65} className={loading ? "animate-spin text-slate-900" : ""} />
+        </button>
+        <button
+          onClick={() => setShowModal(true)}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-all shadow-2xs cursor-pointer"
+        >
+          <Icon path={mdiPlus} size={0.65} />
+          <span>Registrar Gasto</span>
+        </button>
+      </PageHeader>
 
       {/* Barra de Filtros Avanzada */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3.5">

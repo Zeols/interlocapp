@@ -5,9 +5,8 @@
 
 generator client {
   provider = "prisma-client-js"
-//output = "../src/generated/prisma"
+  //output = "../src/generated/prisma"
 }
-
 
 datasource db {
   provider = "postgresql"
@@ -163,10 +162,13 @@ model Usuario {
   cooperativa Cooperativa? @relation(fields: [idCooperativa], references: [idCooperativa], onDelete: SetNull)
   rol         Rol          @relation(fields: [idRol], references: [idRol])
 
-  asignacionesAsignadas AsignacionUnidad[] @relation("UsuarioOperario")
+  asignacionesAsignadas AsignacionUnidad[]  @relation("UsuarioOperario")
   cierresJornada        CierreJornada[]
   metodosPago           MetodoPagoUsuario[]
   controlesViaje        ControlViaje[]
+  ventasCompradas       Venta[]             @relation("UsuarioComprador")
+  ventasVendidas        Venta[]             @relation("UsuarioVendedor")
+  pushSuscripciones     PushSuscripcion[]
 
   @@map("usuarios")
 }
@@ -263,7 +265,7 @@ model Unidad {
 model AsignacionUnidad {
   idAsignacion Int              @id @default(autoincrement())
   idUnidad     Int
-  idUsuario    Int              // Chofer principal
+  idUsuario    Int // Chofer principal
   fechaHInicio DateTime
   fechaHFin    DateTime?
   estado       EstadoAsignacion @default(INICIADA)
@@ -412,9 +414,9 @@ model Despacho {
 }
 
 model ControlViaje {
-  idControlViaje Int      @id @default(autoincrement())
-  idViaje        Int
-  idPuntoRuta    Int
+  idControlViaje  Int      @id @default(autoincrement())
+  idViaje         Int
+  idPuntoRuta     Int
   idUsuario       Int?
   pasajerosConteo Int?
   observacion     String?
@@ -427,7 +429,6 @@ model ControlViaje {
   usuario   Usuario?  @relation(fields: [idUsuario], references: [idUsuario], onDelete: SetNull)
 
   @@index([idViaje, idPuntoRuta])
-
   @@map("controles_viaje")
 }
 
@@ -462,20 +463,26 @@ model TipoVenta {
 }
 
 model Venta {
-  idVenta     Int         @id @default(autoincrement())
-  idViaje     Int?
-  idTipoVenta Int
-  fechaHora   DateTime    @default(now())
-  total       Decimal     @db.Decimal(10, 2)
-  estado      EstadoVenta @default(PENDIENTE)
+  idVenta            Int         @id @default(autoincrement())
+  idViaje            Int?
+  idTipoVenta        Int
+  idUsuarioComprador Int?
+  idUsuarioVendedor  Int?
+  fechaHora          DateTime    @default(now())
+  total              Decimal     @db.Decimal(10, 2)
+  estado             EstadoVenta @default(PENDIENTE)
 
   // Relaciones
-  viaje     Viaje?    @relation(fields: [idViaje], references: [idViaje], onDelete: SetNull)
-  tipoVenta TipoVenta @relation(fields: [idTipoVenta], references: [idTipoVenta])
-  boletos   Boleto[]
+  viaje            Viaje?    @relation(fields: [idViaje], references: [idViaje], onDelete: SetNull)
+  tipoVenta        TipoVenta @relation(fields: [idTipoVenta], references: [idTipoVenta])
+  boletos          Boleto[]
+  usuarioComprador Usuario?  @relation("UsuarioComprador", fields: [idUsuarioComprador], references: [idUsuario], onDelete: SetNull)
+  usuarioVendedor  Usuario?  @relation("UsuarioVendedor", fields: [idUsuarioVendedor], references: [idUsuario], onDelete: SetNull)
 
   @@index([idViaje])
   @@index([fechaHora])
+  @@index([idUsuarioComprador])
+  @@index([idUsuarioVendedor])
   @@map("ventas")
 }
 
@@ -490,10 +497,10 @@ model Boleto {
   estado    EstadoBoleto @default(RESERVADO)
 
   // Relaciones
-  venta    Venta      @relation(fields: [idVenta], references: [idVenta], onDelete: Cascade)
-  viaje    Viaje      @relation(fields: [idViaje], references: [idViaje])
-  asiento  Asiento?   @relation(fields: [idAsiento], references: [idAsiento], onDelete: SetNull)
-  tarifa   Tarifa     @relation(fields: [idTarifa], references: [idTarifa])
+  venta    Venta     @relation(fields: [idVenta], references: [idVenta], onDelete: Cascade)
+  viaje    Viaje     @relation(fields: [idViaje], references: [idViaje])
+  asiento  Asiento?  @relation(fields: [idAsiento], references: [idAsiento], onDelete: SetNull)
+  tarifa   Tarifa    @relation(fields: [idTarifa], references: [idTarifa])
   equipaje Equipaje?
 
   @@index([idViaje, idAsiento, estado])
@@ -584,3 +591,21 @@ model MetodoPagoUsuario {
   @@map("metodos_pago_usuario")
 }
 
+// ==========================================
+// 10. NOTIFICACIONES WEB PUSH
+// ==========================================
+
+model PushSuscripcion {
+  idSuscripcion Int      @id @default(autoincrement())
+  idUsuario     Int?
+  endpoint      String   @unique
+  p256dh        String
+  auth          String
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  usuario Usuario? @relation(fields: [idUsuario], references: [idUsuario], onDelete: Cascade)
+
+  @@index([idUsuario])
+  @@map("push_suscripciones")
+}

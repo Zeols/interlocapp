@@ -29,6 +29,7 @@ import {
   calculateDelayMinutes,
   getPunctualityStatus,
 } from "@/lib/date-time";
+import { PageHeader } from "@/frontend/components/ui/PageHeader";
 
 interface ChequeadorViajeItem {
   idViaje: number;
@@ -184,37 +185,27 @@ export default function ChequeadorPage() {
         </div>
       )}
 
-      {/* Cabecera Principal */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Icon path={mdiClipboardCheckOutline} size={0.85} className="text-primary" />
-            Control y Tarjeta Digital de Chequeador
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Registro oficial de horas de salida en terminal, marcas de paso e inspección de aforo en Nicaragua (UTC-6).
-          </p>
-        </div>
+      <PageHeader
+        title="Control y Tarjeta Digital de Chequeador"
+        description="Registro oficial de horas de salida en terminal, marcas de paso e inspección de aforo en Nicaragua (UTC-6)."
+      >
+        <Link
+          href="/validar-boleto"
+          className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
+        >
+          <Icon path={mdiQrcodeScan} size={0.65} />
+          <span>Validar QR</span>
+        </Link>
 
-        <div className="flex items-center gap-2">
-          <Link
-            href="/validar-boleto"
-            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
-          >
-            <Icon path={mdiQrcodeScan} size={0.65} />
-            <span>Validar QR</span>
-          </Link>
-
-          <button
-            onClick={fetchViajes}
-            disabled={loading}
-            className="p-2 border border-slate-200 rounded-lg bg-white text-slate-600 hover:bg-slate-50 cursor-pointer transition-colors"
-            title="Refrescar salidas"
-          >
-            <Icon path={mdiRefresh} size={0.7} className={loading ? "animate-spin" : ""} />
-          </button>
-        </div>
-      </div>
+        <button
+          onClick={fetchViajes}
+          disabled={loading}
+          className="p-2 border border-slate-200 rounded-lg bg-white text-slate-600 hover:bg-slate-50 cursor-pointer transition-colors"
+          title="Refrescar salidas"
+        >
+          <Icon path={mdiRefresh} size={0.65} className={loading ? "animate-spin text-slate-900" : ""} />
+        </button>
+      </PageHeader>
 
       {/* Barra de Filtros */}
       <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex flex-col md:flex-row md:items-center gap-3 justify-between">

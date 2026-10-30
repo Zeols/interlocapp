@@ -33,6 +33,7 @@ import {
 } from "@/backend/actions/cooperativas";
 import { TableSkeleton, CardSkeleton } from "@/frontend/components/ui/Skeleton";
 import { Pagination } from "@/frontend/components/ui/Pagination";
+import { PageHeader } from "@/frontend/components/ui/PageHeader";
 
 interface AdminUser {
   idUsuario: number;
@@ -291,41 +292,27 @@ export default function CooperativasDashboardPage() {
         </div>
       )}
 
-      {/* Cabecera del Módulo */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              Cooperativas y Empresas
-            </h1>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
-              Super Admin
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Revisión de solicitudes de alta, auditoría y administración de cooperativas de transporte.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            className="p-2 sm:px-3 sm:py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
-            title="Recargar datos"
-          >
-            <Icon path={mdiRefresh} size={0.7} className={loading ? "animate-spin" : ""} />
-            <span className="hidden sm:inline">Actualizar</span>
-          </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
-          >
-            <Icon path={mdiPlus} size={0.7} />
-            <span>Nueva Cooperativa</span>
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Cooperativas y Empresas"
+        description="Revisión de solicitudes de alta, auditoría y administración de cooperativas de transporte."
+      >
+        <button
+          onClick={fetchData}
+          disabled={loading}
+          className="p-2 sm:px-3 sm:py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+          title="Recargar datos"
+        >
+          <Icon path={mdiRefresh} size={0.65} className={loading ? "animate-spin" : ""} />
+          <span className="hidden sm:inline">Actualizar</span>
+        </button>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+        >
+          <Icon path={mdiPlus} size={0.65} />
+          <span>Nueva Cooperativa</span>
+        </button>
+      </PageHeader>
 
       {/* Métricas / KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

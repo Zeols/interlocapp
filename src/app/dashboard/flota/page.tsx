@@ -33,6 +33,7 @@ import { getCooperativas } from "@/backend/actions/cooperativas";
 import { TableSkeleton } from "@/frontend/components/ui/Skeleton";
 import { Pagination } from "@/frontend/components/ui/Pagination";
 import { useTenant } from "@/frontend/context/TenantContext";
+import { PageHeader } from "@/frontend/components/ui/PageHeader";
 
 type EstadoUnidad = "DISPONIBLE" | "EN_RUTA" | "MANTENIMIENTO" | "INOPERATIVA";
 
@@ -351,49 +352,39 @@ export default function FlotaDashboardPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Cabecera y botón de acción */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Icon path={mdiBus} size={0.9} className="text-primary" />
-            Flota de Unidades {selectedCoop ? `(${selectedCoop.nombre})` : ""}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            {selectedCoop
-              ? `Gestión del parque vehicular registrado para ${selectedCoop.nombre}.`
-              : "Catálogo e inventario de unidades de todas las cooperativas vinculadas."}
-          </p>
-        </div>
+      <PageHeader
+        title={`Flota de Unidades ${selectedCoop ? `(${selectedCoop.nombre})` : ""}`}
+        description={
+          selectedCoop
+            ? `Gestión del parque vehicular registrado para ${selectedCoop.nombre}.`
+            : "Catálogo e inventario de unidades de todas las cooperativas vinculadas."
+        }
+      >
+        <button
+          onClick={() => {
+            setTipoModalError(null);
+            setShowCreateTipoModal(true);
+          }}
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-medium text-xs sm:text-sm shadow-2xs transition-colors cursor-pointer"
+        >
+          <Icon path={mdiTagOutline} size={0.65} className="text-slate-500" />
+          <span>Tipo de Unidad</span>
+        </button>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Botón para registrar Tipo de Unidad en el catálogo */}
-          <button
-            onClick={() => {
-              setTipoModalError(null);
-              setShowCreateTipoModal(true);
-            }}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-medium text-xs sm:text-sm shadow-2xs transition-colors cursor-pointer"
-          >
-            <Icon path={mdiTagOutline} size={0.7} className="text-slate-500" />
-            <span>Tipo de Unidad</span>
-          </button>
-
-          {/* Botón para registrar nueva unidad */}
-          <button
-            onClick={() => {
-              setFormError(null);
-              if (selectedCoopId !== "ALL") {
-                setFormCoopId(Number(selectedCoopId));
-              }
-              setShowCreateModal(true);
-            }}
-            className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
-          >
-            <Icon path={mdiPlus} size={0.7} />
-            Registrar Nueva Unidad
-          </button>
-        </div>
-      </div>
+        <button
+          onClick={() => {
+            setFormError(null);
+            if (selectedCoopId !== "ALL") {
+              setFormCoopId(Number(selectedCoopId));
+            }
+            setShowCreateModal(true);
+          }}
+          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
+        >
+          <Icon path={mdiPlus} size={0.65} />
+          <span>Registrar Nueva Unidad</span>
+        </button>
+      </PageHeader>
 
       {/* Banner de feedback */}
       {feedbackMsg && (

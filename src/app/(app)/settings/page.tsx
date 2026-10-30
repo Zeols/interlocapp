@@ -29,7 +29,23 @@ import {
   setDefaultMetodoPagoAction,
   deleteMetodoPagoAction,
 } from "@/backend/actions/metodos-pago";
+import {
+  getVapidPublicKeyAction,
+  guardarSuscripcionPushAction,
+  enviarPushPruebaAction,
+} from "@/backend/actions/push";
 import { TipoMetodoPago } from "@prisma/client";
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 interface MetodoPagoUI {
   idMetodoPago: number;
@@ -57,6 +73,8 @@ export default function SettingsPage() {
   const [pushPermission, setPushPermission] = useState<NotificationPermission>("default");
   const [pushSuccess, setPushSuccess] = useState<string | null>(null);
   const [pushError, setPushError] = useState<string | null>(null);
+  const [subscribingPush, setSubscribingPush] = useState(false);
+  const [sendingTestPush, setSendingTestPush] = useState(false);
 
   // --- 2. REGIÓN, IDIOMA Y MONEDA ---
   const { currency, setCurrency, exchangeRate, formatPrice } = useCurrency();
@@ -126,36 +144,80 @@ export default function SettingsPage() {
     setLoadingPayments(false);
   };
 
-  // Solicitar permiso Web Push
+  // Solicitar permiso y registrar Web Push
   const handleRequestPushPermission = async () => {
     setPushError(null);
     setPushSuccess(null);
 
-    if (typeof window === "undefined" || !("Notification" in window)) {
-      setPushError("Este navegador no cuenta con soporte para Web Push.");
+    if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) {
+      setPushError("Este navegador no cuenta con soporte completo para Web Push y Service Workers.");
       return;
     }
 
+    setSubscribingPush(true);
     try {
       const perm = await Notification.requestPermission();
       setPushPermission(perm);
 
-      if (perm === "granted") {
-        setPushSuccess("¡Notificaciones Push activadas en este dispositivo!");
+      if (perm !== "granted") {
+        if (perm === "denied") {
+          setPushError("El navegador ha bloqueado los avisos. Habilita las notificaciones en la configuración del sitio.");
+        }
+        setSubscribingPush(false);
+        return;
+      }
+
+      // Obtener clave pública VAPID
+      const keyRes = await getVapidPublicKeyAction();
+      if (!keyRes.success || !keyRes.publicKey) {
+        setPushError(keyRes.error || "No se pudo obtener la clave VAPID pública del servidor.");
+        setSubscribingPush(false);
+        return;
+      }
+
+      // Registrar Service Worker
+      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      await navigator.serviceWorker.ready;
+
+      // Suscribir push manager
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(keyRes.publicKey),
+        });
+      }
+
+      const rawJson = sub.toJSON();
+      if (!sub.endpoint || !rawJson.keys?.p256dh || !rawJson.keys?.auth) {
+        setPushError("Error al generar las claves criptográficas de la suscripción.");
+        setSubscribingPush(false);
+        return;
+      }
+
+      const saveRes = await guardarSuscripcionPushAction({
+        endpoint: sub.endpoint,
+        p256dh: rawJson.keys.p256dh,
+        auth: rawJson.keys.auth,
+        userAgent: navigator.userAgent,
+      });
+
+      if (saveRes.success) {
+        setPushSuccess("¡Notificaciones Push activadas y sincronizadas con tu cuenta!");
         localStorage.setItem("interlocapp_push_enabled", "true");
         setTimeout(() => setPushSuccess(null), 4000);
-      } else if (perm === "denied") {
-        setPushError(
-          "El navegador ha bloqueado los avisos. Habilita los permisos desde el candado en la barra de direcciones."
-        );
+      } else {
+        setPushError(saveRes.error || "No se pudo registrar la suscripción en el servidor.");
       }
     } catch (err: any) {
-      setPushError(err.message || "Error al solicitar permisos.");
+      setPushError(err.message || "Error al solicitar permisos o registrar Service Worker.");
+    } finally {
+      setSubscribingPush(false);
     }
   };
 
-  // Enviar Notificación de Prueba Web Push
-  const handleSendTestPush = () => {
+  // Enviar Notificación de Prueba Web Push desde el Servidor
+  const handleSendTestPush = async () => {
     setPushError(null);
     setPushSuccess(null);
 
@@ -164,15 +226,19 @@ export default function SettingsPage() {
       return;
     }
 
+    setSendingTestPush(true);
     try {
-      new Notification("InterlocApp · Salida Confirmada", {
-        body: "Tu viaje a León está en andén y saldrá a tiempo (06:00 AM). Presenta tu boleto al abordar.",
-        icon: "/favicon.ico",
-      });
-      setPushSuccess("Notificación de prueba enviada a tu pantalla.");
-      setTimeout(() => setPushSuccess(null), 4000);
+      const res = await enviarPushPruebaAction();
+      if (res.success) {
+        setPushSuccess(`¡Notificación enviada con éxito! (Dispositivos alcanzados: ${res.enviados || 1})`);
+        setTimeout(() => setPushSuccess(null), 4000);
+      } else {
+        setPushError(res.error || "Fallo al enviar notificación desde el servidor.");
+      }
     } catch (err: any) {
-      setPushError("No se pudo disparar la notificación en el sistema operativo.");
+      setPushError(err.message || "Error al solicitar notificación de prueba.");
+    } finally {
+      setSendingTestPush(false);
     }
   };
 
@@ -410,19 +476,36 @@ export default function SettingsPage() {
                       <button
                         type="button"
                         onClick={handleRequestPushPermission}
-                        disabled={!pushSupported}
-                        className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                        disabled={!pushSupported || subscribingPush}
+                        className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
                       >
-                        Activar Web Push
+                        {subscribingPush ? (
+                          <>
+                            <Icon path={mdiLoading} size={0.6} className="animate-spin" />
+                            <span>Activando...</span>
+                          </>
+                        ) : (
+                          <span>Activar Web Push</span>
+                        )}
                       </button>
                     ) : (
                       <button
                         type="button"
                         onClick={handleSendTestPush}
-                        className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                        disabled={sendingTestPush}
+                        className="px-3.5 py-2 bg-white border border-slate-300 hover:bg-slate-50 disabled:opacity-50 text-slate-800 rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
                       >
-                        <Icon path={mdiCellphoneMessage} size={0.6} />
-                        Enviar Notificación de Prueba
+                        {sendingTestPush ? (
+                          <>
+                            <Icon path={mdiLoading} size={0.6} className="animate-spin" />
+                            <span>Enviando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Icon path={mdiCellphoneMessage} size={0.6} />
+                            <span>Enviar Notificación de Prueba</span>
+                          </>
+                        )}
                       </button>
                     )}
                   </div>

@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { getSession } from '../lib/session';
 import { sendTicketEmail } from '../lib/mail';
 import { notificarCompraAsientoRealtimeAction } from './asientos-realtime';
-import { getNowInManagua, formatManaguaTime, formatManaguaDate } from '@/lib/date-time';
+import { getNowInManagua, formatManaguaTime, formatManaguaDate, getManaguaDateISO } from '@/lib/date-time';
 
 // Interfaces
 export interface EquipajeInput {
@@ -25,6 +25,8 @@ export interface ItemBoletoInput {
 export interface VentaInput {
   idViaje: number;
   idTipoVenta?: number;
+  idUsuarioComprador?: number;
+  idUsuarioVendedor?: number;
   boletos: ItemBoletoInput[];
 }
 
@@ -207,6 +209,17 @@ export async function procesarVentaBoletos(data: VentaInput) {
       return acc + item.monto + montoEquipaje;
     }, 0);
 
+    let compradorId = data.idUsuarioComprador ?? null;
+    let vendedorId = data.idUsuarioVendedor ?? null;
+
+    if (!compradorId && !vendedorId && session) {
+      if (session.rolNombre === 'PASAJERO') {
+        compradorId = session.idUsuario;
+      } else {
+        vendedorId = session.idUsuario;
+      }
+    }
+
     const resultado = await prisma.$transaction(async (tx) => {
       // a) Validar disponibilidad de asientos
       const asientosIds = data.boletos.map((b) => b.idAsiento);
@@ -227,6 +240,8 @@ export async function procesarVentaBoletos(data: VentaInput) {
         data: {
           idViaje: data.idViaje,
           idTipoVenta: tipoVentaId!,
+          idUsuarioComprador: compradorId,
+          idUsuarioVendedor: vendedorId,
           total: totalVenta,
           estado: 'COMPLETADA',
         },
@@ -389,7 +404,7 @@ export async function procesarVentaBoletos(data: VentaInput) {
 // 4. MÉTRICAS REALES PARA EL PANEL ADMINISTRATIVO (SIN SLOP)
 // -------------------------------------------------------------
 
-export async function getDashboardStatsAction(idCooperativa?: number) {
+export async function getDashboardStatsAction(idCooperativa?: number, desdeStr?: string, hastaStr?: string) {
   try {
     const session = await getSession();
     if (!session) {
@@ -400,8 +415,13 @@ export async function getDashboardStatsAction(idCooperativa?: number) {
     // Si no es Super Admin, se fuerza la cooperativa asignada a su sesión
     const targetCoopId = isSuperAdmin ? idCooperativa : (session.idCooperativa ?? undefined);
 
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const hoyIso = getManaguaDateISO();
+    const effectiveDesde = desdeStr && /^\d{4}-\d{2}-\d{2}$/.test(desdeStr) ? desdeStr : hoyIso;
+    const effectiveHasta = hastaStr && /^\d{4}-\d{2}-\d{2}$/.test(hastaStr) ? hastaStr : effectiveDesde;
+
+    const startDate = new Date(`${effectiveDesde}T00:00:00-06:00`);
+    const endDate = new Date(`${effectiveHasta}T23:59:59.999-06:00`);
+
 
     const coopFilter = targetCoopId ? { idCooperativa: targetCoopId } : {};
     const tripCoopFilter = targetCoopId ? { viaje: { ruta: { idCooperativa: targetCoopId } } } : {};
@@ -421,7 +441,7 @@ export async function getDashboardStatsAction(idCooperativa?: number) {
         _sum: { total: true },
         _count: { idVenta: true },
         where: {
-          fechaHora: { gte: startOfDay },
+          fechaHora: { gte: startDate, lte: endDate },
           estado: 'COMPLETADA',
           ...tripCoopFilter,
         },
@@ -469,7 +489,7 @@ export async function getDashboardStatsAction(idCooperativa?: number) {
       }),
       // Total de asientos instalados
       prisma.asiento.count({
-        where: idCooperativa ? { unidad: { idCooperativa } } : {},
+        where: targetCoopId ? { unidad: { idCooperativa: targetCoopId } } : {},
       }),
       // Asientos ocupados en boletos activos
       prisma.boleto.count({
@@ -506,6 +526,8 @@ export async function getDashboardStatsAction(idCooperativa?: number) {
         totalUnidades,
         pasajerosCount,
         ocupacionPorcentaje: Math.min(ocupacionCalculada, 100),
+        desde: effectiveDesde,
+        hasta: effectiveHasta,
         ultimasVentas: ultimasVentas.map((v) => ({
           idVenta: v.idVenta,
           total: Number(v.total),
@@ -667,12 +689,14 @@ export async function venderBoletoABordoAction(data: VentaABordoInput): Promise<
     const efectivo = Number(data.efectivoRecibido ?? data.monto);
     const cambio = Math.max(0, efectivo - data.monto);
     const fechaHoraManagua = getNowInManagua();
+    const vendedorId = session.idUsuario;
 
     const resultado = await prisma.$transaction(async (tx) => {
       const venta = await tx.venta.create({
         data: {
           idViaje: data.idViaje,
           idTipoVenta: tipoVenta.idTipoVenta,
+          idUsuarioVendedor: vendedorId,
           total: data.monto,
           estado: 'COMPLETADA',
           fechaHora: fechaHoraManagua,

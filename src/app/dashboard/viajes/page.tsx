@@ -24,6 +24,8 @@ import {
 } from "@mdi/js";
 import { useTenant } from "@/frontend/context/TenantContext";
 import { TableSkeleton } from "@/frontend/components/ui/Skeleton";
+import { getManaguaDateISO } from "@/lib/date-time";
+import { PageHeader } from "@/frontend/components/ui/PageHeader";
 import {
   getViajesByCooperativa,
   createViaje,
@@ -46,9 +48,7 @@ export default function SalidasViajesPage() {
   // Filtros
   const [estadoFilter, setEstadoFilter] = useState<string>("TODOS");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [fechaFilter, setFechaFilter] = useState<string>(
-    new Date().toISOString().split("T")[0]
-  );
+  const [fechaFilter, setFechaFilter] = useState<string>(getManaguaDateISO());
   const [verTodasLasFechas, setVerTodasLasFechas] = useState<boolean>(false);
 
   // Recursos de soporte para Despacho y Programación
@@ -360,50 +360,37 @@ export default function SalidasViajesPage() {
       {/* ======================================================== */}
       {/* 1. ENCABEZADO PRINCIPAL DE LA PÁGINA                     */}
       {/* ======================================================== */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              Monitor de Salidas y Despacho
-            </h1>
-            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-              {selectedCoop ? selectedCoop.nombre : "Vista Global"}
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Programación de horarios, asignación de flota con tripulación y despacho en tiempo real.
-          </p>
-        </div>
+      <PageHeader
+        title="Monitor de Salidas y Despacho"
+        description="Programación de horarios, asignación de flota con tripulación y despacho en tiempo real."
+      >
+        <button
+          onClick={() => {
+            fetchViajes(true);
+            fetchRecursos();
+          }}
+          disabled={refreshing}
+          className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-2xs transition-all cursor-pointer"
+          title="Refrescar datos en vivo"
+        >
+          <Icon
+            path={mdiRefresh}
+            size={0.65}
+            className={refreshing ? "animate-spin text-primary" : ""}
+          />
+        </button>
 
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => {
-              fetchViajes(true);
-              fetchRecursos();
-            }}
-            disabled={refreshing}
-            className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-2xs transition-all cursor-pointer"
-            title="Refrescar datos en vivo"
-          >
-            <Icon
-              path={mdiRefresh}
-              size={0.75}
-              className={refreshing ? "animate-spin text-primary" : ""}
-            />
-          </button>
-
-          <button
-            onClick={() => {
-              setErrorProgramar(null);
-              setShowProgramarModal(true);
-            }}
-            className="bg-primary hover:bg-primary-dark text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs flex items-center gap-1.5 active:scale-95"
-          >
-            <Icon path={mdiPlus} size={0.75} />
-            <span>Programar Salida</span>
-          </button>
-        </div>
-      </div>
+        <button
+          onClick={() => {
+            setErrorProgramar(null);
+            setShowProgramarModal(true);
+          }}
+          className="bg-primary hover:bg-primary-dark text-white font-bold text-xs sm:text-sm px-3.5 py-2 rounded-lg transition-all cursor-pointer shadow-xs flex items-center gap-1.5 active:scale-95"
+        >
+          <Icon path={mdiPlus} size={0.65} />
+          <span>Programar Salida</span>
+        </button>
+      </PageHeader>
 
       {/* Banner de retroalimentación exitosa */}
       {feedbackSuccess && (

@@ -35,6 +35,7 @@ import { getCooperativas } from "@/backend/actions/cooperativas";
 import { TableSkeleton } from "@/frontend/components/ui/Skeleton";
 import { Pagination } from "@/frontend/components/ui/Pagination";
 import { useTenant } from "@/frontend/context/TenantContext";
+import { PageHeader } from "@/frontend/components/ui/PageHeader";
 
 interface TipoRutaItem {
   idTipoRuta: number;
@@ -435,49 +436,39 @@ export default function RutasDashboardPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Cabecera y Botones de Acción */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Icon path={mdiMapMarkerPath} size={0.9} className="text-primary" />
-            Constructor de Rutas y Tarifas {selectedCoop ? `(${selectedCoop.nombre})` : ""}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            {selectedCoop
-              ? `Diseño de itinerarios, tramos y cuadro tarifario de ${selectedCoop.nombre}.`
-              : "Definición secuencial de paradas intermedias, catálogo de modalidades y tarifas por tramo en Córdobas (C$)."}
-          </p>
-        </div>
+      <PageHeader
+        title={`Constructor de Rutas y Tarifas ${selectedCoop ? `(${selectedCoop.nombre})` : ""}`}
+        description={
+          selectedCoop
+            ? `Diseño de itinerarios, tramos y cuadro tarifario de ${selectedCoop.nombre}.`
+            : "Definición secuencial de paradas intermedias, catálogo de modalidades y tarifas por tramo en Córdobas (C$)."
+        }
+      >
+        <button
+          onClick={() => {
+            setTipoModalError(null);
+            setShowCreateTipoModal(true);
+          }}
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-medium text-xs sm:text-sm shadow-2xs transition-colors cursor-pointer"
+        >
+          <Icon path={mdiTagOutline} size={0.65} className="text-slate-500" />
+          <span>+ Tipo de Ruta</span>
+        </button>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Botón para registrar Tipo de Ruta en el catálogo */}
-          <button
-            onClick={() => {
-              setTipoModalError(null);
-              setShowCreateTipoModal(true);
-            }}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-medium text-xs sm:text-sm shadow-2xs transition-colors cursor-pointer"
-          >
-            <Icon path={mdiTagOutline} size={0.7} className="text-slate-500" />
-            + Tipo de Ruta
-          </button>
-
-          {/* Botón para crear nueva ruta */}
-          <button
-            onClick={() => {
-              setFormError(null);
-              if (selectedCoopId !== "ALL") {
-                setFormCoopId(Number(selectedCoopId));
-              }
-              setShowCreateModal(true);
-            }}
-            className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
-          >
-            <Icon path={mdiPlus} size={0.7} />
-            Crear Nueva Ruta
-          </button>
-        </div>
-      </div>
+        <button
+          onClick={() => {
+            setFormError(null);
+            if (selectedCoopId !== "ALL") {
+              setFormCoopId(Number(selectedCoopId));
+            }
+            setShowCreateModal(true);
+          }}
+          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
+        >
+          <Icon path={mdiPlus} size={0.65} />
+          <span>Crear Nueva Ruta</span>
+        </button>
+      </PageHeader>
 
       {/* Banner de feedback */}
       {feedbackMsg && (

@@ -265,15 +265,10 @@ export default function ValidarBoletoPage() {
               <Icon path={mdiArrowLeft} size={0.7} />
             </button>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="p-1 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
-                  <Icon path={mdiBus} size={0.65} />
-                </span>
-                <h1 className="font-bold text-sm sm:text-base text-slate-900 tracking-tight leading-none">
-                  Validación de Boletos
-                </h1>
-              </div>
-              <p className="text-[11px] text-slate-500 mt-0.5">
+              <h1 className="font-bold text-base sm:text-lg text-slate-900 tracking-tight leading-none">
+                Validación de Boletos
+              </h1>
+              <p className="text-[11px] text-slate-500 mt-1">
                 Terminal de abordaje para Ayudante, Chofer, Chequeador y Taquilla
               </p>
             </div>
@@ -371,48 +366,50 @@ export default function ValidarBoletoPage() {
             </p>
           </div>
 
-          <form onSubmit={handleValidar} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-            <div className="relative flex-1 w-full">
+          <form onSubmit={handleValidar} className="flex flex-col sm:flex-row items-stretch gap-2.5">
+            <div className="relative flex-1 min-w-0">
               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                 <Icon path={mdiTicketConfirmationOutline} size={0.7} />
               </div>
               <input
                 type="text"
                 value={codigoInput}
-                onChange={(e) => setCodigoInput(e.target.value)}
-                placeholder="Ingresa código o escanea QR (Ej: BOLETO-14)..."
-                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs sm:text-sm font-semibold rounded-lg py-2.5 pl-9 pr-3.5 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 focus:bg-white transition-all uppercase"
+                onChange={(e) => setCodigoInput(e.target.value.toUpperCase())}
+                placeholder="Ingresa código o escanea QR (ej: BOLETO-14)..."
+                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs sm:text-sm font-semibold rounded-lg py-2.5 pl-9 pr-3.5 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 focus:bg-white transition-all font-mono"
                 autoFocus
               />
             </div>
 
-            <button
-              type="button"
-              onClick={checkAndOpenCamera}
-              disabled={isCheckingCamera}
-              className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm rounded-lg transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              title="Abrir cámara del dispositivo para escanear código QR"
-            >
-              {isCheckingCamera ? (
-                <div className="w-4 h-4 border-2 border-slate-400 border-t-slate-800 rounded-full animate-spin" />
-              ) : (
-                <Icon path={mdiCamera} size={0.7} className="text-slate-700" />
-              )}
-              <span>{isCheckingCamera ? "Verificando..." : "Escanear con Cámara"}</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={checkAndOpenCamera}
+                disabled={isCheckingCamera}
+                className="flex-1 sm:flex-initial px-3.5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm rounded-lg transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                title="Abrir cámara del dispositivo para escanear código QR"
+              >
+                {isCheckingCamera ? (
+                  <div className="w-4 h-4 border-2 border-slate-400 border-t-slate-800 rounded-full animate-spin" />
+                ) : (
+                  <Icon path={mdiCamera} size={0.7} className="text-slate-700" />
+                )}
+                <span>{isCheckingCamera ? "Verificando..." : "Escanear con Cámara"}</span>
+              </button>
 
-            <button
-              type="submit"
-              disabled={loadingValidacion || !codigoInput.trim()}
-              className="w-full sm:w-auto px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs sm:text-sm rounded-lg transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              {loadingValidacion ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <Icon path={mdiShieldCheckOutline} size={0.7} />
-              )}
-              <span>Validar y Abordar</span>
-            </button>
+              <button
+                type="submit"
+                disabled={loadingValidacion || !codigoInput.trim()}
+                className="flex-1 sm:flex-initial px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs sm:text-sm rounded-lg transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              >
+                {loadingValidacion ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Icon path={mdiShieldCheckOutline} size={0.7} />
+                )}
+                <span>Validar y Abordar</span>
+              </button>
+            </div>
           </form>
 
           {/* MENSAJES DE ERROR */}
