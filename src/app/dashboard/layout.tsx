@@ -23,12 +23,14 @@ import {
   mdiQrcodeScan,
   mdiClipboardCheckOutline,
   mdiBusSide,
+  mdiAlertOctagonOutline,
 } from "@mdi/js";
 import { Logo } from "@/frontend/components/ui/Logo";
 import { getCurrentUserAction, logoutAction } from "@/backend/actions/auth";
 import { getUserProfileAction } from "@/backend/actions/usuarios";
 import { LogoutModal } from "@/frontend/components/ui/LogoutModal";
 import { TenantProvider, useTenant } from "@/frontend/context/TenantContext";
+import { getIncidentesChequeadorAction } from "@/backend/actions/emergencias";
 
 interface SessionData {
   idUsuario: number;
@@ -58,6 +60,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<SessionData | null>(null);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [userFoto, setUserFoto] = useState<string | null>(null);
+  const [emergenciasCount, setEmergenciasCount] = useState(0);
+
 
   const {
     selectedCoopId,
@@ -77,6 +81,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         const profileRes = await getUserProfileAction();
         if (profileRes.success && profileRes.data) {
           setUserFoto(profileRes.data.foto || null);
+          // Consultar contador de emergencias pendientes para el badge rojo
+        const resInc = await getIncidentesChequeadorAction();
+        if (resInc.success && resInc.data) {
+          const pendientes = resInc.data.filter((inc: any) => inc.estado === "REGISTRADO").length;
+          setEmergenciasCount(pendientes);
+        }
         }
       } catch (err) {
         console.error("Error al cargar sesión en layout:", err);
@@ -92,7 +102,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener("profile-updated", handleProfileUpdate);
     return () => window.removeEventListener("profile-updated", handleProfileUpdate);
-  }, []);
+   }, [pathname]);
 
   // Rol normalizado
   const rolUsuario = (session?.rolNombre || (session as any)?.rol || "").trim().toUpperCase();
@@ -144,6 +154,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       operacionesItems.push({ name: "Puntos de Control", path: "/dashboard/chequeador", icon: mdiClipboardCheckOutline });
     }
     operacionesItems.push({ name: "Validar Boletos", path: "/validar-boleto", icon: mdiQrcodeScan });
+
+    //  MÓDULO EXCLUSIVO PARA CHEQUEADOR / ADMIN COOP / SUPER ADMIN: "Atender Emergencias"
+    if (isSuperAdmin || isAdminCoop || isChequeador || isTaquillero) {
+      operacionesItems.push({ name: "Atender Emergencias", path: "/dashboard/emergencias", icon: mdiAlertOctagonOutline });
+    }
 
     if (operacionesItems.length > 0) {
       sections.push({
@@ -340,14 +355,18 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                       key={item.path}
                       href={item.path}
                       onClick={() => setMobileMenuOpen(false)}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-xs font-medium ${
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-xs font-medium relative ${
                         isActive
                           ? "bg-slate-900 text-white shadow-2xs font-semibold"
                           : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                       }`}
                     >
-                      <Icon path={item.icon} size={0.7} />
-                      <span>{item.name}</span>
+                      <span className="flex-1">{item.name}</span>
+                      {item.name === "Atender Emergencias" && emergenciasCount > 0 && (
+                        <span className="bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                          {emergenciasCount > 99 ? "99+" : emergenciasCount}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}

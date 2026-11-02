@@ -1,413 +1,259 @@
-// import 'dotenv/config';
 import { prisma } from '../src/backend/db';
 import { hashPassword } from '../src/backend/lib/crypto';
 
 async function main() {
-  console.log('🧹 Limpiando registros operativos anteriores...');
-  // Limpiamos en orden de dependencia para evitar conflictos de llaves foráneas
+  console.log('🧹 Limpiando registros anteriores de la base de datos...');
+  
+  // Limpieza segura en orden inverso de dependencias
+  try {
+    await prisma.historicoRepuesto.deleteMany({});
+  } catch (e) {}
+  
+  await prisma.incidente.deleteMany({});
   await prisma.controlViaje.deleteMany({});
   await prisma.boleto.deleteMany({});
   await prisma.venta.deleteMany({});
   await prisma.despacho.deleteMany({});
   await prisma.viaje.deleteMany({});
   await prisma.asignacionUnidad.deleteMany({});
+  await prisma.asiento.deleteMany({});
+  await prisma.unidad.deleteMany({});
+  await prisma.tarifa.deleteMany({});
+  await prisma.puntoRuta.deleteMany({});
+  await prisma.ruta.deleteMany({});
+  await prisma.punto.deleteMany({});
+  await prisma.usuario.deleteMany({});
+  await prisma.cooperativa.deleteMany({});
+  await prisma.rol.deleteMany({});
+  await prisma.tipoVenta.deleteMany({});
+  await prisma.tipoRuta.deleteMany({});
+  await prisma.tipoUnidad.deleteMany({});
 
-  console.log('🌱 Iniciando siembra de datos maestros para InterlocApp...');
+  console.log('🌱 Iniciando la siembra completa con 20 pasajeros...');
 
-  // -------------------------------------------------------------
-  // 1. ROLES DE SISTEMA (RBAC)
-  // -------------------------------------------------------------
-  console.log('-> Sembrando roles de sistema...');
+  const defaultPasswordHash = await hashPassword('Password123!');
+
+  // ==========================================
+  // 1. ROLES DE SISTEMA
+  // ==========================================
+  console.log('-> Sembrando roles...');
   const rolesData = [
-    { nombre: 'SUPER_ADMIN', descripcion: 'Superadministrador de la plataforma global' },
-    { nombre: 'ADMIN_COOP', descripcion: 'Administrador de cooperativa de transporte' },
-    { nombre: 'TAQUILLERO', descripcion: 'Taquillero de ventanilla en terminal' },
-    { nombre: 'CHOFER', descripcion: 'Conductor principal de unidad' },
-    { nombre: 'AYUDANTE', descripcion: 'Ayudante y cobrador de unidad' },
-    { nombre: 'CHEQUEADOR', descripcion: 'Chequeador de terminal y puntos de control de ruta' },
-    { nombre: 'PASAJERO', descripcion: 'Pasajero usuario del servicio' },
+    { nombre: 'SUPER_ADMIN', descripcion: 'Superadministrador global' },
+    { nombre: 'ADMIN_COOP', descripcion: 'Administrador de cooperativa' },
+    { nombre: 'TAQUILLERO', descripcion: 'Taquillero de ventanilla' },
+    { nombre: 'CHOFER', descripcion: 'Conductor principal' },
+    { nombre: 'AYUDANTE', descripcion: 'Ayudante y cobrador' },
+    { nombre: 'CHEQUEADOR', descripcion: 'Chequeador de terminal' },
+    { nombre: 'PASAJERO', descripcion: 'Pasajero usuario' },
   ];
 
   const rolesMap = new Map<string, number>();
   for (const r of rolesData) {
-    const rol = await prisma.rol.upsert({
-      where: { nombre: r.nombre },
-      update: { descripcion: r.descripcion },
-      create: {
-        nombre: r.nombre,
-        descripcion: r.descripcion,
-        estado: 'ACTIVO',
-      },
+    const rol = await prisma.rol.create({
+      data: { nombre: r.nombre, descripcion: r.descripcion, estado: 'ACTIVO' },
     });
-    rolesMap.set(rol.nombre, rol.idRol);
+    rolesMap.set(r.nombre, rol.idRol);
   }
 
-  // -------------------------------------------------------------
-  // 2. CANALES DE VENTA
-  // -------------------------------------------------------------
-  console.log('-> Sembrando tipos de venta...');
-  const tiposVentaData = [
-    { nombre: 'WEB', descripcion: 'Compra digital a través del portal de pasajeros' },
-    { nombre: 'VENTANILLA_TERMINAL', descripcion: 'Venta física en taquilla de terminal' },
-    { nombre: 'A_BORDO', descripcion: 'Venta directa de boleto al abordar la unidad' },
-  ];
-
-  for (const tv of tiposVentaData) {
-    await prisma.tipoVenta.upsert({
-      where: { nombre: tv.nombre },
-      update: { descripcion: tv.descripcion },
-      create: {
-        nombre: tv.nombre,
-        descripcion: tv.descripcion,
-        estado: 'ACTIVO',
-      },
-    });
-  }
-
-  // -------------------------------------------------------------
-  // 3. TIPOS DE UNIDAD
-  // -------------------------------------------------------------
-  console.log('-> Sembrando tipos de unidad...');
-  const tiposUnidadData = [
-    { nombre: 'Microbús (15 Asientos)', descripcion: 'Microbús compacto para rutas intermedias (configuración 1x2)' },
-    { nombre: 'Interlocal Estándar (20 Asientos)', descripcion: 'Interlocal interurbano estándar (configuración 2x2)' },
-    { nombre: 'Pullman (40 Asientos)', descripcion: 'Autobús de larga distancia con aire acondicionado' },
-  ];
-
-  const tiposUnidadMap = new Map<string, number>();
-  for (const tu of tiposUnidadData) {
-    const existing = await prisma.tipoUnidad.findFirst({
-      where: { nombre: tu.nombre },
-    });
-
-    if (existing) {
-      tiposUnidadMap.set(tu.nombre, existing.idTipoUnidad);
-    } else {
-      const nuevo = await prisma.tipoUnidad.create({
-        data: {
-          nombre: tu.nombre,
-          descripcion: tu.descripcion,
-          estado: 'ACTIVO',
-        },
-      });
-      tiposUnidadMap.set(tu.nombre, nuevo.idTipoUnidad);
-    }
-  }
-
-  // -------------------------------------------------------------
-  // 4. TARIFAS DE EQUIPAJE
-  // -------------------------------------------------------------
-  console.log('-> Sembrando tarifas de equipaje...');
-  const tarifasEquipajeData = [
-    { descripcion: 'Mochila de mano / Bulto pequeño', monto: 0.0 },
-    { descripcion: 'Maleta estándar / Bulto mediano', monto: 50.0 },
-    { descripcion: 'Caja comercial / Carga pesada', monto: 100.0 },
-  ];
-
-  for (const te of tarifasEquipajeData) {
-    const existing = await prisma.tarifaEquipaje.findFirst({
-      where: { descripcion: te.descripcion },
-    });
-    if (!existing) {
-      await prisma.tarifaEquipaje.create({
-        data: {
-          descripcion: te.descripcion,
-          monto: te.monto,
-          estado: 'ACTIVO',
-        },
-      });
-    }
-  }
-
-  // -------------------------------------------------------------
-  // 5. COOPERATIVA PILOTO
-  // -------------------------------------------------------------
-  console.log('-> Sembrando cooperativa piloto...');
-  let coop = await prisma.cooperativa.findFirst({
-    where: { nombre: 'COOTRANSTEL R.L.' },
+  // ==========================================
+  // 2. TIPOS DE VENTA Y RUTA
+  // ==========================================
+  console.log('-> Sembrando catálogos de venta y tipo de ruta...');
+  await prisma.tipoVenta.createMany({
+    data: [
+      { nombre: 'WEB', estado: 'ACTIVO' },
+      { nombre: 'VENTANILLA_TERMINAL', estado: 'ACTIVO' },
+      { nombre: 'A_BORDO', estado: 'ACTIVO' },
+    ],
   });
 
-  if (!coop) {
-    coop = await prisma.cooperativa.create({
-      data: {
-        nombre: 'COOTRANSTEL R.L.',
-        telefono: '+505 2222-3344',
-        direccion: 'Terminal de Buses Interlocales UCA, Managua, Nicaragua',
-        estado: 'ACTIVO',
-      },
-    });
-  }
+  const tipoRutaInterlocal = await prisma.tipoRuta.create({
+    data: { nombre: 'Interlocal Ordinaria', descripcion: 'Ruta regular interurbana', estado: 'ACTIVO' },
+  });
 
-  // -------------------------------------------------------------
-  // 6. USUARIOS SEMILLA (CON CONTRASEÑAS HASHEADAS BCRYPT)
-  // -------------------------------------------------------------
-  console.log('-> Sembrando usuarios de prueba con contraseñas seguras...');
-  const defaultPasswordHash = await hashPassword('Password123!');
+  // ==========================================
+  // 3. COOPERATIVAS
+  // ==========================================
+  console.log('-> Sembrando cooperativas...');
+  const coop1 = await prisma.cooperativa.create({
+    data: { nombre: 'COOTRANSTEL R.L.', telefono: '+505 2222-3344', direccion: 'Terminal UCA, Managua', estado: 'ACTIVO' },
+  });
 
-  const usuariosData = [
-    {
-      nombre: 'Steven',
-      apellido: 'Baldelomar',
-      usuario: 'superadmin',
-      correo: 'admin@interlocapp.com',
-      telefono: '+505 8888-0000',
-      idRol: rolesMap.get('SUPER_ADMIN')!,
-      idCooperativa: null,
-    },
-    {
-      nombre: 'Guillermo',
-      apellido: 'López',
-      usuario: 'admin_coop',
-      correo: 'admin@cootranstel.com',
-      telefono: '+505 8888-1111',
-      idRol: rolesMap.get('ADMIN_COOP')!,
-      idCooperativa: coop.idCooperativa,
-    },
-    {
-      nombre: 'Maritza',
-      apellido: 'Torrez',
-      usuario: 'taquilla_uca',
-      correo: 'taquilla@cootranstel.com',
-      telefono: '+505 8888-2222',
-      idRol: rolesMap.get('TAQUILLERO')!,
-      idCooperativa: coop.idCooperativa,
-    },
-    {
-      nombre: 'Carlos',
-      apellido: 'Mendoza',
-      usuario: 'chofer_carlos',
-      correo: 'carlos.chofer@cootranstel.com',
-      telefono: '+505 8888-3333',
-      idRol: rolesMap.get('CHOFER')!,
-      idCooperativa: coop.idCooperativa,
-    },
-    {
-      nombre: 'Juan',
-      apellido: 'Pérez',
-      usuario: 'ayudante_juan',
-      correo: 'juan.ayudante@cootranstel.com',
-      telefono: '+505 8888-4444',
-      idRol: rolesMap.get('AYUDANTE')!,
-      idCooperativa: coop.idCooperativa,
-    },
-    {
-      nombre: 'Roberto',
-      apellido: 'Sánchez',
-      usuario: 'pasajero_demo',
-      correo: 'pasajero@correo.com',
-      telefono: '+505 8888-5555',
-      idRol: rolesMap.get('PASAJERO')!,
-      idCooperativa: null,
-    },
+  const coop2 = await prisma.cooperativa.create({
+    data: { nombre: 'COOTRANSIN R.L.', telefono: '+505 2255-6677', direccion: 'Terminal Mayoreo, Managua', estado: 'ACTIVO' },
+  });
+
+  // ==========================================
+  // 4. USUARIOS (OPERARIOS Y 20 PASAJEROS)
+  // ==========================================
+  console.log('-> Sembrando operarios y generando 20 pasajeros...');
+  
+  // Generación automática de 20 pasajeros
+  const pasajerosData = Array.from({ length: 20 }, (_, i) => ({
+    nombre: `Pasajero${i + 1}`,
+    apellido: `Test${i + 1}`,
+    usuario: `pasajero_${i + 1}`,
+    correo: `pasajero${i + 1}@correo.com`,
+    passwd: defaultPasswordHash,
+    telefono: `+505 8800-00${i < 9 ? '0' + (i + 1) : (i + 1)}`,
+    idRol: rolesMap.get('PASAJERO')!,
+    idCooperativa: null,
+    estado: 'ACTIVO' as const,
+  }));
+
+  await prisma.usuario.createMany({
+    data: [
+      { nombre: 'Steven', apellido: 'Baldelomar', usuario: 'superadmin', correo: 'admin@interlocapp.com', passwd: defaultPasswordHash, idRol: rolesMap.get('SUPER_ADMIN')! },
+      { nombre: 'Guillermo', apellido: 'López', usuario: 'admin_coop1', correo: 'admin1@cootranstel.com', passwd: defaultPasswordHash, idRol: rolesMap.get('ADMIN_COOP')!, idCooperativa: coop1.idCooperativa },
+      { nombre: 'Maritza', apellido: 'Torrez', usuario: 'taquillero1', correo: 'taquilla1@cootranstel.com', passwd: defaultPasswordHash, idRol: rolesMap.get('TAQUILLERO')!, idCooperativa: coop1.idCooperativa },
+      { nombre: 'Carlos', apellido: 'Mendoza', usuario: 'chequeador1', correo: 'chequeador1@cootranstel.com', passwd: defaultPasswordHash, idRol: rolesMap.get('CHEQUEADOR')!, idCooperativa: coop1.idCooperativa },
+      { nombre: 'Juan', apellido: 'Pérez', usuario: 'ayudante_juan', correo: 'juan.ayudante@cootranstel.com', passwd: defaultPasswordHash, idRol: rolesMap.get('AYUDANTE')!, idCooperativa: coop1.idCooperativa },
+      { nombre: 'Luis', apellido: 'Roca', usuario: 'chofer_luis', correo: 'luis.chofer@cootranstel.com', passwd: defaultPasswordHash, idRol: rolesMap.get('CHOFER')!, idCooperativa: coop1.idCooperativa },
+      { nombre: 'Ana', apellido: 'García', usuario: 'admin_coop2', correo: 'admin@cootransin.com', passwd: defaultPasswordHash, idRol: rolesMap.get('ADMIN_COOP')!, idCooperativa: coop2.idCooperativa },
+      ...pasajerosData, // Se inyectan los 20 pasajeros aquí
+    ],
+  });
+
+  // ==========================================
+  // 5. PUNTOS GEOGRÁFICOS Y RUTAS (10 PUNTOS C/U)
+  // ==========================================
+  console.log('-> Sembrando puntos geográficos y rutas...');
+
+  const puntosJinotepe = [
+    'Terminal UCA (Managua)', 'Rotonda Centroamérica', 'Rotonda Jean Paul Genie', 
+    'Pista Juan Pablo II', 'Empalme de Ticuantepe', 'Entrada a Masaya (Monimbó)', 
+    'La Concha (La Concepción)', 'San Marcos', 'Diriamba (Terminal)', 'Jinotepe (Terminal Central)'
   ];
 
-  for (const u of usuariosData) {
-    await prisma.usuario.upsert({
-      where: { correo: u.correo },
-      update: {
-        nombre: u.nombre,
-        apellido: u.apellido,
-        usuario: u.usuario,
-        idRol: u.idRol,
-        idCooperativa: u.idCooperativa,
-        passwd: defaultPasswordHash,
-      },
-      create: {
-        nombre: u.nombre,
-        apellido: u.apellido,
-        usuario: u.usuario,
-        correo: u.correo,
-        telefono: u.telefono,
-        passwd: defaultPasswordHash,
-        idRol: u.idRol,
-        idCooperativa: u.idCooperativa,
-        estado: 'ACTIVO',
-      },
+  const idsJinotepe: number[] = [];
+  for (const nombre of puntosJinotepe) {
+    const p = await prisma.punto.create({ data: { nombre, estado: 'ACTIVO' } });
+    idsJinotepe.push(p.idPunto);
+  }
+
+  const rutaJinotepe = await prisma.ruta.create({
+    data: {
+      idCooperativa: coop1.idCooperativa,
+      idTipoRuta: tipoRutaInterlocal.idTipoRuta,
+      nombre: 'Managua - Jinotepe (Carretera Sur)',
+      descripcion: 'Recorrido interurbano con 10 puntos de parada',
+      estado: 'ACTIVO',
+    },
+  });
+
+  for (let i = 0; i < idsJinotepe.length; i++) {
+    await prisma.puntoRuta.create({
+      data: { idRuta: rutaJinotepe.idRuta, idPunto: idsJinotepe[i], orden: i + 1 },
     });
   }
 
-  // -------------------------------------------------------------
-  // 7. FLOTA Y GENERACIÓN DE ASIENTOS
-  // -------------------------------------------------------------
-  console.log('-> Sembrando unidades y asientos de flota...');
-  const idTipo20 = tiposUnidadMap.get('Interlocal Estándar (20 Asientos)')!;
-  const idTipo15 = tiposUnidadMap.get('Microbús (15 Asientos)')!;
+  const puntosMatagalpa = [
+    'Terminal Mayoreo (Managua)', 'Bypassed de Tipitapa', 'Empalme San Benito', 
+    'Sébaco (Centro)', 'Ciudad Darío', 'La Trinidad', 'Empalme de San Ramón', 
+    'Entrada a Las Brumas', 'Zaragoza (Matagalpa)', 'Matagalpa (Terminal Norte)'
+  ];
+
+  const idsMatagalpa: number[] = [];
+  for (const nombre of puntosMatagalpa) {
+    const p = await prisma.punto.create({ data: { nombre, estado: 'ACTIVO' } });
+    idsMatagalpa.push(p.idPunto);
+  }
+
+  const rutaMatagalpa = await prisma.ruta.create({
+    data: {
+      idCooperativa: coop2.idCooperativa,
+      idTipoRuta: tipoRutaInterlocal.idTipoRuta,
+      nombre: 'Managua - Matagalpa (Norte)',
+      descripcion: 'Recorrido hacia el norte del país con 10 puntos de control',
+      estado: 'ACTIVO',
+    },
+  });
+
+  for (let i = 0; i < idsMatagalpa.length; i++) {
+    await prisma.puntoRuta.create({
+      data: { idRuta: rutaMatagalpa.idRuta, idPunto: idsMatagalpa[i], orden: i + 1 },
+    });
+  }
+
+  // ==========================================
+  // 6. TIPOS DE UNIDAD Y FLOTA DE BUSES (CON ASIENTOS)
+  // ==========================================
+  console.log('-> Sembrando flota de buses y generando asientos...');
+  
+  const tipoMicrobus = await prisma.tipoUnidad.create({
+    data: { nombre: 'Microbús (15 Asientos)', descripcion: 'Microbús compacto rutas intermedias', estado: 'ACTIVO' },
+  });
+
+  const tipoInterlocal = await prisma.tipoUnidad.create({
+    data: { nombre: 'Interlocal Estándar (20 Asientos)', descripcion: 'Interlocal estándar 2x2', estado: 'ACTIVO' },
+  });
+
+  const tipoPullman = await prisma.tipoUnidad.create({
+    data: { nombre: 'Pullman (40 Asientos)', descripcion: 'Autobús grande para largas distancias y emergencias', estado: 'ACTIVO' },
+  });
 
   const unidadesConfig = [
-    { numero: '01', placa: 'M 321-456', tipoId: idTipo20, capacidad: 20 },
-    { numero: '02', placa: 'M 654-789', tipoId: idTipo15, capacidad: 15 },
+    { num: '01', placa: 'M 321-456', coopId: coop1.idCooperativa, tipoId: tipoInterlocal.idTipoUnidad, cap: 20 },
+    { num: '02', placa: 'M 654-789', coopId: coop1.idCooperativa, tipoId: tipoMicrobus.idTipoUnidad, cap: 15 },
+    { num: '03', placa: 'M 987-123', coopId: coop1.idCooperativa, tipoId: tipoPullman.idTipoUnidad, cap: 40 }, 
+    { num: '04', placa: 'M 111-222', coopId: coop1.idCooperativa, tipoId: tipoMicrobus.idTipoUnidad, cap: 15 }, 
+    { num: '05', placa: 'M 333-444', coopId: coop1.idCooperativa, tipoId: tipoInterlocal.idTipoUnidad, cap: 20 }, 
+    { num: '06', placa: 'MY 001-111', coopId: coop2.idCooperativa, tipoId: tipoInterlocal.idTipoUnidad, cap: 20 },
   ];
 
   for (const u of unidadesConfig) {
-    let unidad = await prisma.unidad.findUnique({
-      where: { placa: u.placa },
+    const unidadCreada = await prisma.unidad.create({
+      data: {
+        idCooperativa: u.coopId,
+        idTipoUnidad: u.tipoId,
+        numeroUnidad: u.num,
+        placa: u.placa,
+        estado: 'DISPONIBLE',
+      },
     });
 
-    if (!unidad) {
-      unidad = await prisma.unidad.create({
-        data: {
-          idCooperativa: coop.idCooperativa,
-          idTipoUnidad: u.tipoId,
-          numeroUnidad: u.numero,
-          placa: u.placa,
-          estado: 'DISPONIBLE',
-        },
-      });
+    const asientosData = Array.from({ length: u.cap }, (_, i) => ({
+      idUnidad: unidadCreada.idUnidad,
+      numero: String(i + 1),
+      estado: 'DISPONIBLE' as const,
+    }));
 
-      const asientosData = Array.from({ length: u.capacidad }, (_, i) => ({
-        idUnidad: unidad!.idUnidad,
-        numero: String(i + 1),
-        estado: 'DISPONIBLE' as const,
-      }));
-
-      await prisma.asiento.createMany({
-        data: asientosData,
-      });
-    }
+    await prisma.asiento.createMany({ data: asientosData });
   }
 
-  // -------------------------------------------------------------
-  // 8. PUNTOS, RUTAS Y MATRIZ TARIFARIA
-  // -------------------------------------------------------------
-  console.log('-> Sembrando puntos de parada y rutas comerciales...');
-  const puntosNombres = [
-    'Terminal UCA (Managua)',
-    'Tipitapa',
-    'San Benito',
-    'Empalme Boaco',
-    'Juigalpa (Terminal Central)',
-    'León (Terminal Central)',
-  ];
-
-  const puntosMap = new Map<string, number>();
-  for (const pNombre of puntosNombres) {
-    let punto = await prisma.punto.findFirst({
-      where: { nombre: pNombre },
-    });
-    if (!punto) {
-      punto = await prisma.punto.create({
-        data: { nombre: pNombre, estado: 'ACTIVO' },
-      });
-    }
-    puntosMap.set(pNombre, punto.idPunto);
-  }
-
-  let rutaJuigalpa = await prisma.ruta.findFirst({
-    where: { nombre: 'Managua UCA - Juigalpa', idCooperativa: coop.idCooperativa },
+  // ==========================================
+  // 7. MATRIZ TARIFARIA (PRECIOS)
+  // ==========================================
+  console.log('-> Creando tarifas de viaje...');
+  
+  await prisma.tarifa.create({
+    data: {
+      idRuta: rutaJinotepe.idRuta,
+      idPuntoOrigen: idsJinotepe[0],
+      idPuntoDestino: idsJinotepe[9],
+      monto: 120.00,
+      estado: 'ACTIVO',
+    },
   });
 
-  if (!rutaJuigalpa) {
-    rutaJuigalpa = await prisma.ruta.create({
-      data: {
-        idCooperativa: coop.idCooperativa,
-        nombre: 'Managua UCA - Juigalpa',
-        descripcion: 'Ruta interlocal directa y ordinaria hacia Chontales',
-        estado: 'ACTIVO',
-      },
-    });
+  await prisma.tarifa.create({
+    data: {
+      idRuta: rutaMatagalpa.idRuta,
+      idPuntoOrigen: idsMatagalpa[0],
+      idPuntoDestino: idsMatagalpa[9],
+      monto: 200.00,
+      estado: 'ACTIVO',
+    },
+  });
 
-    const secuenciaJuigalpa = [
-      'Terminal UCA (Managua)',
-      'Tipitapa',
-      'San Benito',
-      'Empalme Boaco',
-      'Juigalpa (Terminal Central)',
-    ];
-
-    for (let orden = 0; orden < secuenciaJuigalpa.length; orden++) {
-      const pId = puntosMap.get(secuenciaJuigalpa[orden])!;
-      await prisma.puntoRuta.create({
-        data: {
-          idRuta: rutaJuigalpa.idRuta,
-          idPunto: pId,
-          orden: orden + 1,
-        },
-      });
-    }
-
-    const pUca = puntosMap.get('Terminal UCA (Managua)')!;
-    const pTipitapa = puntosMap.get('Tipitapa')!;
-    const pSanBenito = puntosMap.get('San Benito')!;
-    const pEmpalmeBoaco = puntosMap.get('Empalme Boaco')!;
-    const pJuigalpa = puntosMap.get('Juigalpa (Terminal Central)')!;
-
-    const tarifasRuta = [
-      { origen: pUca, destino: pJuigalpa, monto: 150.0 },
-      { origen: pUca, destino: pEmpalmeBoaco, monto: 90.0 },
-      { origen: pUca, destino: pSanBenito, monto: 50.0 },
-      { origen: pUca, destino: pTipitapa, monto: 35.0 },
-      { origen: pSanBenito, destino: pJuigalpa, monto: 100.0 },
-      { origen: pEmpalmeBoaco, destino: pJuigalpa, monto: 60.0 },
-    ];
-
-    for (const t of tarifasRuta) {
-      await prisma.tarifa.create({
-        data: {
-          idRuta: rutaJuigalpa.idRuta,
-          idPuntoOrigen: t.origen,
-          idPuntoDestino: t.destino,
-          monto: t.monto,
-          estado: 'ACTIVO',
-        },
-      });
-    }
-  }
-
-  // -------------------------------------------------------------
-  // 9. GENERACIÓN DE TURNO Y VIAJE ACTIVO PARA EL AYUDANTE
-  // -------------------------------------------------------------
-  console.log('-> Generando turno y viaje activo para pruebas del Ayudante...');
-
-  const unidadObj = await prisma.unidad.findFirst({ where: { numeroUnidad: '01' } });
-  const ayudanteObj = await prisma.usuario.findFirst({ where: { usuario: 'ayudante_juan' } });
-
-  if (rutaJuigalpa && unidadObj && ayudanteObj) {
-    const asignacion = await prisma.asignacionUnidad.create({
-      data: {
-        idUnidad: unidadObj.idUnidad,
-        idUsuario: ayudanteObj.idUsuario,
-        fechaHInicio: new Date(),
-        estado: 'INICIADA',
-      },
-    });
-
-    const viaje = await prisma.viaje.create({
-      data: {
-        idRuta: rutaJuigalpa.idRuta,
-        fecha: new Date(),
-        hrSalidaProgramada: new Date(),
-        estado: 'EN_CURSO',
-      },
-    });
-
-    const despacho = await prisma.despacho.create({
-      data: {
-        idViaje: viaje.idViaje,
-        idAsignacion: asignacion.idAsignacion,
-        estado: 'EN_CURSO',
-        observacion: 'Viaje de prueba en ruta Managua - Juigalpa',
-      },
-    });
-
-    console.log('✅ ¡Turno activo creado con éxito!');
-    console.log(`   • ID Viaje: ${viaje.idViaje}`);
-    console.log(`   • ID Despacho: ${despacho.idDespacho}`);
-    console.log(`   • Unidad: #${unidadObj.numeroUnidad} (Placa: ${unidadObj.placa})`);
-  }
-
-  console.log('✅ Siembra de datos completada exitosamente.');
-  console.log('----------------------------------------------------');
-  console.log('Usuario Ayudante listo para probar (Contraseña: Password123!):');
-  console.log('   • Correo: juan.ayudante@cootranstel.com');
-  console.log('----------------------------------------------------');
+  console.log('✅ ¡Siembra unificada con 20 pasajeros completada con éxito!');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Error durante la siembra de base de datos:', e);
+    console.error('❌ Error crítico en la siembra:', e);
     process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
-    process.exit(0);
   });
