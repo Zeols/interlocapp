@@ -108,6 +108,26 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     const sections: NavSection[] = [];
 
     // 1. Resumen General
+
+    // Si es Ayudante, configuramos su menú exclusivo y limpio
+    if (isAyudante) {
+      sections.push({
+        title: "PANEL PRINCIPAL",
+        items: [
+          { name: "Panel Operativo", path: "/dashboard", icon: mdiViewDashboard },
+        ],
+      });
+      sections.push({
+        title: "OPERACIONES EN RUTA",
+        items: [
+          { name: "Validar Boletos", path: "/validar-boleto", icon: mdiQrcodeScan },
+          { name: "Emergencias", path: "/dashboard/emergencias", icon: mdiBusSide },
+        ],
+      });
+
+      return sections;
+    }
+    // Para los demás roles (Super Admin, Admin Coop, Taquillero, Chequeador, Chofer)
     sections.push({
       title: "PANEL PRINCIPAL",
       items: [
@@ -117,14 +137,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
     // 2. Operaciones en Ruta
     const operacionesItems = [];
-    if (isSuperAdmin || isAdminCoop || isTaquillero || isChequeador || isChofer || isAyudante) {
+    if (isSuperAdmin || isAdminCoop || isTaquillero || isChequeador || isChofer) {
       operacionesItems.push({ name: "Salidas y Despacho", path: "/dashboard/viajes", icon: mdiBus });
     }
     if (isSuperAdmin || isAdminCoop || isChequeador) {
       operacionesItems.push({ name: "Puntos de Control", path: "/dashboard/chequeador", icon: mdiClipboardCheckOutline });
-    }
-    if (isSuperAdmin || isAyudante) {
-      operacionesItems.push({ name: "Modo Ayudante", path: "/dashboard/ayudante", icon: mdiBusSide });
     }
     operacionesItems.push({ name: "Validar Boletos", path: "/validar-boleto", icon: mdiQrcodeScan });
 
