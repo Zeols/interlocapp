@@ -139,19 +139,32 @@ export async function getDatosGestionEmergenciaAction(idCooperativa?: number) {
       },
     });
 
+    // 1. Obtener los IDs de todos los usuarios (choferes y ayudantes) que tienen una asignación activa (en ruta)
+    const asignacionesActivas = await prisma.asignacionUnidad.findMany({
+      where: { estado: "INICIADA" },
+      select: { idUsuario: true },
+    });
+
+    const idsUsuariosOcupados = asignacionesActivas.map(a => a.idUsuario);
+
+    // 2. Filtrar choferes que NO estén ocupados en otro viaje activo
     const choferes = await prisma.usuario.findMany({
       where: {
         ...(idCooperativa ? { idCooperativa } : {}),
         rol: { nombre: "CHOFER" },
         estado: "ACTIVO",
+        idUsuario: { notIn: idsUsuariosOcupados.length > 0 ? idsUsuariosOcupados : [-1] },
       },
     });
 
+    
+    // 3. Filtrar ayudantes que NO estén ocupados en otro viaje activo
     const ayudantes = await prisma.usuario.findMany({
       where: {
         ...(idCooperativa ? { idCooperativa } : {}),
         rol: { nombre: "AYUDANTE" },
         estado: "ACTIVO",
+        idUsuario: { notIn: idsUsuariosOcupados.length > 0 ? idsUsuariosOcupados : [-1] },
       },
     });
 
