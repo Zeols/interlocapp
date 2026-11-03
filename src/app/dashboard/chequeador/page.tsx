@@ -187,7 +187,7 @@ export default function ChequeadorPage() {
 
       <PageHeader
         title="Control y Tarjeta Digital de Chequeador"
-        description="Registro oficial de horas de salida en terminal, marcas de paso e inspección de aforo en Nicaragua (UTC-6)."
+        description="Registro oficial de horas de salida en terminal y marcas de paso."
       >
         <Link
           href="/validar-boleto"
