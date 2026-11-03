@@ -12,6 +12,8 @@ datasource db {
   provider = "postgresql"
 }
 
+
+
 // ==========================================
 // ENUMS (Estados y Tipos Operativos)
 // ==========================================
@@ -109,13 +111,13 @@ enum TipoIncidente {
 // ==========================================
 
 model Cooperativa {
-  idCooperativa Int            @id @default(autoincrement())
+  idCooperativa Int             @id @default(autoincrement())
   nombre        String
   telefono      String?
   direccion     String?
-  estado        EstadoCatalogo @default(ACTIVO)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  estado        EstadoCatalogo  @default(ACTIVO)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   // Relaciones
   usuarios       Usuario[]
@@ -162,12 +164,12 @@ model Usuario {
   cooperativa Cooperativa? @relation(fields: [idCooperativa], references: [idCooperativa], onDelete: SetNull)
   rol         Rol          @relation(fields: [idRol], references: [idRol])
 
-  asignacionesAsignadas AsignacionUnidad[]  @relation("UsuarioOperario")
+  asignacionesAsignadas AsignacionUnidad[] @relation("UsuarioOperario")
   cierresJornada        CierreJornada[]
   metodosPago           MetodoPagoUsuario[]
   controlesViaje        ControlViaje[]
-  ventasCompradas       Venta[]             @relation("UsuarioComprador")
-  ventasVendidas        Venta[]             @relation("UsuarioVendedor")
+  ventasCompradas       Venta[]            @relation("UsuarioComprador")
+  ventasVendidas        Venta[]            @relation("UsuarioVendedor")
   pushSuscripciones     PushSuscripcion[]
 
   @@map("usuarios")
@@ -265,7 +267,7 @@ model Unidad {
 model AsignacionUnidad {
   idAsignacion Int              @id @default(autoincrement())
   idUnidad     Int
-  idUsuario    Int // Chofer principal
+  idUsuario    Int              // Chofer principal
   fechaHInicio DateTime
   fechaHFin    DateTime?
   estado       EstadoAsignacion @default(INICIADA)
@@ -285,7 +287,7 @@ model Asiento {
   estado    EstadoAsiento @default(DISPONIBLE)
 
   // Relaciones
-  unidad  Unidad   @relation(fields: [idUnidad], references: [idUnidad], onDelete: Cascade)
+  unidad Unidad   @relation(fields: [idUnidad], references: [idUnidad], onDelete: Cascade)
   boletos Boleto[]
 
   @@index([idUnidad])
@@ -363,9 +365,9 @@ model Tarifa {
   estado         EstadoCatalogo @default(ACTIVO)
 
   // Relaciones
-  ruta         Ruta     @relation(fields: [idRuta], references: [idRuta], onDelete: Cascade)
-  puntoOrigen  Punto?   @relation("TarifaOrigen", fields: [idPuntoOrigen], references: [idPunto], onDelete: SetNull)
-  puntoDestino Punto?   @relation("TarifaDestino", fields: [idPuntoDestino], references: [idPunto], onDelete: SetNull)
+  ruta         Ruta   @relation(fields: [idRuta], references: [idRuta], onDelete: Cascade)
+  puntoOrigen  Punto? @relation("TarifaOrigen", fields: [idPuntoOrigen], references: [idPunto], onDelete: SetNull)
+  puntoDestino Punto? @relation("TarifaDestino", fields: [idPuntoDestino], references: [idPunto], onDelete: SetNull)
   boletos      Boleto[]
 
   @@map("tarifas")
@@ -441,9 +443,24 @@ model Incidente {
   estado      EstadoIncidente @default(REGISTRADO)
 
   // Relaciones
-  despacho Despacho? @relation(fields: [idDespacho], references: [idDespacho], onDelete: SetNull)
+  despacho           Despacho?           @relation(fields: [idDespacho], references: [idDespacho], onDelete: SetNull)
+  historicoRepuestos HistoricoRepuesto[]
 
   @@map("incidentes")
+}
+
+model HistoricoRepuesto {
+  idHistorico       Int      @id @default(autoincrement())
+  idIncidente       Int
+  idUnidadAfectada  Int
+  idUnidadRepuesto  Int
+  pasajerosVarados  Int
+  fechaAutorizacion DateTime @default(now())
+  observacion       String?
+
+  incidente Incidente @relation(fields: [idIncidente], references: [idIncidente], onDelete: Cascade)
+
+  @@map("historico_repuestos")
 }
 
 // ==========================================
@@ -497,10 +514,10 @@ model Boleto {
   estado    EstadoBoleto @default(RESERVADO)
 
   // Relaciones
-  venta    Venta     @relation(fields: [idVenta], references: [idVenta], onDelete: Cascade)
-  viaje    Viaje     @relation(fields: [idViaje], references: [idViaje])
-  asiento  Asiento?  @relation(fields: [idAsiento], references: [idAsiento], onDelete: SetNull)
-  tarifa   Tarifa    @relation(fields: [idTarifa], references: [idTarifa])
+  venta   Venta    @relation(fields: [idVenta], references: [idVenta], onDelete: Cascade)
+  viaje   Viaje    @relation(fields: [idViaje], references: [idViaje])
+  asiento Asiento? @relation(fields: [idAsiento], references: [idAsiento], onDelete: SetNull)
+  tarifa  Tarifa   @relation(fields: [idTarifa], references: [idTarifa])
   equipaje Equipaje?
 
   @@index([idViaje, idAsiento, estado])

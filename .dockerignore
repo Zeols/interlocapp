@@ -1,0 +1,41 @@
+# Dependencias y artefactos de compilación locales
+node_modules
+.next
+out
+build
+coverage
+
+# Control de versiones y herramientas de desarrollo
+.git
+.gitignore
+.vscode
+.windsurf
+.agents
+.claude
+scratch
+*.tsbuildinfo
+next-env.d.ts
+
+# Archivos de entorno (CRÍTICO: nunca incluir credenciales en la imagen)
+.env*
+!.env.example
+
+# Archivos de registro y temporales
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store
+
+# Archivos del sistema y binarios
+.DS_Store
+Thumbs.db
+*.pem
+*.exe
+cloudflared*
+
+# Documentación interna
+*.md
+!README.md
+

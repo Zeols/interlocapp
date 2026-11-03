@@ -1,0 +1,59 @@
+services:
+  # ===================================================
+  # Servicio Principal: Aplicación InterlocApp (Next.js)
+  # ===================================================
+  app:
+    container_name: interloc-app
+    image: interloc-app:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_PUSHER_KEY: ${NEXT_PUBLIC_PUSHER_KEY:-}
+        NEXT_PUBLIC_PUSHER_CLUSTER: ${NEXT_PUBLIC_PUSHER_CLUSTER:-}
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY:-}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - interloc-net
+
+  # ===================================================
+  # Servicio Opcional: Base de datos local aislada
+  # Solo se inicia si ejecutas: docker compose --profile local-db up -d
+  # (Por defecto se ignora para usar tu base de datos de Neon/Vercel)
+  # ===================================================
+  db:
+    container_name: interloc-db
+    image: postgres:16-alpine
+    profiles:
+      - local-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${PGDATABASE:-neondb}
+      POSTGRES_USER: ${PGUSER:-postgres}
+      POSTGRES_PASSWORD: ${PGPASSWORD:-postgres123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - interloc-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  interloc-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+

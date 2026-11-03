@@ -71,6 +71,7 @@ export default function SettingsPage() {
   // Web Push Nativo
   const [pushSupported, setPushSupported] = useState(false);
   const [pushPermission, setPushPermission] = useState<NotificationPermission>("default");
+  const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushSuccess, setPushSuccess] = useState<string | null>(null);
   const [pushError, setPushError] = useState<string | null>(null);
   const [subscribingPush, setSubscribingPush] = useState(false);
@@ -123,6 +124,14 @@ export default function SettingsPage() {
       if ("Notification" in window) {
         setPushSupported(true);
         setPushPermission(Notification.permission);
+        if (Notification.permission === "granted" && "serviceWorker" in navigator) {
+          navigator.serviceWorker.ready.then(async (reg) => {
+            const sub = await reg.pushManager.getSubscription();
+            if (sub) {
+              setPushSubscribed(true);
+            }
+          }).catch(() => {});
+        }
       }
 
       // Idioma guardado
@@ -144,6 +153,62 @@ export default function SettingsPage() {
     setLoadingPayments(false);
   };
 
+  // Registrar Service Worker y asegurar suscripción activa en BD
+  const registerAndSaveSubscription = async (): Promise<boolean> => {
+    if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) {
+      setPushError("Este navegador no cuenta con soporte completo para Web Push y Service Workers.");
+      return false;
+    }
+
+    try {
+      // 1. Obtener clave pública VAPID
+      const keyRes = await getVapidPublicKeyAction();
+      if (!keyRes.success || !keyRes.publicKey) {
+        setPushError(keyRes.error || "No se pudo obtener la clave VAPID pública del servidor.");
+        return false;
+      }
+
+      // 2. Registrar Service Worker
+      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      await navigator.serviceWorker.ready;
+
+      // 3. Suscribir push manager si no existe
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(keyRes.publicKey),
+        });
+      }
+
+      const rawJson = sub.toJSON();
+      if (!sub.endpoint || !rawJson.keys?.p256dh || !rawJson.keys?.auth) {
+        setPushError("Error al generar las claves criptográficas de la suscripción.");
+        return false;
+      }
+
+      // 4. Guardar en Base de Datos vinculada a la sesión
+      const saveRes = await guardarSuscripcionPushAction({
+        endpoint: sub.endpoint,
+        p256dh: rawJson.keys.p256dh,
+        auth: rawJson.keys.auth,
+        userAgent: navigator.userAgent,
+      });
+
+      if (saveRes.success) {
+        setPushSubscribed(true);
+        localStorage.setItem("interlocapp_push_enabled", "true");
+        return true;
+      } else {
+        setPushError(saveRes.error || "No se pudo registrar la suscripción en el servidor.");
+        return false;
+      }
+    } catch (err: any) {
+      setPushError(err.message || "Error al registrar la suscripción Web Push.");
+      return false;
+    }
+  };
+
   // Solicitar permiso y registrar Web Push
   const handleRequestPushPermission = async () => {
     setPushError(null);
@@ -163,51 +228,13 @@ export default function SettingsPage() {
         if (perm === "denied") {
           setPushError("El navegador ha bloqueado los avisos. Habilita las notificaciones en la configuración del sitio.");
         }
-        setSubscribingPush(false);
         return;
       }
 
-      // Obtener clave pública VAPID
-      const keyRes = await getVapidPublicKeyAction();
-      if (!keyRes.success || !keyRes.publicKey) {
-        setPushError(keyRes.error || "No se pudo obtener la clave VAPID pública del servidor.");
-        setSubscribingPush(false);
-        return;
-      }
-
-      // Registrar Service Worker
-      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-      await navigator.serviceWorker.ready;
-
-      // Suscribir push manager
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(keyRes.publicKey),
-        });
-      }
-
-      const rawJson = sub.toJSON();
-      if (!sub.endpoint || !rawJson.keys?.p256dh || !rawJson.keys?.auth) {
-        setPushError("Error al generar las claves criptográficas de la suscripción.");
-        setSubscribingPush(false);
-        return;
-      }
-
-      const saveRes = await guardarSuscripcionPushAction({
-        endpoint: sub.endpoint,
-        p256dh: rawJson.keys.p256dh,
-        auth: rawJson.keys.auth,
-        userAgent: navigator.userAgent,
-      });
-
-      if (saveRes.success) {
+      const ok = await registerAndSaveSubscription();
+      if (ok) {
         setPushSuccess("¡Notificaciones Push activadas y sincronizadas con tu cuenta!");
-        localStorage.setItem("interlocapp_push_enabled", "true");
         setTimeout(() => setPushSuccess(null), 4000);
-      } else {
-        setPushError(saveRes.error || "No se pudo registrar la suscripción en el servidor.");
       }
     } catch (err: any) {
       setPushError(err.message || "Error al solicitar permisos o registrar Service Worker.");
@@ -228,6 +255,12 @@ export default function SettingsPage() {
 
     setSendingTestPush(true);
     try {
+      // Auto-sincronizar el navegador con la BD antes de disparar la notificación
+      const ok = await registerAndSaveSubscription();
+      if (!ok) {
+        return;
+      }
+
       const res = await enviarPushPruebaAction();
       if (res.success) {
         setPushSuccess(`¡Notificación enviada con éxito! (Dispositivos alcanzados: ${res.enviados || 1})`);
@@ -489,24 +522,48 @@ export default function SettingsPage() {
                         )}
                       </button>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={handleSendTestPush}
-                        disabled={sendingTestPush}
-                        className="px-3.5 py-2 bg-white border border-slate-300 hover:bg-slate-50 disabled:opacity-50 text-slate-800 rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
-                      >
-                        {sendingTestPush ? (
-                          <>
-                            <Icon path={mdiLoading} size={0.6} className="animate-spin" />
-                            <span>Enviando...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Icon path={mdiCellphoneMessage} size={0.6} />
-                            <span>Enviar Notificación de Prueba</span>
-                          </>
-                        )}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setSubscribingPush(true);
+                            setPushError(null);
+                            const ok = await registerAndSaveSubscription();
+                            if (ok) {
+                              setPushSuccess("¡Navegador sincronizado con éxito!");
+                              setTimeout(() => setPushSuccess(null), 3000);
+                            }
+                            setSubscribingPush(false);
+                          }}
+                          disabled={subscribingPush}
+                          className="px-3 py-2 bg-white border border-slate-300 hover:bg-slate-50 disabled:opacity-50 text-slate-700 rounded-lg text-xs font-medium transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                          title="Volver a sincronizar este navegador con tu cuenta"
+                        >
+                          {subscribingPush ? (
+                            <Icon path={mdiLoading} size={0.5} className="animate-spin" />
+                          ) : (
+                            <span>Sincronizar</span>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSendTestPush}
+                          disabled={sendingTestPush || subscribingPush}
+                          className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                        >
+                          {sendingTestPush ? (
+                            <>
+                              <Icon path={mdiLoading} size={0.6} className="animate-spin" />
+                              <span>Enviando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Icon path={mdiCellphoneMessage} size={0.6} />
+                              <span>Enviar Notificación de Prueba</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

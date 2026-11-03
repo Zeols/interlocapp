@@ -213,26 +213,17 @@ export function AyudanteOperationalPanel({
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              setTicketEmitido(null);
-              setShowVentaModal(true);
-            }}
-            disabled={!viajeActivo || esFinalizado}
-            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-          >
-            <Icon path={mdiCashRegister} size={0.65} />
-            <span>Vender Boleto en Ruta</span>
-          </button>
-
-          <Link
-            href="/validar-boleto"
-            className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
-          >
-            <Icon path={mdiQrcodeScan} size={0.65} />
-            <span>Validar QR</span>
-          </Link>
-
+            <button
+              onClick={() => {
+                setTicketEmitido(null);
+                setShowVentaModal(true);
+              }}
+              disabled={!viajeActivo || esFinalizado}
+              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+            >
+              <Icon path={mdiCashRegister} size={0.65} />
+              <span>Vender Boleto en Ruta</span>
+            </button>
           <button
             onClick={onRefresh}
             disabled={loading}
