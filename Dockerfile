@@ -8,6 +8,9 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat openssl
 RUN npm install -g pnpm@9
 
+# Variable de entorno de respaldo para que Prisma 7 valide prisma.config.ts
+ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/interlocapp?sslmode=disable"
+
 # Copiar manifiestos y esquema Prisma (necesario para el postinstall de Prisma)
 COPY package.json pnpm-lock.yaml* ./
 COPY prisma ./prisma/
@@ -36,9 +39,16 @@ ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY
 ENV NEXT_PUBLIC_PUSHER_KEY=$NEXT_PUBLIC_PUSHER_KEY
 ENV NEXT_PUBLIC_PUSHER_CLUSTER=$NEXT_PUBLIC_PUSHER_CLUSTER
 ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY
+
+# Variables ficticias requeridas para la compilación estática de Next.js y Prisma
+ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/interlocapp?sslmode=disable"
+ENV JWT_SECRET="build-time-secret"
+ENV TICKET_SIGNING_SECRET="build-time-secret"
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
+# Garantizar cliente Prisma generado y compilar Next.js
+RUN pnpm prisma generate
 RUN pnpm build
 
 # ===================================================
@@ -78,4 +88,3 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:${PORT:-3000}/ || exit 1
 
 CMD ["node", "server.js"]
-
