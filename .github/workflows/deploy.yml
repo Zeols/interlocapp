@@ -70,7 +70,8 @@ jobs:
 
       - name: Desplegar en Railway
         run: |
-          railway up --detach
+          SERVICE_NAME="${{ secrets.RAILWAY_SERVICE_NAME || vars.RAILWAY_SERVICE_NAME || 'interlocapp' }}"
+          echo "Desplegando en el servicio de Railway: $SERVICE_NAME"
+          railway up --service "$SERVICE_NAME" --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
