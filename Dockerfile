@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Dependencias del sistema requeridas por Prisma y Alpine
 RUN apk add --no-cache libc6-compat openssl
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9
 
 # Copiar manifiestos y esquema Prisma (necesario para el postinstall de Prisma)
 COPY package.json pnpm-lock.yaml* ./
@@ -23,7 +23,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 RUN apk add --no-cache libc6-compat openssl
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
