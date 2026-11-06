@@ -48,6 +48,35 @@ ENV NODE_ENV=production
 # Compilar Next.js (el cliente Prisma ya fue generado en la etapa deps)
 RUN pnpm build
 
+# Inyectar esm/ en @swc/helpers dentro de standalone (corrige bug de @vercel/nft que omite esm y crashea node server.js)
+RUN node -e '\
+  const fs = require("fs");\
+  const path = require("path");\
+  function findDirs(root, targetName, results = []) {\
+    if (!fs.existsSync(root)) return results;\
+    for (const entry of fs.readdirSync(root, { withFileTypes: true })) {\
+      const fullPath = path.join(root, entry.name);\
+      if (entry.isDirectory()) {\
+        if (entry.name === targetName) results.push(fullPath);\
+        findDirs(fullPath, targetName, results);\
+      }\
+    }\
+    return results;\
+  }\
+  const esmSources = findDirs("/app/node_modules", "esm").filter(p => p.includes("@swc") && p.includes("helpers"));\
+  if (esmSources.length > 0) {\
+    const src = esmSources[0];\
+    const standaloneHelpers = findDirs("/app/.next/standalone", "helpers").filter(p => p.includes("@swc"));\
+    for (const target of standaloneHelpers) {\
+      const destEsm = path.join(target, "esm");\
+      if (!fs.existsSync(destEsm)) {\
+        console.log("Inyectando esm en:", destEsm);\
+        fs.cpSync(src, destEsm, { recursive: true });\
+      }\
+    }\
+  }\
+'
+
 # ===================================================
 # STAGE 3: Entorno de ejecución en producción (runner)
 # ===================================================
