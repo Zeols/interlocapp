@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Suspense } from "react";
 import Icon from "@mdi/react";
 import {
@@ -15,6 +16,8 @@ import {
   mdiTimerOutline,
   mdiAlertCircleOutline,
   mdiBagSuitcase,
+  mdiCreditCardOutline,
+  mdiCheck,
 } from "@mdi/js";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/frontend/context/CurrencyContext";
@@ -22,6 +25,18 @@ import { useSeatRealtime } from "@/frontend/hooks/useSeatRealtime";
 import { AsientoRealtimeItem } from "@/backend/actions/asientos-realtime";
 import { procesarVentaBoletos } from "@/backend/actions/ventas";
 import { getDetalleViajeCompraAction } from "@/backend/actions/viajes";
+import { getMetodosPagoUsuarioAction } from "@/backend/actions/metodos-pago";
+
+interface MetodoPagoItem {
+  idMetodoPago: number;
+  tipo: string;
+  titular: string;
+  marca: string;
+  ultimos4: string;
+  mesExpiracion: number;
+  anioExpiracion: number;
+  esPredeterminado: boolean;
+}
 
 interface VentaConfirmadaItem {
   idBoleto: number;
@@ -89,6 +104,31 @@ function PurchaseContent() {
   const [ventaConfirmada, setVentaConfirmada] = useState<VentaConfirmada | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  // Métodos de pago guardados del usuario
+  const [metodosPago, setMetodosPago] = useState<MetodoPagoItem[]>([]);
+  const [selectedMetodoId, setSelectedMetodoId] = useState<number | "EFECTIVO">("EFECTIVO");
+  const [loadingMetodos, setLoadingMetodos] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    getMetodosPagoUsuarioAction().then((res) => {
+      if (active && res.success && res.data && res.data.length > 0) {
+        const metodos = res.data as MetodoPagoItem[];
+        setMetodosPago(metodos);
+        const predeterminado = metodos.find((m) => m.esPredeterminado) || metodos[0];
+        if (predeterminado) {
+          setSelectedMetodoId(predeterminado.idMetodoPago);
+        }
+      }
+      if (active) setLoadingMetodos(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const selectedCard = metodosPago.find((m) => m.idMetodoPago === selectedMetodoId);
 
   const ticketTotal = selectedSeats.length * trip.price;
   const baggageTotal = baggage * BAGGAGE_PRICE;
@@ -468,7 +508,108 @@ function PurchaseContent() {
               )}
             </div>
 
-            {/* Chunk 3: Total Final */}
+            {/* Chunk 3: Selección de Tarjeta o Medio de Pago */}
+            <div className="pt-3 border-t border-slate-100 text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <Icon path={mdiCreditCardOutline} size={0.6} className="text-slate-600" />
+                  <span>Método de Pago</span>
+                </span>
+                <Link
+                  href="/settings"
+                  className="text-[11px] text-primary hover:underline font-semibold flex items-center gap-0.5"
+                  title="Gestionar tarjetas guardadas en Ajustes"
+                >
+                  <Icon path={mdiPlus} size={0.45} />
+                  <span>Gestionar</span>
+                </Link>
+              </div>
+
+              {loadingMetodos ? (
+                <div className="p-2.5 bg-slate-50 rounded-lg text-slate-400 text-center animate-pulse text-[11px]">
+                  Cargando tarjetas guardadas...
+                </div>
+              ) : metodosPago.length > 0 ? (
+                <div className="space-y-1.5">
+                  {metodosPago.map((metodo) => {
+                    const isSelected = selectedMetodoId === metodo.idMetodoPago;
+                    return (
+                      <button
+                        type="button"
+                        key={metodo.idMetodoPago}
+                        onClick={() => setSelectedMetodoId(metodo.idMetodoPago)}
+                        className={`w-full text-left p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                          isSelected
+                            ? "border-slate-900 bg-slate-900 text-white shadow-2xs font-semibold"
+                            : "border-slate-200 bg-slate-50 hover:bg-white text-slate-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Icon
+                            path={mdiCreditCardOutline}
+                            size={0.65}
+                            className={isSelected ? "text-white shrink-0" : "text-slate-500 shrink-0"}
+                          />
+                          <div className="min-w-0">
+                            <p className="text-[11px] truncate font-bold">
+                              {metodo.marca} •••• {metodo.ultimos4}
+                              {metodo.esPredeterminado && (
+                                <span className={`ml-1.5 text-[9px] px-1.5 py-0.2 rounded font-normal ${
+                                  isSelected ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
+                                }`}>
+                                  Principal
+                                </span>
+                              )}
+                            </p>
+                            <p className={`text-[10px] ${isSelected ? "text-slate-300" : "text-slate-400"}`}>
+                              {metodo.titular} · Exp: {String(metodo.mesExpiracion).padStart(2, "0")}/{String(metodo.anioExpiracion).slice(-2)}
+                            </p>
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <div className="w-4 h-4 rounded-full bg-white text-slate-900 flex items-center justify-center shrink-0">
+                            <Icon path={mdiCheck} size={0.45} />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMetodoId("EFECTIVO")}
+                    className={`w-full text-left p-2 rounded-lg border transition-all cursor-pointer flex items-center justify-between text-[11px] ${
+                      selectedMetodoId === "EFECTIVO"
+                        ? "border-slate-900 bg-slate-900 text-white font-semibold"
+                        : "border-slate-200 bg-slate-50 hover:bg-white text-slate-600"
+                    }`}
+                  >
+                    <span>Pago en ventanilla / Efectivo</span>
+                    {selectedMetodoId === "EFECTIVO" && (
+                      <div className="w-4 h-4 rounded-full bg-white text-slate-900 flex items-center justify-center shrink-0">
+                        <Icon path={mdiCheck} size={0.45} />
+                      </div>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-600 space-y-1">
+                  <p className="font-semibold text-slate-800 flex items-center justify-between">
+                    <span>Pago en ventanilla / Efectivo</span>
+                    <span className="text-[10px] text-emerald-600 font-bold">Activo</span>
+                  </p>
+                  <p className="text-[10px] text-slate-500">
+                    No tienes tarjetas guardadas. Puedes{" "}
+                    <Link href="/settings" className="text-primary underline font-semibold">
+                      guardar tu tarjeta en Ajustes
+                    </Link>{" "}
+                    para pagos en 1 clic.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Chunk 4: Total Final */}
             <div className="pt-3 border-t border-slate-200 flex items-baseline justify-between">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total a pagar</span>
               <span className="text-2xl font-black text-slate-900">{fmt(total)}</span>
@@ -477,17 +618,24 @@ function PurchaseContent() {
             <button
               onClick={handlePayment}
               disabled={selectedSeats.length === 0 || isProcessingPayment}
-              className={`w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider py-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs ${
+              className={`w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider py-3 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer shadow-2xs ${
                 selectedSeats.length === 0 || isProcessingPayment ? "opacity-40 cursor-not-allowed" : ""
               }`}
             >
               {isProcessingPayment ? (
-                <>
+                <div className="flex items-center gap-2 py-0.5">
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   <span>Procesando pago...</span>
-                </>
+                </div>
               ) : (
-                `Confirmar y Pagar (${selectedSeats.length})`
+                <>
+                  <span>Confirmar y Pagar ({selectedSeats.length})</span>
+                  {selectedCard && (
+                    <span className="text-[10px] normal-case text-slate-300 font-normal">
+                      Con {selectedCard.marca} •••• {selectedCard.ultimos4}
+                    </span>
+                  )}
+                </>
               )}
             </button>
           </div>
@@ -559,6 +707,12 @@ function PurchaseContent() {
                       <span className="font-semibold text-slate-800">{baggage} bulto{baggage > 1 ? "s" : ""}</span>
                     </div>
                   )}
+                  <div className="flex items-center justify-between py-2 px-3">
+                    <span className="text-slate-500 font-medium">Método de pago:</span>
+                    <span className="font-semibold text-slate-800">
+                      {selectedCard ? `${selectedCard.marca} •••• ${selectedCard.ultimos4}` : "Efectivo / Ventanilla"}
+                    </span>
+                  </div>
                 </div>
 
                 {ventaConfirmada?.boletos && ventaConfirmada.boletos.length > 0 && (

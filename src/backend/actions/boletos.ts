@@ -4,6 +4,7 @@ import { prisma } from '../db';
 import { getSession } from '../lib/session';
 import { revalidatePath } from 'next/cache';
 import { formatManaguaTime, formatDateOnlyEsNI } from '@/lib/date-time';
+import { notificarUsuarioPush } from './push';
 
 const OPERATIONAL_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO', 'CHOFER', 'AYUDANTE', 'CHEQUEADOR'];
 
@@ -30,7 +31,7 @@ function parseOrigenDestino(
   },
   sentido?: string | null
 ): { origen: string; destino: string } {
-  const esRetorno = sentido === 'VUELTA' || sentido === 'RETORNO';
+  const esRetorno = sentido?.includes('VUELTA') || sentido?.includes('RETORNO');
   if (ruta.puntosRuta && ruta.puntosRuta.length > 0) {
     const sorted = [...ruta.puntosRuta].sort((a, b) => a.orden - b.orden);
     const ordered = esRetorno ? [...sorted].reverse() : sorted;
@@ -68,7 +69,7 @@ export async function validarBoletoAction(
       };
     }
 
-    // Extraer idBoleto numérico de diferentes formatos posibles (JSON, prefijo BOLETO-, número directo)
+    // Extraer idBoleto numérico de diferentes formatos posibles (JSON de QR, prefijo BOLETO-, número directo)
     let idBoleto: number | null = null;
 
     if (typeof rawInput === 'number') {
@@ -78,21 +79,39 @@ export async function validarBoletoAction(
       if (trimmed.startsWith('{')) {
         try {
           const parsed = JSON.parse(trimmed);
-          if (parsed.idBoleto) idBoleto = Number(parsed.idBoleto);
+          if (parsed.b !== undefined && parsed.b !== null) {
+            idBoleto = Number(parsed.b);
+          } else if (parsed.idBoleto !== undefined && parsed.idBoleto !== null) {
+            idBoleto = Number(parsed.idBoleto);
+          } else if (parsed.c && typeof parsed.c === 'string') {
+            const m = parsed.c.match(/(\d+)/);
+            if (m) idBoleto = Number(m[1]);
+          }
         } catch {
           // No es JSON válido, continúa con parsing de texto
         }
       }
 
       if (!idBoleto) {
-        const matches = trimmed.match(/\d+/g);
-        if (matches && matches.length > 0) {
-          idBoleto = Number(matches[matches.length - 1]);
+        // Verificar si viene con formato BOLETO-123 o similar
+        const boletoMatch = trimmed.match(/BOLETO[ -_:]*(\d+)/i);
+        if (boletoMatch) {
+          idBoleto = Number(boletoMatch[1]);
+        } else if (/^\d+$/.test(trimmed)) {
+          // Número directo
+          idBoleto = Number(trimmed);
+        } else {
+          // Extraer únicamente secuencias numéricas cortas (1 a 9 dígitos) para ignorar timestamps (Date.now())
+          const matches = trimmed.match(/\b\d{1,9}\b/g);
+          if (matches && matches.length > 0) {
+            idBoleto = Number(matches[0]);
+          }
         }
       }
     }
 
-    if (!idBoleto || isNaN(idBoleto)) {
+    // Proteger contra overflow de INTEGER en PostgreSQL (máximo 2,147,483,647)
+    if (!idBoleto || isNaN(idBoleto) || idBoleto <= 0 || idBoleto > 2147483647) {
       return { success: false, error: 'Código de boleto inválido o no reconocido.' };
     }
 
@@ -222,6 +241,14 @@ export async function validarBoletoAction(
     revalidatePath('/validar-boleto');
     revalidatePath('/taquilla');
     revalidatePath('/dashboard');
+
+    if (boleto.venta?.idUsuarioComprador) {
+      notificarUsuarioPush(boleto.venta.idUsuarioComprador, {
+        title: 'Boleto validado',
+        body: `Tu boleto #${boletoActualizado.idBoleto} (Asiento #${boletoActualizado.asiento?.numero || 'Asignado'}) ha sido verificado para el viaje. ¡Buen viaje!`,
+        url: '/tickets',
+      }).catch((e) => console.error('Error enviando push abordaje:', e));
+    }
 
     const rutasPuntos = parseOrigenDestino(boletoActualizado.viaje.ruta, boletoActualizado.viaje.sentido);
 

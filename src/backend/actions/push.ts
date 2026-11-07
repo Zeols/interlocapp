@@ -4,9 +4,16 @@ import webpush from "web-push";
 import { prisma } from "../db";
 import { getSession } from "../lib/session";
 
-const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
-const privateKey = process.env.VAPID_PRIVATE_KEY || "";
-const subject = process.env.VAPID_SUBJECT || "mailto:soporte@interlocapp.com";
+const publicKey =
+  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
+  process.env.VAPID_PUBLIC_KEY ||
+  "BIOUjlAg99ZLMnG-gQOXdRU8cRU7BwMbqncJVRzq5sYXAexsKBbCNqxi1mZ-Nbz4cDYlUHtgHbuirLvK_JvzzO4";
+const privateKey =
+  process.env.VAPID_PRIVATE_KEY ||
+  "RVwsmzCJgJb78VIpcyDaVAw28xnfkker6fUUbGQRG1o";
+const subject =
+  process.env.VAPID_SUBJECT ||
+  "mailto:interlocapp2026@gmail.com";
 
 if (publicKey && privateKey) {
   try {
