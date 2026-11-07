@@ -211,7 +211,17 @@ export default function ValidarBoletoPage() {
               if (code) {
                 active = false;
                 cerrarCamara();
-                setCodigoInput(code);
+                let displayCode = code.trim();
+                if (displayCode.startsWith('{')) {
+                  try {
+                    const parsed = JSON.parse(displayCode);
+                    if (parsed.c) displayCode = String(parsed.c);
+                    else if (parsed.b) displayCode = `BOLETO-${parsed.b}`;
+                  } catch {
+                    // Mantener raw si falla JSON
+                  }
+                }
+                setCodigoInput(displayCode);
                 ejecutarValidacion(code);
               }
             }

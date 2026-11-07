@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { getSession } from '../lib/session';
 import { sendTicketEmail } from '../lib/mail';
 import { notificarCompraAsientoRealtimeAction } from './asientos-realtime';
+import { notificarUsuarioPush } from './push';
 import { getNowInManagua, formatManaguaTime, formatManaguaDate, getManaguaDateISO } from '@/lib/date-time';
 
 // Interfaces
@@ -371,6 +372,15 @@ export async function procesarVentaBoletos(data: VentaInput) {
       } catch (mailError) {
         console.warn('[Venta] No se pudo enviar el correo de confirmación de boletos:', mailError);
       }
+    }
+
+    // 7. Notificación Web Push si el usuario comprador tiene suscripciones activas
+    if (session?.idUsuario) {
+      notificarUsuarioPush(session.idUsuario, {
+        title: '¡Boleto confirmado!',
+        body: `Tu compra de ${data.boletos.length} boleto(s) ha sido completada con éxito. Ya puedes ver tus boletos con código QR para abordar.`,
+        url: '/tickets',
+      }).catch((e) => console.warn('[Venta] Push notification no enviada:', e));
     }
 
     revalidatePath('/admin/ventas');
