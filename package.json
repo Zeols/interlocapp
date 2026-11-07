@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
+    "seed:users": "tsx scripts/seed-users.ts",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f app"

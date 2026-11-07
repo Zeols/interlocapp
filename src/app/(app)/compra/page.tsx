@@ -1,19 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import Icon from "@mdi/react";
 import {
-  mdiBus,
   mdiMapMarker,
   mdiClockOutline,
-  mdiShieldCheck,
   mdiCheckCircleOutline,
   mdiMinus,
   mdiPlus,
   mdiEmailOutline,
-  mdiWifi,
   mdiLockOutline,
   mdiTimerOutline,
   mdiAlertCircleOutline,
@@ -24,6 +21,7 @@ import { useCurrency } from "@/frontend/context/CurrencyContext";
 import { useSeatRealtime } from "@/frontend/hooks/useSeatRealtime";
 import { AsientoRealtimeItem } from "@/backend/actions/asientos-realtime";
 import { procesarVentaBoletos } from "@/backend/actions/ventas";
+import { getDetalleViajeCompraAction } from "@/backend/actions/viajes";
 
 interface VentaConfirmadaItem {
   idBoleto: number;
@@ -46,13 +44,31 @@ function PurchaseContent() {
   // Identificador de viaje (desde URL o por defecto 1)
   const idViaje = Number(searchParams.get("tripId") || searchParams.get("idViaje")) || 1;
 
-  const trip = {
+  const [trip, setTrip] = useState({
     origin: searchParams.get("origin") || "Managua",
     destination: searchParams.get("destination") || "León",
-    departure: searchParams.get("departure") || "06:00 AM",
+    departure: searchParams.get("departure") || "--:--",
     cooperative: searchParams.get("cooperative") || "COOTRANSTEL R.L.",
     price: Number(searchParams.get("price")) || 85,
-  };
+  });
+
+  useEffect(() => {
+    let active = true;
+    getDetalleViajeCompraAction(idViaje).then((res) => {
+      if (active && res.success && res.data) {
+        setTrip({
+          origin: res.data.origin,
+          destination: res.data.destination,
+          departure: res.data.departure,
+          cooperative: res.data.cooperative,
+          price: res.data.price,
+        });
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [idViaje]);
 
   const BAGGAGE_PRICE = 50;
 
@@ -60,7 +76,6 @@ function PurchaseContent() {
   const {
     seats,
     selectedSeats,
-    isConnected,
     isLoading,
     error: realtimeError,
     timeRemainingSeconds,
@@ -174,31 +189,15 @@ function PurchaseContent() {
             </div>
           </div>
 
-          {/* Sincronización en tiempo real */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold border ${
-                isConnected
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                  : "bg-slate-100 text-slate-600 border-slate-200"
-              }`}
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  isConnected ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
-                }`}
-              />
-              <Icon path={mdiWifi} size={0.5} />
-              <span>{isConnected ? "Sincronizado en vivo" : "Conexión estándar"}</span>
-            </div>
-
-            {timeRemainingSeconds !== null && (
+          {/* Tiempo de reserva */}
+          {timeRemainingSeconds !== null && (
+            <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200">
                 <Icon path={mdiTimerOutline} size={0.55} className="text-amber-700" />
                 <span>Tiempo de reserva: {formatCountdown(timeRemainingSeconds)}</span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -491,11 +490,6 @@ function PurchaseContent() {
                 `Confirmar y Pagar (${selectedSeats.length})`
               )}
             </button>
-
-            <div className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-slate-400 pt-1">
-              <Icon path={mdiShieldCheck} size={0.55} className="text-emerald-600" />
-              <span>Transacción cifrada y garantizada</span>
-            </div>
           </div>
         </div>
       </div>
@@ -570,7 +564,7 @@ function PurchaseContent() {
                 {ventaConfirmada?.boletos && ventaConfirmada.boletos.length > 0 && (
                   <div className="p-3 bg-white border-t border-slate-200">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                      Códigos de Boleto (Offline QR Disponible)
+                      Códigos de Boleto
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {ventaConfirmada.boletos.map((b) => (
@@ -589,7 +583,7 @@ function PurchaseContent() {
               <div className="flex items-start gap-2.5 text-left bg-slate-50 text-slate-700 p-3 rounded-lg mb-4 border border-slate-200 w-full text-xs">
                 <Icon path={mdiEmailOutline} size={0.7} className="text-slate-500 mt-0.5 shrink-0" />
                 <p className="text-[11px] leading-relaxed">
-                  Tus boletos se encuentran disponibles en tu bóveda digital y pueden presentarse directamente al abordar.
+                  Tus boletos se encuentran disponibles en la sección Mis Boletos y pueden presentarse directamente al abordar.
                 </p>
               </div>
 

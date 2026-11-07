@@ -13,11 +13,15 @@ import {
 import { getCurrentUserAction } from "@/backend/actions/auth";
 import { getRutasActivas } from "@/backend/actions/rutas";
 import { useCurrency } from "@/frontend/context/CurrencyContext";
+import { getManaguaDateISO } from "@/lib/date-time";
 
 export default function HomePage() {
   const router = useRouter();
   const { formatPrice } = useCurrency();
   const [userName, setUserName] = useState("Pasajero");
+  const [origin, setOrigin] = useState("");
+  const [destination, setDestination] = useState("");
+  const [date, setDate] = useState(() => getManaguaDateISO());
   const [routes, setRoutes] = useState<
     {
       id: number;
@@ -48,6 +52,25 @@ export default function HomePage() {
   }, []);
 
   const goTrips = () => router.push("/trips");
+
+  const handleSearchTrips = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const params = new URLSearchParams();
+    if (origin.trim()) params.set("origin", origin.trim());
+    if (destination.trim()) params.set("destination", destination.trim());
+    if (date.trim()) params.set("date", date.trim());
+    const qs = params.toString();
+    router.push(qs ? `/trips?${qs}` : "/trips");
+  };
+
+  const handleSelectRouteCard = (routeOrigin: string, routeDestination: string) => {
+    const params = new URLSearchParams({
+      origin: routeOrigin,
+      destination: routeDestination,
+    });
+    router.push(`/trips?${params.toString()}`);
+  };
+
   const firstName = userName.split(" ")[0];
 
   return (
@@ -76,45 +99,65 @@ export default function HomePage() {
           </div>
 
           {/* Panel de Búsqueda Rápida Unificado */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-md shadow-gray-200/30">
+          <form
+            onSubmit={handleSearchTrips}
+            className="bg-white border border-gray-100 rounded-2xl p-6 shadow-md shadow-gray-200/30"
+          >
             <h3 className="text-base font-extrabold text-gray-900 mb-4 tracking-tight">
               Búsqueda rápida
             </h3>
 
             <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/80 border border-gray-100">
+              <label className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/80 border border-gray-100 focus-within:border-primary/40 focus-within:bg-white transition-colors cursor-text">
                 <Icon path={mdiMapMarker} size={0.85} className="text-primary shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Origen</p>
-                  <p className="text-sm font-bold text-gray-900 truncate">Managua (UCA)</p>
+                  <input
+                    type="text"
+                    value={origin}
+                    onChange={(e) => setOrigin(e.target.value)}
+                    placeholder="Ej. Managua"
+                    className="w-full bg-transparent outline-none text-sm font-bold text-gray-900 placeholder:font-medium placeholder:text-gray-400"
+                  />
                 </div>
-              </div>
+              </label>
 
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/80 border border-gray-100">
+              <label className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/80 border border-gray-100 focus-within:border-primary/40 focus-within:bg-white transition-colors cursor-text">
                 <Icon path={mdiMapMarker} size={0.85} className="text-gray-400 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Destino</p>
-                  <p className="text-sm font-medium text-gray-400 truncate">Seleccionar destino...</p>
+                  <input
+                    type="text"
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
+                    placeholder="Seleccionar destino (Ej. León, Granada)..."
+                    className="w-full bg-transparent outline-none text-sm font-bold text-gray-900 placeholder:font-medium placeholder:text-gray-400"
+                  />
                 </div>
-              </div>
+              </label>
 
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/80 border border-gray-100">
+              <label className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/80 border border-gray-100 focus-within:border-primary/40 focus-within:bg-white transition-colors cursor-pointer">
                 <Icon path={mdiCalendar} size={0.85} className="text-gray-400 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Fecha</p>
-                  <p className="text-sm font-medium text-gray-400 truncate">Hoy, 14 Oct</p>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full bg-transparent outline-none text-sm font-bold text-gray-900 cursor-pointer"
+                  />
                 </div>
-              </div>
+              </label>
 
               <button
-                onClick={goTrips}
+                type="submit"
                 className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-3 rounded-xl mt-2 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs text-sm hover:shadow-sm"
               >
                 <Icon path={mdiMagnify} size={0.75} />
                 Buscar viajes
               </button>
             </div>
-          </div>
+          </form>
         </div>
       </div>
 
@@ -156,7 +199,7 @@ export default function HomePage() {
               routes.map((r) => (
                 <button
                   key={r.id}
-                  onClick={goTrips}
+                  onClick={() => handleSelectRouteCard(r.origin, r.destination)}
                   className="bg-white border border-gray-100 p-5 rounded-2xl text-left hover:border-primary/40 hover:shadow-md hover:shadow-orange-950/5 transition-all group cursor-pointer"
                 >
                   <div className="flex items-center justify-between mb-4">

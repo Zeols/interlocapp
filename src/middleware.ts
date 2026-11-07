@@ -3,10 +3,26 @@ import type { NextRequest } from 'next/server';
 import { verifySessionToken, COOKIE_NAME } from '@/backend/lib/session';
 
 // Roles administrativos y operacionales autorizados para acceder al dashboard
-const DASHBOARD_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO', 'CHOFER', 'AYUDANTE'];
+const DASHBOARD_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO', 'CHEQUEADOR', 'CHOFER', 'AYUDANTE'];
 
 // Roles autorizados para el escáner de boletos
-const OPERATIONAL_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO', 'CHOFER', 'AYUDANTE'];
+const OPERATIONAL_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO', 'CHEQUEADOR', 'CHOFER', 'AYUDANTE'];
+
+// Mapa estricto de permisos por ruta dentro de /dashboard
+const DASHBOARD_ROUTE_PERMISSIONS: Array<{ prefix: string; roles: string[] }> = [
+  { prefix: '/dashboard/cooperativas', roles: ['SUPER_ADMIN'] },
+  { prefix: '/dashboard/usuarios', roles: ['SUPER_ADMIN', 'ADMIN_COOP'] },
+  { prefix: '/dashboard/choferes', roles: ['SUPER_ADMIN', 'ADMIN_COOP'] },
+  { prefix: '/dashboard/flota', roles: ['SUPER_ADMIN', 'ADMIN_COOP'] },
+  { prefix: '/dashboard/rutas', roles: ['SUPER_ADMIN', 'ADMIN_COOP'] },
+  { prefix: '/dashboard/pos', roles: ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO'] },
+  { prefix: '/dashboard/cierres', roles: ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO'] },
+  { prefix: '/dashboard/gastos', roles: ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO'] },
+  { prefix: '/dashboard/viajes', roles: ['SUPER_ADMIN', 'ADMIN_COOP', 'CHEQUEADOR'] },
+  { prefix: '/dashboard/chequeador', roles: ['SUPER_ADMIN', 'ADMIN_COOP', 'CHEQUEADOR'] },
+  { prefix: '/dashboard/emergencias', roles: ['SUPER_ADMIN', 'ADMIN_COOP', 'CHEQUEADOR', 'AYUDANTE', 'CHOFER'] },
+  { prefix: '/dashboard/ayudante', roles: ['SUPER_ADMIN', 'AYUDANTE', 'CHOFER'] },
+];
 
 // Rutas públicas que no requieren autenticación
 const PUBLIC_ROUTES = ['/', '/login', '/signup', '/forgot'];
@@ -66,11 +82,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Protección de /dashboard/* (Permite Admins, Taquilleros, Choferes y Ayudantes)
+  // Protección de /dashboard/* (Permite Admins, Taquilleros, Chequeadores, Choferes y Ayudantes según su rol)
   if (pathname.startsWith('/dashboard')) {
     if (!DASHBOARD_ROLES.includes(session.rolNombre)) {
       return NextResponse.redirect(new URL('/home', request.url));
     }
+
+    const matchedRule = DASHBOARD_ROUTE_PERMISSIONS.find((rule) =>
+      pathname === rule.prefix || pathname.startsWith(`${rule.prefix}/`)
+    );
+    if (matchedRule && !matchedRule.roles.includes(session.rolNombre)) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
     return NextResponse.next();
   }
 

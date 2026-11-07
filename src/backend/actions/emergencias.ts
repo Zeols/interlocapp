@@ -4,6 +4,8 @@ import prisma from "@/backend/db";
 import { getCurrentUserAction } from "@/backend/actions/auth";
 import { revalidatePath } from "next/cache";
 
+const SUPERVISOR_EMERGENCIAS_ROLES = ["SUPER_ADMIN", "ADMIN_COOP", "CHEQUEADOR"];
+
 export async function registrarEmergenciaAyudanteAction(payload: {
   idViaje: number;
   tipo: "AVERIA_MECANICA" | "ACCIDENTE" | "RETRASO" | "OTRO";
@@ -11,7 +13,7 @@ export async function registrarEmergenciaAyudanteAction(payload: {
 }) {
   try {
     const user = await getCurrentUserAction();
-    if (!user || user.rolNombre !== "AYUDANTE") {
+    if (!user || !["AYUDANTE", "CHOFER"].includes(user.rolNombre)) {
       return { success: false, error: "No autorizado para reportar emergencias." };
     }
 
@@ -61,9 +63,22 @@ export async function getEmergenciasViajeAction(idViaje: number) {
 export async function getIncidentesChequeadorAction() {
   try {
     const user = await getCurrentUserAction();
-    if (!user) return { success: false, error: "No autorizado." };
+    if (!user || !SUPERVISOR_EMERGENCIAS_ROLES.includes(user.rolNombre)) {
+      return { success: false, error: "No autorizado." };
+    }
+
+    const coopFilter = user.rolNombre !== "SUPER_ADMIN" && user.idCooperativa ? user.idCooperativa : undefined;
 
     const incidentes = await prisma.incidente.findMany({
+      where: coopFilter
+        ? {
+            despacho: {
+              viaje: {
+                ruta: { idCooperativa: coopFilter },
+              },
+            },
+          }
+        : undefined,
       include: {
         despacho: {
           include: {
@@ -99,10 +114,26 @@ export async function getIncidentesChequeadorAction() {
 export async function getDatosGestionEmergenciaAction(idCooperativa?: number) {
   try {
     const user = await getCurrentUserAction();
-    if (!user) return { success: false, error: "No autorizado." };
+    if (!user || !SUPERVISOR_EMERGENCIAS_ROLES.includes(user.rolNombre)) {
+      return { success: false, error: "No autorizado." };
+    }
+
+    const effectiveCoopId =
+      user.rolNombre !== "SUPER_ADMIN" && user.idCooperativa ? user.idCooperativa : idCooperativa;
 
     const incidentes = await prisma.incidente.findMany({
-      where: { estado: { not: "RESUELTO" } },
+      where: {
+        estado: { not: "RESUELTO" },
+        ...(effectiveCoopId
+          ? {
+              despacho: {
+                viaje: {
+                  ruta: { idCooperativa: effectiveCoopId },
+                },
+              },
+            }
+          : {}),
+      },
       include: {
         despacho: {
           include: {
@@ -128,10 +159,20 @@ export async function getDatosGestionEmergenciaAction(idCooperativa?: number) {
       orderBy: { fechaHora: "desc" },
     });
 
+    // 1. Obtener los IDs de todos los usuarios (choferes y ayudantes) y unidades que tienen una asignación activa
+    const asignacionesActivas = await prisma.asignacionUnidad.findMany({
+      where: { estado: "INICIADA" },
+      select: { idUsuario: true, idUnidad: true },
+    });
+
+    const idsUsuariosOcupados = Array.from(new Set(asignacionesActivas.map((a) => a.idUsuario)));
+    const idsUnidadesOcupadas = Array.from(new Set(asignacionesActivas.map((a) => a.idUnidad)));
+
     const unidadesDisponibles = await prisma.unidad.findMany({
       where: {
-        ...(idCooperativa ? { idCooperativa } : {}),
+        ...(effectiveCoopId ? { idCooperativa: effectiveCoopId } : {}),
         estado: "DISPONIBLE",
+        ...(idsUnidadesOcupadas.length > 0 ? { idUnidad: { notIn: idsUnidadesOcupadas } } : {}),
       },
       include: {
         tipoUnidad: true,
@@ -139,30 +180,21 @@ export async function getDatosGestionEmergenciaAction(idCooperativa?: number) {
       },
     });
 
-    // 1. Obtener los IDs de todos los usuarios (choferes y ayudantes) que tienen una asignación activa (en ruta)
-    const asignacionesActivas = await prisma.asignacionUnidad.findMany({
-      where: { estado: "INICIADA" },
-      select: { idUsuario: true },
-    });
-
-    const idsUsuariosOcupados = asignacionesActivas.map(a => a.idUsuario);
-
     // 2. Filtrar choferes que NO estén ocupados en otro viaje activo
     const choferes = await prisma.usuario.findMany({
       where: {
-        ...(idCooperativa ? { idCooperativa } : {}),
+        ...(effectiveCoopId ? { idCooperativa: effectiveCoopId } : {}),
         rol: { nombre: "CHOFER" },
         estado: "ACTIVO",
         idUsuario: { notIn: idsUsuariosOcupados.length > 0 ? idsUsuariosOcupados : [-1] },
       },
     });
 
-    
     // 3. Filtrar ayudantes que NO estén ocupados en otro viaje activo
     const ayudantes = await prisma.usuario.findMany({
       where: {
-        ...(idCooperativa ? { idCooperativa } : {}),
-        rol: { nombre: "AYUDANTE" },
+        ...(effectiveCoopId ? { idCooperativa: effectiveCoopId } : {}),
+        rol: { nombre: { in: ["AYUDANTE", "COBRADOR"] } },
         estado: "ACTIVO",
         idUsuario: { notIn: idsUsuariosOcupados.length > 0 ? idsUsuariosOcupados : [-1] },
       },
@@ -184,7 +216,9 @@ export async function autorizarDespachoExtraordinarioAction(payload: {
 }) {
   try {
     const user = await getCurrentUserAction();
-    if (!user) return { success: false, error: "No autorizado." };
+    if (!user || !SUPERVISOR_EMERGENCIAS_ROLES.includes(user.rolNombre)) {
+      return { success: false, error: "No autorizado." };
+    }
 
     const { idIncidente, idsUnidadesRepuesto, idsChoferes, mantenerAyudanteOriginal, idsAyudantesAdicionales } = payload;
 
@@ -250,10 +284,15 @@ export async function autorizarDespachoExtraordinarioAction(payload: {
         data: { estado: "RESUELTO" },
       });
 
-      // 2. Enviar unidad afectada a mantenimiento
+      // 2. Enviar unidad afectada a mantenimiento y liberar sus asignaciones activas
       await tx.unidad.update({
         where: { idUnidad: unidadAfectada.idUnidad },
         data: { estado: "MANTENIMIENTO" },
+      });
+
+      await tx.asignacionUnidad.updateMany({
+        where: { idUnidad: unidadAfectada.idUnidad, estado: "INICIADA" },
+        data: { estado: "FINALIZADA", fechaHFin: new Date() },
       });
 
       // 3. Cancelar viaje original
@@ -281,7 +320,7 @@ export async function autorizarDespachoExtraordinarioAction(payload: {
         const choferId = idsChoferes[i];
 
         // Definir el ayudante según las reglas de negocio
-        let ayudanteId = ayudanteOriginalId;
+        let ayudanteId: number | null = null;
 
         if (i === 0 && mantenerAyudanteOriginal) {
           ayudanteId = ayudanteOriginalId;
@@ -300,6 +339,17 @@ export async function autorizarDespachoExtraordinarioAction(payload: {
             estado: "INICIADA",
           },
         });
+
+        if (ayudanteId && ayudanteId !== choferId) {
+          await tx.asignacionUnidad.create({
+            data: {
+              idUnidad: unidadRepuesto.idUnidad,
+              idUsuario: ayudanteId,
+              fechaHInicio: new Date(),
+              estado: "INICIADA",
+            },
+          });
+        }
 
         // Crear despacho vinculado al nuevo viaje de respaldo
         await tx.despacho.create({

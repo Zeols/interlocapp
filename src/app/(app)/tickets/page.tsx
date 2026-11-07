@@ -41,10 +41,6 @@ export default function TicketsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <div className="inline-flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider mb-2">
-            <Icon path={mdiTicketConfirmationOutline} size={0.7} />
-            Bóveda de Boletos
-          </div>
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight">
             Mis Boletos
           </h1>

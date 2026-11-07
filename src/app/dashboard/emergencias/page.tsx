@@ -65,7 +65,7 @@ export default function EmergenciasPage() {
 
       const rol = (user.rolNombre || "").trim().toUpperCase();
 
-      if (rol === "AYUDANTE") {
+      if (rol === "AYUDANTE" || rol === "CHOFER") {
         const resViaje = await getViajeActivoAyudanteAction(user.idUsuario);
         if (resViaje.success && resViaje.data) {
           setViajeActivo(resViaje.data);
@@ -161,7 +161,7 @@ export default function EmergenciasPage() {
   const faltaAsignarChoferes = selectedUnidadesIds.some(id => !choferesPorUnidad[id]);
 
   const rolUsuario = (session?.rolNombre || "").trim().toUpperCase();
-  const isAyudante = rolUsuario === "AYUDANTE";
+  const isAyudante = rolUsuario === "AYUDANTE" || rolUsuario === "CHOFER";
 
   return (
     <div className="space-y-6">

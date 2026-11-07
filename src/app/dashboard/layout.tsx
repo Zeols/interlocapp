@@ -81,12 +81,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         const profileRes = await getUserProfileAction();
         if (profileRes.success && profileRes.data) {
           setUserFoto(profileRes.data.foto || null);
-          // Consultar contador de emergencias pendientes para el badge rojo
-        const resInc = await getIncidentesChequeadorAction();
-        if (resInc.success && resInc.data) {
-          const pendientes = resInc.data.filter((inc: any) => inc.estado === "REGISTRADO").length;
-          setEmergenciasCount(pendientes);
         }
+        // Consultar contador de emergencias pendientes solo para roles supervisores autorizados
+        if (user && ["SUPER_ADMIN", "ADMIN_COOP", "CHEQUEADOR"].includes(user.rolNombre)) {
+          const resInc = await getIncidentesChequeadorAction();
+          if (resInc.success && resInc.data) {
+            const pendientes = resInc.data.filter((inc: any) => inc.estado === "REGISTRADO").length;
+            setEmergenciasCount(pendientes);
+          }
         }
       } catch (err) {
         console.error("Error al cargar sesión en layout:", err);
@@ -119,8 +121,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
     // 1. Resumen General
 
-    // Si es Ayudante, configuramos su menú exclusivo y limpio
-    if (isAyudante) {
+    // Si es Ayudante o Chofer, configuramos su menú operativo de unidad en ruta
+    if (isAyudante || isChofer) {
       sections.push({
         title: "PANEL PRINCIPAL",
         items: [
@@ -137,7 +139,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
       return sections;
     }
-    // Para los demás roles (Super Admin, Admin Coop, Taquillero, Chequeador, Chofer)
+    // Para los demás roles (Super Admin, Admin Coop, Taquillero, Chequeador)
     sections.push({
       title: "PANEL PRINCIPAL",
       items: [
@@ -147,16 +149,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
     // 2. Operaciones en Ruta
     const operacionesItems = [];
-    if (isSuperAdmin || isAdminCoop || isTaquillero || isChequeador || isChofer) {
-      operacionesItems.push({ name: "Salidas y Despacho", path: "/dashboard/viajes", icon: mdiBus });
-    }
     if (isSuperAdmin || isAdminCoop || isChequeador) {
+      operacionesItems.push({ name: "Salidas y Despacho", path: "/dashboard/viajes", icon: mdiBus });
       operacionesItems.push({ name: "Puntos de Control", path: "/dashboard/chequeador", icon: mdiClipboardCheckOutline });
     }
     operacionesItems.push({ name: "Validar Boletos", path: "/validar-boleto", icon: mdiQrcodeScan });
 
-    //  MÓDULO EXCLUSIVO PARA CHEQUEADOR / ADMIN COOP / SUPER ADMIN: "Atender Emergencias"
-    if (isSuperAdmin || isAdminCoop || isChequeador || isTaquillero) {
+    // MÓDULO EXCLUSIVO PARA CHEQUEADOR / ADMIN COOP / SUPER ADMIN: "Atender Emergencias"
+    if (isSuperAdmin || isAdminCoop || isChequeador) {
       operacionesItems.push({ name: "Atender Emergencias", path: "/dashboard/emergencias", icon: mdiAlertOctagonOutline });
     }
 
@@ -361,6 +361,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                           : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                       }`}
                     >
+                      <Icon path={item.icon} size={0.7} className="shrink-0" />
                       <span className="flex-1">{item.name}</span>
                       {item.name === "Atender Emergencias" && emergenciasCount > 0 && (
                         <span className="bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0">

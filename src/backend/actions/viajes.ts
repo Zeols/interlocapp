@@ -3,13 +3,66 @@
 import { prisma } from '../db';
 import { revalidatePath } from 'next/cache';
 import { getSession } from '../lib/session';
-import { getNowInManagua } from '@/lib/date-time';
+import {
+  getNowInManagua,
+  getManaguaDateISO,
+  getManaguaStartOfDay,
+  getManaguaEndOfDay,
+  getManaguaHour,
+  formatManaguaTime,
+  formatDateOnlyEsNI,
+  parseDateOnlyUTC,
+  parseManaguaDateTime,
+} from '@/lib/date-time';
+
+const MANAGE_VIAJES_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'CHEQUEADOR'];
 
 export interface ViajeInput {
   idRuta: number;
   fecha: string;
   hrSalidaProgramada: string;
   sentido?: string;
+  idUnidad?: number;
+  idChofer?: number;
+  idAyudante?: number;
+  observacion?: string;
+}
+
+/**
+ * Libera automáticamente asignaciones de unidad que quedaron en estado INICIADA
+ * pero cuya unidad ya no tiene ningún despacho asociado a un viaje PROGRAMADO o EN_CURSO.
+ */
+async function limpiarAsignacionesHuerfanas() {
+  const despachosActivos = await prisma.despacho.findMany({
+    where: {
+      estado: 'EN_CURSO',
+      viaje: {
+        estado: { in: ['PROGRAMADO', 'EN_CURSO'] },
+      },
+    },
+    include: {
+      asignacionUnidad: {
+        select: { idUnidad: true },
+      },
+    },
+  });
+
+  const unidadesConViajeActivo = Array.from(
+    new Set(despachosActivos.map((d) => d.asignacionUnidad.idUnidad))
+  );
+
+  await prisma.asignacionUnidad.updateMany({
+    where: {
+      estado: 'INICIADA',
+      ...(unidadesConViajeActivo.length > 0
+        ? { idUnidad: { notIn: unidadesConViajeActivo } }
+        : {}),
+    },
+    data: {
+      estado: 'FINALIZADA',
+      fechaHFin: new Date(),
+    },
+  });
 }
 
 export interface AsignacionInput {
@@ -71,11 +124,126 @@ export async function getAyudantesByCooperativa(idCooperativa: number) {
 
 export async function createViaje(data: ViajeInput) {
   try {
+    const session = await getSession();
+    if (!session || !MANAGE_VIAJES_ROLES.includes(session.rolNombre)) {
+      return { success: false, error: 'No tienes permisos para programar viajes.' };
+    }
+
+    const fechaParsed = parseDateOnlyUTC(data.fecha);
+    const hrSalidaParsed = parseManaguaDateTime(data.hrSalidaProgramada);
+
+    if (data.idUnidad && data.idChofer) {
+      await limpiarAsignacionesHuerfanas();
+
+      const unidad = await prisma.unidad.findUnique({
+        where: { idUnidad: data.idUnidad },
+      });
+      if (!unidad || unidad.estado !== 'DISPONIBLE') {
+        return { success: false, error: 'La unidad seleccionada no está disponible.' };
+      }
+
+      const unidadOcupada = await prisma.asignacionUnidad.findFirst({
+        where: { idUnidad: data.idUnidad, estado: 'INICIADA' },
+      });
+      if (unidadOcupada) {
+        return { success: false, error: 'La unidad seleccionada ya está asignada a otro viaje activo o programado.' };
+      }
+
+      const chofer = await prisma.usuario.findUnique({
+        where: { idUsuario: data.idChofer },
+        include: { rol: true },
+      });
+      if (!chofer || chofer.rol.nombre !== 'CHOFER') {
+        return { success: false, error: 'El usuario seleccionado no es un chofer válido.' };
+      }
+
+      const choferOcupado = await prisma.asignacionUnidad.findFirst({
+        where: { idUsuario: data.idChofer, estado: 'INICIADA' },
+      });
+      if (choferOcupado) {
+        return {
+          success: false,
+          error: `El chofer ${chofer.nombre} ${chofer.apellido} ya se encuentra en ruta o asignado a otro viaje.`,
+        };
+      }
+
+      if (data.idAyudante) {
+        const ayudante = await prisma.usuario.findUnique({
+          where: { idUsuario: data.idAyudante },
+          include: { rol: true },
+        });
+        if (!ayudante || !['AYUDANTE', 'COBRADOR'].includes(ayudante.rol.nombre)) {
+          return { success: false, error: 'El usuario seleccionado no es un ayudante válido.' };
+        }
+
+        const ayudanteOcupado = await prisma.asignacionUnidad.findFirst({
+          where: { idUsuario: data.idAyudante, estado: 'INICIADA' },
+        });
+        if (ayudanteOcupado) {
+          return {
+            success: false,
+            error: `El ayudante ${ayudante.nombre} ${ayudante.apellido} ya se encuentra en ruta o asignado a otro viaje.`,
+          };
+        }
+      }
+
+      const nuevoViaje = await prisma.$transaction(async (tx) => {
+        const fechaAsignacion = new Date();
+
+        const viajeCreado = await tx.viaje.create({
+          data: {
+            idRuta: data.idRuta,
+            fecha: fechaParsed,
+            hrSalidaProgramada: hrSalidaParsed,
+            sentido: data.sentido || 'IDA',
+            estado: 'PROGRAMADO',
+          },
+        });
+
+        const asignacionChofer = await tx.asignacionUnidad.create({
+          data: {
+            idUnidad: data.idUnidad!,
+            idUsuario: data.idChofer!,
+            fechaHInicio: fechaAsignacion,
+            estado: 'INICIADA',
+          },
+        });
+
+        if (data.idAyudante) {
+          await tx.asignacionUnidad.create({
+            data: {
+              idUnidad: data.idUnidad!,
+              idUsuario: data.idAyudante,
+              fechaHInicio: fechaAsignacion,
+              estado: 'INICIADA',
+            },
+          });
+        }
+
+        await tx.despacho.create({
+          data: {
+            idViaje: viajeCreado.idViaje,
+            idAsignacion: asignacionChofer.idAsignacion,
+            observacion: data.observacion || null,
+            estado: 'EN_CURSO',
+            fechaHora: fechaAsignacion,
+          },
+        });
+
+        return viajeCreado;
+      });
+
+      revalidatePath('/dashboard/viajes');
+      revalidatePath('/dashboard');
+      revalidatePath('/trips');
+      return { success: true, data: nuevoViaje };
+    }
+
     const nuevoViaje = await prisma.viaje.create({
       data: {
         idRuta: data.idRuta,
-        fecha: new Date(data.fecha),
-        hrSalidaProgramada: new Date(data.hrSalidaProgramada),
+        fecha: fechaParsed,
+        hrSalidaProgramada: hrSalidaParsed,
         sentido: data.sentido || 'IDA',
         estado: 'PROGRAMADO',
       },
@@ -83,6 +251,7 @@ export async function createViaje(data: ViajeInput) {
 
     revalidatePath('/dashboard/viajes');
     revalidatePath('/dashboard');
+    revalidatePath('/trips');
     return { success: true, data: nuevoViaje };
   } catch (error) {
     console.error('Error al crear viaje:', error);
@@ -188,6 +357,11 @@ export async function despacharViaje(data: DespachoInput) {
 
 export async function finalizarViaje(idViaje: number) {
   try {
+    const session = await getSession();
+    if (!session || !MANAGE_VIAJES_ROLES.includes(session.rolNombre)) {
+      return { success: false, error: 'No tienes permisos para finalizar viajes.' };
+    }
+
     await prisma.$transaction(async (tx) => {
       const viaje = await tx.viaje.findUnique({
         where: { idViaje },
@@ -202,11 +376,13 @@ export async function finalizarViaje(idViaje: number) {
         throw new Error('El viaje especificado no existe o no ha sido despachado.');
       }
 
+      const ahora = new Date();
+
       await tx.viaje.update({
         where: { idViaje },
         data: {
           estado: 'FINALIZADO',
-          hrLlegadaReal: new Date(),
+          hrLlegadaReal: ahora,
         },
       });
 
@@ -215,28 +391,34 @@ export async function finalizarViaje(idViaje: number) {
         data: { estado: 'FINALIZADO' },
       });
 
-      const idAsignacion = viaje.despacho.idAsignacion;
-      const asignacion = await tx.asignacionUnidad.update({
-        where: { idAsignacion },
+      const idUnidad = viaje.despacho.asignacionUnidad.idUnidad;
+
+      // Liberar todas las asignaciones de la unidad (tanto chofer como ayudante)
+      await tx.asignacionUnidad.updateMany({
+        where: {
+          idUnidad,
+          estado: 'INICIADA',
+        },
         data: {
           estado: 'FINALIZADA',
-          fechaHFin: new Date(),
+          fechaHFin: ahora,
         },
       });
 
       await tx.unidad.update({
-        where: { idUnidad: asignacion.idUnidad },
+        where: { idUnidad },
         data: { estado: 'DISPONIBLE' },
       });
 
       await tx.asiento.updateMany({
-        where: { idUnidad: asignacion.idUnidad, estado: 'OCUPADO' },
+        where: { idUnidad, estado: 'OCUPADO' },
         data: { estado: 'DISPONIBLE' },
       });
     });
 
     revalidatePath('/dashboard/viajes');
     revalidatePath('/dashboard');
+    revalidatePath('/trips');
     return { success: true, message: 'Viaje finalizado correctamente.' };
   } catch (error: any) {
     console.error('Error al finalizar viaje:', error);
@@ -449,7 +631,7 @@ export async function getViajesByCooperativa(idCooperativa?: number): Promise<{ 
 }
 
 // -------------------------------------------------------------
-// 3.1 DESPACHO COMPLETO ATÓMICO (UNIDAD + CHOFER + AYUDANTE)
+// 3.1 ASIGNACIÓN DE TRIPULACIÓN Y DESPACHO ATÓMICO (UNIDAD + CHOFER + AYUDANTE)
 // -------------------------------------------------------------
 
 export interface DespachoCompletoInput {
@@ -458,15 +640,32 @@ export interface DespachoCompletoInput {
   idChofer: number;
   idAyudante?: number;
   observacion?: string;
+  /**
+   * Si es false (por defecto al asignar a un viaje programado), asigna unidad y tripulación
+   * pero mantiene el viaje en estado PROGRAMADO para que los pasajeros puedan comprar sus boletos antes de salir.
+   * Si es true, asigna (si es necesario) e inicia el viaje inmediatamente (estado EN_CURSO).
+   */
+  iniciarAhora?: boolean;
 }
 
 export async function despacharViajeCompletoAction(data: DespachoCompletoInput) {
   try {
-    const { idViaje, idUnidad, idChofer, idAyudante, observacion } = data;
+    const session = await getSession();
+    if (!session || !MANAGE_VIAJES_ROLES.includes(session.rolNombre)) {
+      return { success: false, error: 'No tienes permisos para asignar o despachar viajes.' };
+    }
+
+    await limpiarAsignacionesHuerfanas();
+
+    const { idViaje, idUnidad, idChofer, idAyudante, observacion, iniciarAhora = false } = data;
 
     const viaje = await prisma.viaje.findUnique({
       where: { idViaje },
-      include: { despacho: true },
+      include: {
+        despacho: {
+          include: { asignacionUnidad: true },
+        },
+      },
     });
     if (!viaje) {
       return { success: false, error: 'El viaje especificado no existe.' };
@@ -475,11 +674,28 @@ export async function despacharViajeCompletoAction(data: DespachoCompletoInput) 
       return { success: false, error: `El viaje ya se encuentra en estado ${viaje.estado}.` };
     }
 
+    const idUnidadActualViaje = viaje.despacho?.asignacionUnidad?.idUnidad;
+
     const unidad = await prisma.unidad.findUnique({
       where: { idUnidad },
     });
     if (!unidad) {
       return { success: false, error: 'La unidad seleccionada no existe.' };
+    }
+    if (unidad.estado !== 'DISPONIBLE' && idUnidad !== idUnidadActualViaje) {
+      return { success: false, error: 'La unidad seleccionada no se encuentra disponible (ya está en ruta o mantenimiento).' };
+    }
+
+    // Verificar que la unidad no esté ocupada en otro viaje distinto
+    const unidadOcupada = await prisma.asignacionUnidad.findFirst({
+      where: {
+        idUnidad,
+        estado: 'INICIADA',
+        ...(idUnidadActualViaje ? { idUnidad: { not: idUnidadActualViaje } } : {}),
+      },
+    });
+    if (unidadOcupada && idUnidad !== idUnidadActualViaje) {
+      return { success: false, error: 'La unidad seleccionada ya está asignada a otro viaje.' };
     }
 
     const chofer = await prisma.usuario.findUnique({
@@ -488,6 +704,21 @@ export async function despacharViajeCompletoAction(data: DespachoCompletoInput) 
     });
     if (!chofer || chofer.rol.nombre !== 'CHOFER') {
       return { success: false, error: 'El usuario seleccionado no es un chofer válido.' };
+    }
+
+    // Verificar que el chofer no esté ya en ruta o asignado a otro viaje
+    const choferOcupado = await prisma.asignacionUnidad.findFirst({
+      where: {
+        idUsuario: idChofer,
+        estado: 'INICIADA',
+        ...(idUnidadActualViaje ? { idUnidad: { not: idUnidadActualViaje } } : {}),
+      },
+    });
+    if (choferOcupado) {
+      return {
+        success: false,
+        error: `El chofer ${chofer.nombre} ${chofer.apellido} ya se encuentra en ruta o asignado a otro viaje activo.`,
+      };
     }
 
     let ayudante = null;
@@ -499,10 +730,39 @@ export async function despacharViajeCompletoAction(data: DespachoCompletoInput) 
       if (!ayudante || !['AYUDANTE', 'COBRADOR'].includes(ayudante.rol.nombre)) {
         return { success: false, error: 'El usuario seleccionado no es un ayudante válido.' };
       }
+
+      // Verificar que el ayudante no esté ya en ruta o asignado a otro viaje
+      const ayudanteOcupado = await prisma.asignacionUnidad.findFirst({
+        where: {
+          idUsuario: idAyudante,
+          estado: 'INICIADA',
+          ...(idUnidadActualViaje ? { idUnidad: { not: idUnidadActualViaje } } : {}),
+        },
+      });
+      if (ayudanteOcupado) {
+        return {
+          success: false,
+          error: `El ayudante ${ayudante.nombre} ${ayudante.apellido} ya se encuentra en ruta o asignado a otro viaje activo.`,
+        };
+      }
     }
 
     const resultado = await prisma.$transaction(async (tx) => {
       const fechaInicio = new Date();
+
+      // Si el viaje ya tenía una asignación previa (ej. cambio de unidad/chofer antes de salir), cerramos la anterior
+      if (idUnidadActualViaje) {
+        await tx.asignacionUnidad.updateMany({
+          where: { idUnidad: idUnidadActualViaje, estado: 'INICIADA' },
+          data: { estado: 'FINALIZADA', fechaHFin: fechaInicio },
+        });
+        if (idUnidadActualViaje !== idUnidad) {
+          await tx.unidad.update({
+            where: { idUnidad: idUnidadActualViaje },
+            data: { estado: 'DISPONIBLE' },
+          });
+        }
+      }
 
       // 1. Asignación del Chofer
       const asignacionChofer = await tx.asignacionUnidad.create({
@@ -526,41 +786,125 @@ export async function despacharViajeCompletoAction(data: DespachoCompletoInput) 
         });
       }
 
-      // 3. Pasar la unidad a EN_RUTA
-      await tx.unidad.update({
-        where: { idUnidad },
-        data: { estado: 'EN_RUTA' },
-      });
+      // 3. Crear o actualizar el registro de Despacho (permite consultar asientos para venta de boletos)
+      const despacho = viaje.despacho
+        ? await tx.despacho.update({
+            where: { idViaje },
+            data: {
+              idAsignacion: asignacionChofer.idAsignacion,
+              observacion: observacion || viaje.despacho.observacion || null,
+              estado: 'EN_CURSO',
+              fechaHora: fechaInicio,
+            },
+          })
+        : await tx.despacho.create({
+            data: {
+              idViaje,
+              idAsignacion: asignacionChofer.idAsignacion,
+              observacion: observacion || null,
+              estado: 'EN_CURSO',
+              fechaHora: fechaInicio,
+            },
+          });
 
-      // 4. Crear el registro de Despacho
-      const despacho = await tx.despacho.create({
-        data: {
-          idViaje,
-          idAsignacion: asignacionChofer.idAsignacion,
-          observacion: observacion || null,
-          estado: 'EN_CURSO',
-          fechaHora: fechaInicio,
-        },
-      });
+      // 4. Si se indicó iniciar el viaje ahora, pasamos unidad a EN_RUTA y viaje a EN_CURSO.
+      //    De lo contrario, permanece en PROGRAMADO para venta anticipada de boletos.
+      if (iniciarAhora) {
+        await tx.unidad.update({
+          where: { idUnidad },
+          data: { estado: 'EN_RUTA' },
+        });
 
-      // 5. Poner el viaje en EN_CURSO
-      await tx.viaje.update({
-        where: { idViaje },
-        data: {
-          estado: 'EN_CURSO',
-          hrSalidaEstimada: fechaInicio,
-        },
-      });
+        await tx.viaje.update({
+          where: { idViaje },
+          data: {
+            estado: 'EN_CURSO',
+            hrSalidaEstimada: fechaInicio,
+          },
+        });
+      }
 
       return despacho;
     });
 
     revalidatePath('/dashboard/viajes');
     revalidatePath('/dashboard');
+    revalidatePath('/trips');
     return { success: true, data: resultado };
   } catch (error: any) {
-    console.error('Error al ejecutar despacho completo:', error);
-    return { success: false, error: error.message || 'Error al autorizar y despachar el viaje.' };
+    console.error('Error al ejecutar asignación/despacho:', error);
+    return { success: false, error: error.message || 'Error al asignar o despachar el viaje.' };
+  }
+}
+
+/**
+ * Inicia (despacha a ruta) un viaje que se encuentra en estado PROGRAMADO y ya cuenta con unidad y chofer asignados.
+ */
+export async function iniciarViajeAction(idViaje: number, observacion?: string) {
+  try {
+    const session = await getSession();
+    if (!session || !MANAGE_VIAJES_ROLES.includes(session.rolNombre)) {
+      return { success: false, error: 'No tienes permisos para iniciar viajes.' };
+    }
+
+    const viaje = await prisma.viaje.findUnique({
+      where: { idViaje },
+      include: {
+        despacho: {
+          include: { asignacionUnidad: true },
+        },
+      },
+    });
+
+    if (!viaje) {
+      return { success: false, error: 'El viaje especificado no existe.' };
+    }
+
+    if (viaje.estado !== 'PROGRAMADO') {
+      return { success: false, error: `El viaje ya se encuentra en estado ${viaje.estado}.` };
+    }
+
+    if (!viaje.despacho || !viaje.despacho.asignacionUnidad) {
+      return {
+        success: false,
+        error: 'Debes asignar primero una unidad y un chofer al viaje antes de iniciarlo.',
+      };
+    }
+
+    const ahora = new Date();
+    const idUnidad = viaje.despacho.asignacionUnidad.idUnidad;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.unidad.update({
+        where: { idUnidad },
+        data: { estado: 'EN_RUTA' },
+      });
+
+      await tx.despacho.update({
+        where: { idViaje },
+        data: {
+          estado: 'EN_CURSO',
+          fechaHora: ahora,
+          ...(observacion ? { observacion } : {}),
+        },
+      });
+
+      await tx.viaje.update({
+        where: { idViaje },
+        data: {
+          estado: 'EN_CURSO',
+          hrSalidaEstimada: ahora,
+        },
+      });
+    });
+
+    revalidatePath('/dashboard/viajes');
+    revalidatePath('/dashboard');
+    revalidatePath('/trips');
+    return { success: true, message: 'El viaje ha sido iniciado y despachado en ruta.' };
+  } catch (error: any) {
+    console.error('Error al iniciar viaje:', error);
+    return { success: false, error: error.message || 'No se pudo iniciar el viaje.' };
   }
 }
 
@@ -570,6 +914,11 @@ export async function despacharViajeCompletoAction(data: DespachoCompletoInput) 
 
 export async function cancelarViajeAction(idViaje: number, motivo?: string) {
   try {
+    const session = await getSession();
+    if (!session || !MANAGE_VIAJES_ROLES.includes(session.rolNombre)) {
+      return { success: false, error: 'No tienes permisos para cancelar viajes.' };
+    }
+
     const viaje = await prisma.viaje.findUnique({
       where: { idViaje },
       include: {
@@ -624,6 +973,7 @@ export async function cancelarViajeAction(idViaje: number, motivo?: string) {
 
     revalidatePath('/dashboard/viajes');
     revalidatePath('/dashboard');
+    revalidatePath('/trips');
     return { success: true, message: 'El viaje ha sido cancelado exitosamente.' };
   } catch (error: any) {
     console.error('Error al cancelar viaje:', error);
@@ -637,12 +987,29 @@ export async function cancelarViajeAction(idViaje: number, motivo?: string) {
 
 export async function getDatosParaDespachoAction(idCooperativa?: number) {
   try {
+    await limpiarAsignacionesHuerfanas();
+
     const whereCoop = idCooperativa ? { idCooperativa } : {};
 
-    // 1. Unidades disponibles
+    // Consultar todas las asignaciones activas (en viajes PROGRAMADO o EN_CURSO)
+    const asignacionesActivas = await prisma.asignacionUnidad.findMany({
+      where: {
+        estado: 'INICIADA',
+      },
+      select: {
+        idUsuario: true,
+        idUnidad: true,
+      },
+    });
+
+    const idsUsuariosOcupados = Array.from(new Set(asignacionesActivas.map((a) => a.idUsuario)));
+    const idsUnidadesOcupadas = Array.from(new Set(asignacionesActivas.map((a) => a.idUnidad)));
+
+    // 1. Unidades disponibles (excluyendo las que ya tienen asignación activa)
     const unidades = await prisma.unidad.findMany({
       where: {
         estado: 'DISPONIBLE',
+        ...(idsUnidadesOcupadas.length > 0 ? { idUnidad: { notIn: idsUnidadesOcupadas } } : {}),
         ...whereCoop,
       },
       include: {
@@ -653,21 +1020,23 @@ export async function getDatosParaDespachoAction(idCooperativa?: number) {
       orderBy: { numeroUnidad: 'asc' },
     });
 
-    // 2. Choferes activos
+    // 2. Choferes activos disponibles (excluyendo choferes ya en ruta o asignados)
     const choferes = await prisma.usuario.findMany({
       where: {
         rol: { nombre: 'CHOFER' },
         estado: 'ACTIVO',
+        ...(idsUsuariosOcupados.length > 0 ? { idUsuario: { notIn: idsUsuariosOcupados } } : {}),
         ...whereCoop,
       },
       orderBy: { nombre: 'asc' },
     });
 
-    // 3. Ayudantes / Cobradores activos
+    // 3. Ayudantes / Cobradores activos disponibles (excluyendo ayudantes ya en ruta o asignados)
     const ayudantes = await prisma.usuario.findMany({
       where: {
         rol: { nombre: { in: ['AYUDANTE', 'COBRADOR'] } },
         estado: 'ACTIVO',
+        ...(idsUsuariosOcupados.length > 0 ? { idUsuario: { notIn: idsUsuariosOcupados } } : {}),
         ...whereCoop,
       },
       orderBy: { nombre: 'asc' },
@@ -841,12 +1210,23 @@ export interface ViajeDisponibleItem {
   destination: string;
   departure: string;
   arrival: string;
+  dateFormatted: string;
   duration: string;
   cooperative: string;
   price: number;
-  schedule: "mañana" | "tarde" | "noche";
+  schedule: 'mañana' | 'tarde' | 'noche';
   type: string;
   occupancy: number;
+  paradas: string[];
+  tieneUnidadAsignada: boolean;
+}
+
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
 }
 
 export async function getViajesDisponiblesAction(filters?: {
@@ -855,19 +1235,10 @@ export async function getViajesDisponiblesAction(filters?: {
   date?: string;
 }): Promise<{ success: boolean; data: ViajeDisponibleItem[]; error?: string }> {
   try {
-    const whereClause: any = {
-      estado: { in: ['PROGRAMADO', 'EN_CURSO'] },
-    };
-
-    if (filters?.date) {
-      const parsedDate = new Date(filters.date);
-      if (!isNaN(parsedDate.getTime())) {
-        whereClause.fecha = parsedDate;
-      }
-    }
-
     const viajes = await prisma.viaje.findMany({
-      where: whereClause,
+      where: {
+        estado: { in: ['PROGRAMADO', 'EN_CURSO'] },
+      },
       include: {
         ruta: {
           include: {
@@ -902,59 +1273,182 @@ export async function getViajesDisponiblesAction(filters?: {
       orderBy: { hrSalidaProgramada: 'asc' },
     });
 
-    const items: ViajeDisponibleItem[] = viajes.map((v) => {
-      const puntos = v.ruta.puntosRuta.map((pr) => pr.punto.nombre);
-      const origin = puntos[0] || v.ruta.nombre.split('-')[0]?.trim() || 'Origen';
-      const destination = puntos[puntos.length - 1] || v.ruta.nombre.split('-')[1]?.trim() || 'Destino';
+    const dateFilter = filters?.date?.trim();
+    const originFilter = filters?.origin ? normalizeSearchText(filters.origin) : '';
+    const destFilter = filters?.destination ? normalizeSearchText(filters.destination) : '';
+
+    const items: ViajeDisponibleItem[] = [];
+
+    for (const v of viajes) {
+      if (dateFilter) {
+        const fechaColISO = v.fecha.toISOString().slice(0, 10);
+        const salidaManaguaISO = getManaguaDateISO(v.hrSalidaProgramada);
+        if (fechaColISO !== dateFilter && salidaManaguaISO !== dateFilter) {
+          continue;
+        }
+      }
+
+      const esRetorno = v.sentido === 'VUELTA' || v.sentido === 'RETORNO';
+      const puntosBase = v.ruta.puntosRuta.map((pr) => pr.punto.nombre);
+      const puntos = esRetorno ? [...puntosBase].reverse() : puntosBase;
+
+      const partesNombre = v.ruta.nombre.split('-').map((p) => p.trim());
+      const defaultOrigin = esRetorno ? partesNombre[1] || partesNombre[0] || 'Origen' : partesNombre[0] || 'Origen';
+      const defaultDest = esRetorno ? partesNombre[0] || 'Destino' : partesNombre[1] || partesNombre[0] || 'Destino';
+
+      const origin = puntos[0] || defaultOrigin;
+      const destination = puntos[puntos.length - 1] || defaultDest;
+
+      // Filtrado por origen y destino considerando paradas intermedias y acentos
+      if (originFilter || destFilter) {
+        const puntosNorm = puntos.map(normalizeSearchText);
+        const originNorm = normalizeSearchText(origin);
+        const destNorm = normalizeSearchText(destination);
+        const rutaNorm = normalizeSearchText(v.ruta.nombre);
+
+        if (originFilter && destFilter) {
+          const originStopIdx = puntosNorm.findIndex((p) => p.includes(originFilter));
+          const destStopIdx = puntosNorm.findIndex((p) => p.includes(destFilter));
+
+          if (originStopIdx !== -1 && destStopIdx !== -1) {
+            if (originStopIdx >= destStopIdx) {
+              continue;
+            }
+          } else {
+            const matchOrigin = originNorm.includes(originFilter) || puntosNorm.some((p) => p.includes(originFilter));
+            const matchDest = destNorm.includes(destFilter) || puntosNorm.some((p) => p.includes(destFilter));
+            if (!matchOrigin || !matchDest) {
+              continue;
+            }
+          }
+        } else if (originFilter) {
+          const matchOrigin =
+            originNorm.includes(originFilter) ||
+            puntosNorm.slice(0, Math.max(1, puntosNorm.length - 1)).some((p) => p.includes(originFilter)) ||
+            rutaNorm.includes(originFilter);
+          if (!matchOrigin) {
+            continue;
+          }
+        } else if (destFilter) {
+          const matchDest =
+            destNorm.includes(destFilter) ||
+            puntosNorm.slice(1).some((p) => p.includes(destFilter)) ||
+            rutaNorm.includes(destFilter);
+          if (!matchDest) {
+            continue;
+          }
+        }
+      }
 
       const salidaDate = new Date(v.hrSalidaProgramada);
-      const departure = !isNaN(salidaDate.getTime())
-        ? salidaDate.toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit', hour12: true })
-        : '06:00 AM';
+      const departure = formatManaguaTime(salidaDate);
 
       const arrivalDate = new Date(salidaDate.getTime() + 2 * 60 * 60 * 1000);
-      const arrival = !isNaN(arrivalDate.getTime())
-        ? arrivalDate.toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit', hour12: true })
-        : '08:00 AM';
+      const arrival = formatManaguaTime(arrivalDate);
 
-      const hour = salidaDate.getHours();
+      const hour = getManaguaHour(salidaDate);
       const schedule: 'mañana' | 'tarde' | 'noche' = hour < 12 ? 'mañana' : hour < 18 ? 'tarde' : 'noche';
 
       const price = v.ruta.tarifas[0]?.monto ? Number(v.ruta.tarifas[0].monto) : 80;
 
-      const totalSeats = v.despacho?.asignacionUnidad?.unidad?.asientos?.length || 15;
+      const unidadAsignada = v.despacho?.asignacionUnidad?.unidad;
+      const totalSeats = unidadAsignada?.asientos?.length || 15;
       const occupiedSeats = v.boletos.length;
       const occupancy = totalSeats > 0 ? Math.min(100, Math.round((occupiedSeats / totalSeats) * 100)) : 0;
 
-      return {
+      items.push({
         id: v.idViaje,
         origin,
         destination,
         departure,
         arrival,
+        dateFormatted: formatDateOnlyEsNI(v.fecha),
         duration: '2h 00min',
         cooperative: v.ruta.cooperativa.nombre,
         price,
         schedule,
         type: 'Directo',
         occupancy,
-      };
-    });
+        paradas: puntos,
+        tieneUnidadAsignada: Boolean(unidadAsignada),
+      });
+    }
 
-    const filtered = items.filter((item) => {
-      if (filters?.origin && !item.origin.toLowerCase().includes(filters.origin.toLowerCase())) {
-        return false;
-      }
-      if (filters?.destination && !item.destination.toLowerCase().includes(filters.destination.toLowerCase())) {
-        return false;
-      }
-      return true;
-    });
-
-    return { success: true, data: filtered };
+    return { success: true, data: items };
   } catch (error) {
     console.error('Error al consultar viajes disponibles:', error);
     return { success: false, error: 'No se pudieron consultar los viajes disponibles.', data: [] };
+  }
+}
+
+export async function getDetalleViajeCompraAction(idViaje: number) {
+  try {
+    const v = await prisma.viaje.findUnique({
+      where: { idViaje },
+      include: {
+        ruta: {
+          include: {
+            cooperativa: true,
+            puntosRuta: {
+              include: { punto: true },
+              orderBy: { orden: 'asc' },
+            },
+            tarifas: {
+              where: { estado: 'ACTIVO' },
+              orderBy: { monto: 'asc' },
+            },
+          },
+        },
+        despacho: {
+          include: {
+            asignacionUnidad: {
+              include: {
+                unidad: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!v) {
+      return { success: false, error: 'El viaje seleccionado no existe.' };
+    }
+
+    const esRetorno = v.sentido === 'VUELTA' || v.sentido === 'RETORNO';
+    const puntosBase = v.ruta.puntosRuta.map((pr) => pr.punto.nombre);
+    const puntos = esRetorno ? [...puntosBase].reverse() : puntosBase;
+    const partesNombre = v.ruta.nombre.split('-').map((p) => p.trim());
+    const defaultOrigin = esRetorno ? partesNombre[1] || partesNombre[0] || 'Origen' : partesNombre[0] || 'Origen';
+    const defaultDest = esRetorno ? partesNombre[0] || 'Destino' : partesNombre[1] || partesNombre[0] || 'Destino';
+
+    const origin = puntos[0] || defaultOrigin;
+    const destination = puntos[puntos.length - 1] || defaultDest;
+
+    const salidaDate = new Date(v.hrSalidaProgramada);
+    const departure = formatManaguaTime(salidaDate);
+    const arrivalDate = new Date(salidaDate.getTime() + 2 * 60 * 60 * 1000);
+    const arrival = formatManaguaTime(arrivalDate);
+    const price = v.ruta.tarifas[0]?.monto ? Number(v.ruta.tarifas[0].monto) : 80;
+
+    return {
+      success: true,
+      data: {
+        id: v.idViaje,
+        origin,
+        destination,
+        departure,
+        arrival,
+        dateFormatted: formatDateOnlyEsNI(v.fecha),
+        cooperative: v.ruta.cooperativa.nombre,
+        price,
+        estado: v.estado,
+        tieneUnidadAsignada: Boolean(v.despacho?.asignacionUnidad?.unidad),
+      },
+    };
+  } catch (error) {
+    console.error('Error al consultar detalle de viaje para compra:', error);
+    return { success: false, error: 'No se pudo cargar la información del viaje.' };
   }
 }
 
@@ -964,33 +1458,55 @@ export async function getViajesDisponiblesAction(filters?: {
 
 export async function getViajeActivoAyudanteAction(idUsuario: number) {
   try {
-    const hoyInicio = new Date();
-    hoyInicio.setHours(0, 0, 0, 0);
+    await limpiarAsignacionesHuerfanas();
 
-    const hoyFin = new Date();
-    hoyFin.setHours(23, 59, 59, 999);
-
-    const asignacion = await prisma.asignacionUnidad.findFirst({
+    const asignaciones = await prisma.asignacionUnidad.findMany({
       where: {
         idUsuario: idUsuario,
         estado: 'INICIADA',
-        fechaHInicio: {
-          gte: hoyInicio,
-          lte: hoyFin,
+      },
+      orderBy: {
+        fechaHInicio: 'desc',
+      },
+    });
+
+    if (asignaciones.length === 0) {
+      return {
+        success: false,
+        error: 'No tienes ninguna unidad asignada activa en este momento.',
+      };
+    }
+
+    const unidadesIds = Array.from(new Set(asignaciones.map((a) => a.idUnidad)));
+
+    // Buscamos el despacho activo cuya asignación pertenezca a la misma unidad (el despacho apunta a la asignación del chofer)
+    const despacho = await prisma.despacho.findFirst({
+      where: {
+        estado: 'EN_CURSO',
+        asignacionUnidad: {
+          idUnidad: { in: unidadesIds },
+        },
+        viaje: {
+          estado: { in: ['EN_CURSO', 'PROGRAMADO'] },
+        },
+      },
+      orderBy: {
+        fechaHora: 'desc',
+      },
+      include: {
+        asignacionUnidad: {
+          include: {
+            unidad: true,
+          },
         },
       },
     });
 
-    if (!asignacion) {
-      return {
-        success: false,
-        error: 'No tienes ninguna unidad asignada activa para el día de hoy.',
-      };
-    }
-
-    const unidad = await prisma.unidad.findUnique({
-      where: { idUnidad: asignacion.idUnidad },
-    });
+    const unidad =
+      despacho?.asignacionUnidad?.unidad ||
+      (await prisma.unidad.findUnique({
+        where: { idUnidad: asignaciones[0].idUnidad },
+      }));
 
     if (!unidad) {
       return {
@@ -1000,12 +1516,6 @@ export async function getViajeActivoAyudanteAction(idUsuario: number) {
     }
 
     let viajeObjetivo: any = null;
-
-    const despacho = await prisma.despacho.findFirst({
-      where: {
-        idAsignacion: asignacion.idAsignacion,
-      },
-    });
 
     if (despacho && despacho.idViaje) {
       viajeObjetivo = await prisma.viaje.findUnique({
@@ -1029,43 +1539,18 @@ export async function getViajeActivoAyudanteAction(idUsuario: number) {
     }
 
     if (!viajeObjetivo) {
-      viajeObjetivo = await prisma.viaje.findFirst({
-        where: {
-          fecha: {
-            gte: hoyInicio,
-            lte: hoyFin,
-          },
-          ruta: {
-            idCooperativa: unidad.idCooperativa,
-          },
-          estado: { in: ['EN_CURSO', 'PROGRAMADO'] },
-        },
-        include: {
-          ruta: {
-            include: {
-              puntosRuta: {
-                include: { punto: true },
-                orderBy: { orden: 'asc' },
-              },
-            },
-          },
-          controlesViaje: {
-            include: { puntoRuta: true },
-            orderBy: { fechaHora: 'desc' },
-            take: 1,
-          },
-        },
-      });
-    }
-
-    if (!viajeObjetivo) {
       return {
         success: false,
-        error: 'No se encontró un viaje activo o programado para tu unidad el día de hoy.',
+        error: 'No se encontró un viaje activo o programado asignado a tu unidad.',
       };
     }
 
-    const paradasList = viajeObjetivo.ruta.puntosRuta.map((pr: any) => ({
+    const paradasOrdenadas =
+      viajeObjetivo.sentido === 'VUELTA' || viajeObjetivo.sentido === 'RETORNO'
+        ? [...viajeObjetivo.ruta.puntosRuta].reverse()
+        : viajeObjetivo.ruta.puntosRuta;
+
+    const paradasList = paradasOrdenadas.map((pr: any) => ({
       id: pr.punto.idPunto,
       idPuntoRuta: pr.idPuntoRuta,
       nombre: pr.punto.nombre,
@@ -1089,7 +1574,8 @@ export async function getViajeActivoAyudanteAction(idUsuario: number) {
       data: {
         idViaje: viajeObjetivo.idViaje,
         rutaNombre: viajeObjetivo.ruta.nombre,
-        sentido: viajeObjetivo.sentido || 'IDA', // Incluye el sentido (IDA / RETORNO)
+        sentido: viajeObjetivo.sentido || 'IDA',
+        estado: viajeObjetivo.estado,
         busNumero: unidad.numeroUnidad || `Unidad #${unidad.idUnidad}`,
         busPlaca: unidad.placa || 'Sin placa',
         idRuta: viajeObjetivo.idRuta,
@@ -1129,7 +1615,10 @@ export async function actualizarParadaActualAction(idViaje: number, idPunto: num
       return { success: false, error: 'Viaje no encontrado.' };
     }
 
-    const puntosRuta = viaje.ruta.puntosRuta;
+    const puntosRuta =
+      viaje.sentido === 'VUELTA' || viaje.sentido === 'RETORNO'
+        ? [...viaje.ruta.puntosRuta].reverse()
+        : viaje.ruta.puntosRuta;
     const puntoRutaEncontrado = puntosRuta.find((pr) => pr.idPunto === idPunto);
 
     if (!puntoRutaEncontrado) {
@@ -1141,12 +1630,14 @@ export async function actualizarParadaActualAction(idViaje: number, idPunto: num
 
     // 3. Ejecutamos la transacción en la base de datos
     await prisma.$transaction(async (tx) => {
+      const ahora = new Date();
+
       // Registramos el control en la tabla controles_viaje
       await tx.controlViaje.create({
         data: {
           idViaje: idViaje,
           idPuntoRuta: puntoRutaEncontrado.idPuntoRuta,
-          fechaHora: new Date(),
+          fechaHora: ahora,
         },
       });
 
@@ -1156,7 +1647,7 @@ export async function actualizarParadaActualAction(idViaje: number, idPunto: num
           where: { idViaje },
           data: {
             estado: 'FINALIZADO',
-            hrLlegadaReal: new Date(), // Se registra la hora real de llegada
+            hrLlegadaReal: ahora,
           },
         });
 
@@ -1166,22 +1657,28 @@ export async function actualizarParadaActualAction(idViaje: number, idPunto: num
             data: { estado: 'FINALIZADO' },
           });
 
-          const asignacion = await tx.asignacionUnidad.update({
-            where: { idAsignacion: viaje.despacho.idAsignacion },
+          const idUnidad = viaje.despacho.asignacionUnidad.idUnidad;
+
+          // Liberamos todas las asignaciones de la unidad (chofer y ayudante)
+          await tx.asignacionUnidad.updateMany({
+            where: {
+              idUnidad,
+              estado: 'INICIADA',
+            },
             data: {
               estado: 'FINALIZADA',
-              fechaHFin: new Date(),
+              fechaHFin: ahora,
             },
           });
 
           // Liberamos la unidad y los asientos
           await tx.unidad.update({
-            where: { idUnidad: asignacion.idUnidad },
+            where: { idUnidad },
             data: { estado: 'DISPONIBLE' },
           });
 
           await tx.asiento.updateMany({
-            where: { idUnidad: asignacion.idUnidad, estado: 'OCUPADO' },
+            where: { idUnidad, estado: 'OCUPADO' },
             data: { estado: 'DISPONIBLE' },
           });
         }
@@ -1189,6 +1686,7 @@ export async function actualizarParadaActualAction(idViaje: number, idPunto: num
     });
 
     revalidatePath('/dashboard');
+    revalidatePath('/dashboard/viajes');
     return { success: true, esPuntoFinal };
   } catch (error) {
     console.error('Error al registrar la parada actual del viaje en controles_viaje:', error);
@@ -1332,8 +1830,10 @@ export async function confirmarPasoParadaConDescensosAction(
             data: { estado: 'FINALIZADO' },
           });
 
-          const asignacion = await tx.asignacionUnidad.update({
-            where: { idAsignacion: viaje.despacho.idAsignacion },
+          const idUnidad = viaje.despacho.asignacionUnidad.idUnidad;
+
+          await tx.asignacionUnidad.updateMany({
+            where: { idUnidad, estado: 'INICIADA' },
             data: {
               estado: 'FINALIZADA',
               fechaHFin: fechaHoraManagua,
@@ -1341,12 +1841,12 @@ export async function confirmarPasoParadaConDescensosAction(
           });
 
           await tx.unidad.update({
-            where: { idUnidad: asignacion.idUnidad },
+            where: { idUnidad },
             data: { estado: 'DISPONIBLE' },
           });
 
           await tx.asiento.updateMany({
-            where: { idUnidad: asignacion.idUnidad },
+            where: { idUnidad },
             data: { estado: 'DISPONIBLE' },
           });
         }
@@ -1466,23 +1966,29 @@ export interface RegistroControlChequeadorInput {
 export async function getViajesChequeadorAction(coopIdFilter?: number) {
   try {
     const session = await getSession();
-    if (!session) {
-      return { success: false, error: 'Debes iniciar sesión para consultar el panel del chequeador.', data: [] };
+    if (!session || !MANAGE_VIAJES_ROLES.includes(session.rolNombre)) {
+      return { success: false, error: 'No tienes permisos para consultar el panel del chequeador.', data: [] };
     }
 
-    const hoyInicio = new Date();
-    hoyInicio.setHours(0, 0, 0, 0);
-    const hoyFin = new Date();
-    hoyFin.setHours(23, 59, 59, 999);
+    const hoyManaguaISO = getManaguaDateISO();
+    const fechaHoyUTC = parseDateOnlyUTC(hoyManaguaISO);
+    const hoyInicioManagua = getManaguaStartOfDay(hoyManaguaISO);
+    const hoyFinManagua = getManaguaEndOfDay(hoyManaguaISO);
 
     const coopId = coopIdFilter || (session.rolNombre !== 'SUPER_ADMIN' ? (session.idCooperativa || undefined) : undefined);
 
     const viajes = await prisma.viaje.findMany({
       where: {
-        fecha: {
-          gte: hoyInicio,
-          lte: hoyFin,
-        },
+        OR: [
+          { fecha: fechaHoyUTC },
+          {
+            hrSalidaProgramada: {
+              gte: hoyInicioManagua,
+              lte: hoyFinManagua,
+            },
+          },
+          { estado: 'EN_CURSO' },
+        ],
         ...(coopId ? { ruta: { idCooperativa: coopId } } : {}),
       },
       include: {
@@ -1524,7 +2030,10 @@ export async function getViajesChequeadorAction(coopIdFilter?: number) {
 
     const items = viajes.map((v) => {
       const unidad = v.despacho?.asignacionUnidad.unidad;
-      const puntos = v.ruta.puntosRuta;
+      const puntos =
+        v.sentido === 'VUELTA' || v.sentido === 'RETORNO'
+          ? [...v.ruta.puntosRuta].reverse()
+          : v.ruta.puntosRuta;
       const origen = puntos[0]?.punto.nombre || 'Origen';
       const destino = puntos[puntos.length - 1]?.punto.nombre || 'Destino';
       const ultimoControl = v.controlesViaje[0] || null;
@@ -1579,8 +2088,8 @@ export async function getViajesChequeadorAction(coopIdFilter?: number) {
 export async function registrarControlChequeadorAction(data: RegistroControlChequeadorInput) {
   try {
     const session = await getSession();
-    if (!session) {
-      return { success: false, error: 'Debes iniciar sesión para registrar sellos de control.' };
+    if (!session || !MANAGE_VIAJES_ROLES.includes(session.rolNombre)) {
+      return { success: false, error: 'No tienes permisos para registrar sellos de control.' };
     }
 
     const { idViaje, idPuntoRuta, pasajerosConteo, observacion, tipo = 'CONTROL_PASO' } = data;
@@ -1621,13 +2130,22 @@ export async function registrarControlChequeadorAction(data: RegistroControlCheq
 
         const viajeRecord = await tx.viaje.findUnique({
           where: { idViaje },
-          include: { despacho: true },
+          include: {
+            despacho: {
+              include: { asignacionUnidad: true },
+            },
+          },
         });
 
         if (viajeRecord?.despacho) {
           await tx.despacho.update({
             where: { idDespacho: viajeRecord.despacho.idDespacho },
             data: { estado: 'EN_CURSO' },
+          });
+
+          await tx.unidad.update({
+            where: { idUnidad: viajeRecord.despacho.asignacionUnidad.idUnidad },
+            data: { estado: 'EN_RUTA' },
           });
         }
       }

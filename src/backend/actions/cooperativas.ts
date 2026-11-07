@@ -66,6 +66,11 @@ export async function getCooperativasActivasAction() {
 // 3. Obtener solicitudes de cooperativas pendientes de aprobación (solo para SUPER_ADMIN)
 export async function getSolicitudesCooperativasAction() {
   try {
+    const session = await getSession();
+    if (!session || session.rolNombre !== 'SUPER_ADMIN') {
+      return { success: false, error: 'No autorizado.', data: [] };
+    }
+
     const solicitudes = await prisma.cooperativa.findMany({
       where: { estado: 'PENDIENTE_APROBACION' },
       orderBy: { createdAt: 'desc' },
@@ -98,6 +103,11 @@ export async function getSolicitudesCooperativasAction() {
 // 4. Aprobar cooperativa y activar a su administrador
 export async function aprobarCooperativaAction(idCooperativa: number): Promise<ActionResponse<{ idCooperativa: number }>> {
   try {
+    const session = await getSession();
+    if (!session || session.rolNombre !== 'SUPER_ADMIN') {
+      return { success: false, error: 'Solo el Super Administrador puede aprobar cooperativas.' };
+    }
+
     const cooperativa = await prisma.cooperativa.findUnique({
       where: { idCooperativa },
       include: {
@@ -169,6 +179,11 @@ export async function aprobarCooperativaAction(idCooperativa: number): Promise<A
 // 5. Rechazar o dar de baja cooperativa
 export async function rechazarCooperativaAction(idCooperativa: number, motivo?: string): Promise<ActionResponse<boolean>> {
   try {
+    const session = await getSession();
+    if (!session || session.rolNombre !== 'SUPER_ADMIN') {
+      return { success: false, error: 'Solo el Super Administrador puede rechazar cooperativas.' };
+    }
+
     await prisma.$transaction([
       prisma.cooperativa.update({
         where: { idCooperativa },
@@ -191,6 +206,11 @@ export async function rechazarCooperativaAction(idCooperativa: number, motivo?: 
 // 6. Crear cooperativa directamente (para uso administrativo)
 export async function createCooperativa(data: CooperativaInput) {
   try {
+    const session = await getSession();
+    if (!session || session.rolNombre !== 'SUPER_ADMIN') {
+      return { success: false, error: 'Solo el Super Administrador puede crear cooperativas.' };
+    }
+
     if (!data.nombre || data.nombre.trim() === '') {
       return { success: false, error: 'El nombre de la cooperativa es obligatorio.' };
     }
@@ -218,6 +238,14 @@ export async function updateCooperativa(
   data: Partial<CooperativaInput> & { estado?: 'ACTIVO' | 'INACTIVO' | 'PENDIENTE_APROBACION' }
 ) {
   try {
+    const session = await getSession();
+    if (!session || !['SUPER_ADMIN', 'ADMIN_COOP'].includes(session.rolNombre)) {
+      return { success: false, error: 'No autorizado para actualizar la cooperativa.' };
+    }
+    if (session.rolNombre === 'ADMIN_COOP' && session.idCooperativa !== idCooperativa) {
+      return { success: false, error: 'No puedes editar otra cooperativa.' };
+    }
+
     const actualizada = await prisma.cooperativa.update({
       where: { idCooperativa },
       data: {

@@ -77,7 +77,7 @@ export default function LandingPage() {
 
   const handlePrimaryAction = () => {
     if (user) {
-      const destination = ["SUPER_ADMIN", "ADMIN_COOP", "TAQUILLERO"].includes(user.rolNombre)
+      const destination = ["SUPER_ADMIN", "ADMIN_COOP", "TAQUILLERO", "CHEQUEADOR", "CHOFER", "AYUDANTE"].includes(user.rolNombre)
         ? "/dashboard"
         : "/home";
       router.push(destination);
@@ -159,7 +159,7 @@ export default function LandingPage() {
               (() => {
                 const isCoopUser = Boolean(
                   user.idCooperativa ||
-                  ["SUPER_ADMIN", "ADMIN_COOP", "CHOFER", "AYUDANTE", "TAQUILLERO"].includes(user.rolNombre)
+                  ["SUPER_ADMIN", "ADMIN_COOP", "CHOFER", "AYUDANTE", "TAQUILLERO", "CHEQUEADOR"].includes(user.rolNombre)
                 );
                 return (
                   <div className="flex items-center gap-2">
@@ -251,7 +251,7 @@ export default function LandingPage() {
                 {user ? (
                   <div className="pt-1 pb-2 flex flex-col gap-2">
                     <Link
-                      href={["SUPER_ADMIN", "ADMIN_COOP", "TAQUILLERO"].includes(user.rolNombre) ? "/dashboard" : "/home"}
+                      href={["SUPER_ADMIN", "ADMIN_COOP", "TAQUILLERO", "CHEQUEADOR", "CHOFER", "AYUDANTE"].includes(user.rolNombre) ? "/dashboard" : "/home"}
                       onClick={() => setMobileMenuOpen(false)}
                       className="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-gray-900 hover:bg-gray-800 active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer"
                     >

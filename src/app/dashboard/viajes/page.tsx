@@ -24,12 +24,18 @@ import {
 } from "@mdi/js";
 import { useTenant } from "@/frontend/context/TenantContext";
 import { TableSkeleton } from "@/frontend/components/ui/Skeleton";
-import { getManaguaDateISO } from "@/lib/date-time";
+import {
+  getManaguaDateISO,
+  getManaguaTimeHHMM,
+  formatManaguaTime,
+  formatDateOnlyEsNI,
+} from "@/lib/date-time";
 import { PageHeader } from "@/frontend/components/ui/PageHeader";
 import {
   getViajesByCooperativa,
   createViaje,
   despacharViajeCompletoAction,
+  iniciarViajeAction,
   finalizarViaje,
   cancelarViajeAction,
   getDatosParaDespachoAction,
@@ -70,21 +76,24 @@ export default function SalidasViajesPage() {
   const [showManifiestoModal, setShowManifiestoModal] = useState(false);
   const [showCancelarModal, setShowCancelarModal] = useState(false);
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
+  const [showConfirmarInicioAnticipadoModal, setShowConfirmarInicioAnticipadoModal] = useState(false);
+  const [inicioAnticipadoDesdeModalAsignacion, setInicioAnticipadoDesdeModalAsignacion] = useState(false);
 
   // Elemento seleccionado para operaciones
   const [viajeSeleccionado, setViajeSeleccionado] = useState<ViajeMonitorItem | null>(null);
 
   // Formulario: Programar Salida
   const [formRutaId, setFormRutaId] = useState<number | "">("");
-  const [formFecha, setFormFecha] = useState<string>(
-    new Date().toISOString().split("T")[0]
-  );
-  const [formHora, setFormHora] = useState<string>("07:00");
+  const [formFecha, setFormFecha] = useState<string>(() => getManaguaDateISO());
+  const [formHora, setFormHora] = useState<string>(() => getManaguaTimeHHMM());
   const [formSentido, setFormSentido] = useState<string>("IDA");
+  const [formUnidadId, setFormUnidadId] = useState<number | "">("");
+  const [formChoferId, setFormChoferId] = useState<number | "">("");
+  const [formAyudanteId, setFormAyudanteId] = useState<number | "">("");
   const [guardandoViaje, setGuardandoViaje] = useState(false);
   const [errorProgramar, setErrorProgramar] = useState<string | null>(null);
 
-  // Formulario: Autorizar Despacho
+  // Formulario: Asignar Unidad y Tripulación / Despacho
   const [despachoUnidadId, setDespachoUnidadId] = useState<number | "">("");
   const [despachoChoferId, setDespachoChoferId] = useState<number | "">("");
   const [despachoAyudanteId, setDespachoAyudanteId] = useState<number | "">("");
@@ -186,7 +195,7 @@ export default function SalidasViajesPage() {
     return { total, programados, enCurso, finalizados, cancelados };
   }, [viajes]);
 
-  // Manejar creación de Salida Programada
+  // Manejar creación de Salida Programada (mantiene estado PROGRAMADO para venta anticipada de boletos)
   const handleGuardarSalida = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorProgramar(null);
@@ -199,49 +208,68 @@ export default function SalidasViajesPage() {
       setErrorProgramar("Especifica la fecha y hora estimada de salida.");
       return;
     }
+    if (formUnidadId && !formChoferId) {
+      setErrorProgramar("Si seleccionas una unidad al programar la salida, debes seleccionar también su chofer titular.");
+      return;
+    }
+    if (!formUnidadId && formChoferId) {
+      setErrorProgramar("Selecciona el autobús al que se asignará el chofer.");
+      return;
+    }
 
     setGuardandoViaje(true);
-    const hrSalidaIso = `${formFecha}T${formHora}:00.000Z`;
+    // Guardar con offset oficial de Nicaragua (-06:00) para evitar desfase de +6h en servidores UTC
+    const hrSalidaIso = `${formFecha}T${formHora}:00.000-06:00`;
 
     const res = await createViaje({
       idRuta: Number(formRutaId),
-      fecha: `${formFecha}T00:00:00.000Z`,
+      fecha: formFecha,
       hrSalidaProgramada: hrSalidaIso,
       sentido: formSentido,
+      idUnidad: formUnidadId ? Number(formUnidadId) : undefined,
+      idChofer: formChoferId ? Number(formChoferId) : undefined,
+      idAyudante: formAyudanteId ? Number(formAyudanteId) : undefined,
     });
 
     setGuardandoViaje(false);
     if (res.success) {
       setShowProgramarModal(false);
       setFormRutaId("");
-      setFeedbackSuccess("Salida programada exitosamente en el sistema.");
-      setTimeout(() => setFeedbackSuccess(null), 4000);
+      setFormUnidadId("");
+      setFormChoferId("");
+      setFormAyudanteId("");
+      setFeedbackSuccess(
+        formUnidadId
+          ? "Salida programada con unidad y tripulación asignada. Ya está habilitada para la venta anticipada de boletos."
+          : "Salida programada exitosamente. Asigna una unidad para habilitar la venta de boletos."
+      );
+      setTimeout(() => setFeedbackSuccess(null), 5000);
       fetchViajes(true);
+      fetchRecursos();
     } else {
       setErrorProgramar(res.error || "No se pudo programar la salida.");
     }
   };
 
-  // Abrir Modal de Despacho
+  // Abrir Modal de Asignación / Despacho
   const handleAbrirDespacho = (viaje: ViajeMonitorItem) => {
     setViajeSeleccionado(viaje);
     setErrorDespacho(null);
-    setDespachoUnidadId("");
-    setDespachoChoferId("");
-    setDespachoAyudanteId("");
-    setDespachoObservacion("");
+    setDespachoUnidadId(viaje.unidad?.idUnidad || "");
+    setDespachoChoferId(viaje.tripulacion.chofer?.idUsuario || "");
+    setDespachoAyudanteId(viaje.tripulacion.ayudante?.idUsuario || "");
+    setDespachoObservacion(viaje.despacho?.observacion || "");
     setShowDespachoModal(true);
     fetchRecursos();
   };
 
-  // Manejar Despacho Atómico
-  const handleConfirmarDespacho = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Ejecutar asignación o despacho en servidor
+  const ejecutarAsignacionODespacho = async (iniciarAhora: boolean) => {
     if (!viajeSeleccionado) return;
     setErrorDespacho(null);
 
     if (!despachoUnidadId) {
-      setErrorDespacho("Selecciona el autobús a despachar.");
+      setErrorDespacho("Selecciona el autobús para el viaje.");
       return;
     }
     if (!despachoChoferId) {
@@ -256,18 +284,84 @@ export default function SalidasViajesPage() {
       idChofer: Number(despachoChoferId),
       idAyudante: despachoAyudanteId ? Number(despachoAyudanteId) : undefined,
       observacion: despachoObservacion.trim() || undefined,
+      iniciarAhora,
     });
     setDespachando(false);
 
     if (res.success) {
       setShowDespachoModal(false);
+      setShowConfirmarInicioAnticipadoModal(false);
       setFeedbackSuccess(
-        `¡Viaje #${viajeSeleccionado.idViaje} despachado exitosamente! La unidad ya está en ruta.`
+        iniciarAhora
+          ? `¡Viaje #${viajeSeleccionado.idViaje} iniciado exitosamente! La unidad ya está en ruta.`
+          : `Unidad y tripulación asignadas al Viaje #${viajeSeleccionado.idViaje}. La salida sigue PROGRAMADA y lista para venta anticipada de boletos.`
       );
-      setTimeout(() => setFeedbackSuccess(null), 4000);
+      setTimeout(() => setFeedbackSuccess(null), 5000);
       fetchViajes(true);
+      fetchRecursos();
     } else {
-      setErrorDespacho(res.error || "Error al despachar el viaje.");
+      setErrorDespacho(res.error || "Error al guardar la asignación del viaje.");
+    }
+  };
+
+  // Guardar asignación sin iniciar el viaje (para que usuarios compren boletos antes)
+  const handleConfirmarDespacho = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await ejecutarAsignacionODespacho(false);
+  };
+
+  // Solicitar inicio de viaje desde el modal de asignación (verificando si es antes de la hora programada)
+  const handleSolicitarAsignarEIniciar = () => {
+    if (!viajeSeleccionado) return;
+    setErrorDespacho(null);
+
+    if (!despachoUnidadId) {
+      setErrorDespacho("Selecciona el autobús a despachar.");
+      return;
+    }
+    if (!despachoChoferId) {
+      setErrorDespacho("Selecciona el chofer titular para la unidad.");
+      return;
+    }
+
+    const salidaTime = new Date(viajeSeleccionado.hrSalidaProgramada).getTime();
+    if (!isNaN(salidaTime) && Date.now() < salidaTime) {
+      setInicioAnticipadoDesdeModalAsignacion(true);
+      setShowConfirmarInicioAnticipadoModal(true);
+      return;
+    }
+
+    ejecutarAsignacionODespacho(true);
+  };
+
+  // Solicitar inicio de un viaje que ya tiene unidad asignada (desde la tarjeta)
+  const handleSolicitarInicioViajeTarjeta = (viaje: ViajeMonitorItem) => {
+    setViajeSeleccionado(viaje);
+    const salidaTime = new Date(viaje.hrSalidaProgramada).getTime();
+    if (!isNaN(salidaTime) && Date.now() < salidaTime) {
+      setInicioAnticipadoDesdeModalAsignacion(false);
+      setShowConfirmarInicioAnticipadoModal(true);
+      return;
+    }
+
+    ejecutarInicioDirecto(viaje.idViaje);
+  };
+
+  const ejecutarInicioDirecto = async (idViaje: number) => {
+    setProcesandoAccion(true);
+    const res = await iniciarViajeAction(idViaje);
+    setProcesandoAccion(false);
+    setShowConfirmarInicioAnticipadoModal(false);
+
+    if (res.success) {
+      setFeedbackSuccess(
+        `¡Viaje #${idViaje} iniciado y despachado exitosamente! La unidad ya se encuentra en ruta.`
+      );
+      setTimeout(() => setFeedbackSuccess(null), 5000);
+      fetchViajes(true);
+      fetchRecursos();
+    } else {
+      alert(res.error || "No se pudo iniciar el viaje.");
     }
   };
 
@@ -295,10 +389,11 @@ export default function SalidasViajesPage() {
 
     if (res.success) {
       setFeedbackSuccess(
-        `Viaje #${viajeSeleccionado.idViaje} finalizado. La unidad y los asientos han sido liberados.`
+        `Viaje #${viajeSeleccionado.idViaje} finalizado. La unidad, tripulación y asientos han sido liberados.`
       );
       setTimeout(() => setFeedbackSuccess(null), 4000);
       fetchViajes(true);
+      fetchRecursos();
     } else {
       alert(res.error || "No se pudo finalizar el viaje.");
     }
@@ -322,37 +417,21 @@ export default function SalidasViajesPage() {
       );
       setTimeout(() => setFeedbackSuccess(null), 4000);
       fetchViajes(true);
+      fetchRecursos();
     } else {
       alert(res.error || "No se pudo cancelar el viaje.");
     }
   };
 
-  // Formato de hora legible
+  // Formato de hora legible siempre en zona horaria de Nicaragua (America/Managua)
   const formatHora = (isoStr: string | null) => {
     if (!isoStr) return "N/D";
-    try {
-      const d = new Date(isoStr);
-      return d.toLocaleTimeString("es-NI", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
-    } catch {
-      return isoStr;
-    }
+    return formatManaguaTime(isoStr);
   };
 
+  // Formato de fecha sin desfase de zona horaria para columnas @db.Date
   const formatFechaCorta = (isoStr: string) => {
-    try {
-      const d = new Date(isoStr);
-      return d.toLocaleDateString("es-NI", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      });
-    } catch {
-      return isoStr;
-    }
+    return formatDateOnlyEsNI(isoStr);
   };
 
   return (
@@ -747,16 +826,38 @@ export default function SalidasViajesPage() {
                   </div>
 
                   {/* Columna Derecha: Botones de Acción Operativa */}
-                  <div className="flex flex-row lg:flex-col items-center lg:items-end justify-end gap-2 shrink-0">
-                    {/* Botón: Despachar (si está Programado) */}
+                  <div className="flex flex-row lg:flex-col items-center lg:items-end justify-end gap-2 shrink-0 flex-wrap">
+                    {/* Botones si está Programado */}
                     {esProgramado && (
-                      <button
-                        onClick={() => handleAbrirDespacho(viaje)}
-                        className="bg-primary hover:bg-primary-dark text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5 active:scale-95"
-                      >
-                        <Icon path={mdiSteering} size={0.65} />
-                        <span>Asignar y Despachar</span>
-                      </button>
+                      <>
+                        {viaje.unidad ? (
+                          <>
+                            <button
+                              onClick={() => handleSolicitarInicioViajeTarjeta(viaje)}
+                              disabled={procesandoAccion}
+                              className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5 active:scale-95"
+                            >
+                              <Icon path={mdiSteering} size={0.65} />
+                              <span>Iniciar / Despachar Viaje</span>
+                            </button>
+                            <button
+                              onClick={() => handleAbrirDespacho(viaje)}
+                              className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold text-xs px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                            >
+                              <Icon path={mdiAccountGroup} size={0.65} />
+                              <span>Editar Asignación</span>
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleAbrirDespacho(viaje)}
+                            className="bg-primary hover:bg-primary-dark text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5 active:scale-95"
+                          >
+                            <Icon path={mdiSteering} size={0.65} />
+                            <span>Asignar al Viaje</span>
+                          </button>
+                        )}
+                      </>
                     )}
 
                     {/* Botón: Finalizar Viaje (si está En Ruta) */}
@@ -808,14 +909,14 @@ export default function SalidasViajesPage() {
       {/* ======================================================== */}
       {showProgramarModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 sm:p-7 shadow-xl border border-slate-200">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 sm:p-7 shadow-xl border border-slate-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 tracking-tight">
                   Programar Salida de Autobús
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Crea un nuevo itinerario de viaje en la plataforma para la venta y despacho.
+                  Crea la salida en estado programado para habilitar la compra anticipada de boletos antes de iniciar el viaje.
                 </p>
               </div>
               <button
@@ -872,7 +973,7 @@ export default function SalidasViajesPage() {
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Hora Programada *
+                    Hora Programada (Managua) *
                   </label>
                   <input
                     type="time"
@@ -881,7 +982,7 @@ export default function SalidasViajesPage() {
                     required
                     className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
                   />
-                  {/* Atajos de hora frecuente (Ley de Parkinson: reducir fricción de entrada) */}
+                  {/* Atajos de hora frecuente */}
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
                     <span className="text-[10px] text-slate-400 font-medium mr-0.5">Sugeridas:</span>
                     {["06:00", "07:00", "08:30", "12:00", "14:00", "17:00"].map((h) => (
@@ -936,6 +1037,77 @@ export default function SalidasViajesPage() {
                 </div>
               </div>
 
+              {/* Asignación anticipada de Unidad y Tripulación (habilita compra de boletos sin iniciar el viaje) */}
+              <div className="pt-2 border-t border-slate-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Asignación de Unidad y Tripulación (Para Venta de Boletos)
+                  </span>
+                  <span className="text-[10px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
+                    No inicia el viaje aún
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                    Autobús Disponible
+                  </label>
+                  <select
+                    value={formUnidadId}
+                    onChange={(e) => setFormUnidadId(e.target.value ? Number(e.target.value) : "")}
+                    className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
+                  >
+                    <option value="">Asignar más tarde...</option>
+                    {recursosDespacho.unidades.map((u) => (
+                      <option key={u.idUnidad} value={u.idUnidad}>
+                        Bus #{u.numeroUnidad} ({u.placa}) - {u.tipo} ({u.capacidad} asientos)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {formUnidadId && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                        Chofer Titular *
+                      </label>
+                      <select
+                        value={formChoferId}
+                        onChange={(e) => setFormChoferId(e.target.value ? Number(e.target.value) : "")}
+                        required={Boolean(formUnidadId)}
+                        className="w-full text-xs font-semibold p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
+                      >
+                        <option value="">Selecciona chofer disponible...</option>
+                        {recursosDespacho.choferes.map((c) => (
+                          <option key={c.idUsuario} value={c.idUsuario}>
+                            {c.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                        Ayudante / Cobrador (Opcional)
+                      </label>
+                      <select
+                        value={formAyudanteId}
+                        onChange={(e) => setFormAyudanteId(e.target.value ? Number(e.target.value) : "")}
+                        className="w-full text-xs font-semibold p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
+                      >
+                        <option value="">Sin ayudante / Solo chofer</option>
+                        {recursosDespacho.ayudantes.map((a) => (
+                          <option key={a.idUsuario} value={a.idUsuario}>
+                            {a.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Botones de acción */}
               <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
                 <button
@@ -958,7 +1130,7 @@ export default function SalidasViajesPage() {
                       <span>Programando...</span>
                     </>
                   ) : (
-                    <span>Confirmar y Programar</span>
+                    <span>Confirmar y Programar Salida</span>
                   )}
                 </button>
               </div>
@@ -968,7 +1140,7 @@ export default function SalidasViajesPage() {
       )}
 
       {/* ======================================================== */}
-      {/* MODAL 2: AUTORIZAR DESPACHO Y ASIGNAR TRIPULACIÓN        */}
+      {/* MODAL 2: ASIGNAR UNIDAD Y TRIPULACIÓN / DESPACHAR VIAJE  */}
       {/* ======================================================== */}
       {showDespachoModal && viajeSeleccionado && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
@@ -977,10 +1149,10 @@ export default function SalidasViajesPage() {
               <div>
                 <h3 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
                   <Icon path={mdiSteering} size={0.8} className="text-primary" />
-                  Autorizar Despacho a Ruta
+                  Asignar Unidad y Tripulación al Viaje
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Asigna la unidad y tripulación para poner el viaje en curso inmediatamente.
+                  Asigna el autobús, chofer y ayudante para habilitar la venta anticipada de boletos, o inicia el viaje.
                 </p>
               </div>
               <button
@@ -992,10 +1164,10 @@ export default function SalidasViajesPage() {
               </button>
             </div>
 
-            {/* Ficha estructurada Clave-Valor del viaje (Ley de Miller: chunking de información) */}
+            {/* Ficha estructurada Clave-Valor del viaje */}
             <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden text-xs mb-4">
               <div className="bg-slate-100/80 px-3 py-1.5 border-b border-slate-200 font-bold text-[10px] uppercase tracking-wider text-slate-600 flex items-center justify-between">
-                <span>Itinerario a Despachar</span>
+                <span>Itinerario Programado</span>
                 <span className="font-mono text-slate-500">Salida #{viajeSeleccionado.idViaje}</span>
               </div>
               <div className="divide-y divide-slate-200/70">
@@ -1035,7 +1207,7 @@ export default function SalidasViajesPage() {
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   Autobús Disponible *
                 </label>
-                {recursosDespacho.unidades.length === 0 ? (
+                {recursosDespacho.unidades.length === 0 && !viajeSeleccionado.unidad ? (
                   <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs flex items-center gap-2">
                     <Icon path={mdiAlertCircleOutline} size={0.7} className="text-amber-600 shrink-0" />
                     <span>No hay unidades en estado <strong>DISPONIBLE</strong> en este momento. Finaliza un viaje previo o registra unidades en la sección Flota.</span>
@@ -1048,6 +1220,12 @@ export default function SalidasViajesPage() {
                     className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
                   >
                     <option value="">Selecciona una unidad disponible...</option>
+                    {viajeSeleccionado.unidad &&
+                      !recursosDespacho.unidades.some((u) => u.idUnidad === viajeSeleccionado.unidad?.idUnidad) && (
+                        <option value={viajeSeleccionado.unidad.idUnidad}>
+                          Bus #{viajeSeleccionado.unidad.numeroUnidad} ({viajeSeleccionado.unidad.placa}) - {viajeSeleccionado.unidad.tipo} ({viajeSeleccionado.unidad.capacidad} asientos) [Actual]
+                        </option>
+                      )}
                     {recursosDespacho.unidades.map((u) => (
                       <option key={u.idUnidad} value={u.idUnidad}>
                         Bus #{u.numeroUnidad} ({u.placa}) - {u.tipo} ({u.capacidad} asientos)
@@ -1060,12 +1238,12 @@ export default function SalidasViajesPage() {
               {/* Selector de Chofer */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Chofer Titular *
+                  Chofer Titular (Disponible) *
                 </label>
-                {recursosDespacho.choferes.length === 0 ? (
+                {recursosDespacho.choferes.length === 0 && !viajeSeleccionado.tripulacion.chofer ? (
                   <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs flex items-center gap-2">
                     <Icon path={mdiAlertCircleOutline} size={0.7} className="text-amber-600 shrink-0" />
-                    <span>No hay choferes activos registrados en la cooperativa.</span>
+                    <span>No hay choferes disponibles en este momento (todos están asignados o en ruta).</span>
                   </div>
                 ) : (
                   <select
@@ -1075,6 +1253,12 @@ export default function SalidasViajesPage() {
                     className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
                   >
                     <option value="">Selecciona el chofer conductor...</option>
+                    {viajeSeleccionado.tripulacion.chofer &&
+                      !recursosDespacho.choferes.some((c) => c.idUsuario === viajeSeleccionado.tripulacion.chofer?.idUsuario) && (
+                        <option value={viajeSeleccionado.tripulacion.chofer.idUsuario}>
+                          {viajeSeleccionado.tripulacion.chofer.nombre} [Actual]
+                        </option>
+                      )}
                     {recursosDespacho.choferes.map((c) => (
                       <option key={c.idUsuario} value={c.idUsuario}>
                         {c.nombre} {c.telefono ? `(${c.telefono})` : ""}
@@ -1088,9 +1272,9 @@ export default function SalidasViajesPage() {
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Ayudante / Cobrador (Opcional)
+                    Ayudante / Cobrador Disponible (Opcional)
                   </label>
-                  <span className="text-[11px] text-slate-400">Tendrá acceso al reporte de estaciones</span>
+                  <span className="text-[11px] text-slate-400">Tendrá acceso al panel operativo</span>
                 </div>
                 <select
                   value={despachoAyudanteId}
@@ -1098,6 +1282,12 @@ export default function SalidasViajesPage() {
                   className="w-full text-xs sm:text-sm font-semibold p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
                 >
                   <option value="">Sin ayudante / Solo chofer</option>
+                  {viajeSeleccionado.tripulacion.ayudante &&
+                    !recursosDespacho.ayudantes.some((a) => a.idUsuario === viajeSeleccionado.tripulacion.ayudante?.idUsuario) && (
+                      <option value={viajeSeleccionado.tripulacion.ayudante.idUsuario}>
+                        {viajeSeleccionado.tripulacion.ayudante.nombre} [Actual]
+                      </option>
+                    )}
                   {recursosDespacho.ayudantes.map((a) => (
                     <option key={a.idUsuario} value={a.idUsuario}>
                       {a.nombre} {a.telefono ? `(${a.telefono})` : ""}
@@ -1113,7 +1303,7 @@ export default function SalidasViajesPage() {
                 </label>
                 <input
                   type="text"
-                  placeholder="Ej: Salida a tiempo con tanque lleno y revisión mecánica OK."
+                  placeholder="Ej: Salida programada con revisión mecánica OK."
                   value={despachoObservacion}
                   onChange={(e) => setDespachoObservacion(e.target.value)}
                   className="w-full text-xs sm:text-sm font-medium p-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white"
@@ -1121,28 +1311,46 @@ export default function SalidasViajesPage() {
               </div>
 
               {/* Botones de acción */}
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowDespachoModal(false)}
                   disabled={despachando}
-                  className="px-4 py-2.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                  className="px-3.5 py-2.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
 
                 <button
+                  type="button"
+                  onClick={handleSolicitarAsignarEIniciar}
+                  disabled={
+                    despachando ||
+                    (!viajeSeleccionado.unidad && recursosDespacho.unidades.length === 0) ||
+                    (!viajeSeleccionado.tripulacion.chofer && recursosDespacho.choferes.length === 0)
+                  }
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-all cursor-pointer shadow-xs flex items-center gap-1.5 active:scale-95 disabled:opacity-60"
+                >
+                  <Icon path={mdiSteering} size={0.6} />
+                  <span>Asignar e Iniciar Viaje</span>
+                </button>
+
+                <button
                   type="submit"
-                  disabled={despachando || recursosDespacho.unidades.length === 0 || recursosDespacho.choferes.length === 0}
-                  className="bg-primary hover:bg-primary-dark text-white font-bold text-xs px-5 py-2.5 rounded-lg transition-all cursor-pointer shadow-xs flex items-center gap-2 active:scale-95 disabled:opacity-60"
+                  disabled={
+                    despachando ||
+                    (!viajeSeleccionado.unidad && recursosDespacho.unidades.length === 0) ||
+                    (!viajeSeleccionado.tripulacion.chofer && recursosDespacho.choferes.length === 0)
+                  }
+                  className="bg-primary hover:bg-primary-dark text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-all cursor-pointer shadow-xs flex items-center gap-1.5 active:scale-95 disabled:opacity-60"
                 >
                   {despachando ? (
                     <>
                       <Icon path={mdiLoading} size={0.65} className="animate-spin text-white" />
-                      <span>Despachando...</span>
+                      <span>Guardando...</span>
                     </>
                   ) : (
-                    <span>Autorizar y Despachar Unidad</span>
+                    <span>Asignar al Viaje (Habilitar Boletos)</span>
                   )}
                 </button>
               </div>
@@ -1397,6 +1605,71 @@ export default function SalidasViajesPage() {
                 className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-60"
               >
                 {procesandoAccion ? "Cancelando..." : "Confirmar Cancelación"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL 6: CONFIRMAR INICIO ANTICIPADO DEL VIAJE            */}
+      {/* ======================================================== */}
+      {showConfirmarInicioAnticipadoModal && viajeSeleccionado && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-slate-200 text-center">
+            <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto mb-3">
+              <Icon path={mdiClockOutline} size={1} />
+            </div>
+            <h3 className="text-base font-bold text-slate-900">
+              ¿Estás seguro de iniciar antes el viaje?
+            </h3>
+            <p className="text-xs text-slate-500 mt-1 mb-4">
+              La hora programada de salida aún no se ha cumplido. Si inicias el viaje ahora, la unidad pasará a estado <strong>En Ruta</strong> inmediatamente.
+            </p>
+
+            <div className="bg-amber-50/70 rounded-lg border border-amber-200 overflow-hidden text-xs text-left mb-5">
+              <div className="divide-y divide-amber-200/70">
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-600 font-medium">Ruta:</span>
+                  <span className="font-bold text-slate-900">{viajeSeleccionado.rutaNombre}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-600 font-medium">Salida Programada:</span>
+                  <span className="font-bold text-amber-900">
+                    {formatHora(viajeSeleccionado.hrSalidaProgramada)} ({formatFechaCorta(viajeSeleccionado.fecha)})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2 px-3">
+                  <span className="text-slate-600 font-medium">Hora Actual (Managua):</span>
+                  <span className="font-semibold text-slate-800">
+                    {formatHora(new Date().toISOString())}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowConfirmarInicioAnticipadoModal(false)}
+                disabled={procesandoAccion || despachando}
+                className="px-4 py-2.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                No, mantener programado
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (inicioAnticipadoDesdeModalAsignacion) {
+                    ejecutarAsignacionODespacho(true);
+                  } else {
+                    ejecutarInicioDirecto(viajeSeleccionado.idViaje);
+                  }
+                }}
+                disabled={procesandoAccion || despachando}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-5 py-2.5 rounded-lg transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-60"
+              >
+                {procesandoAccion || despachando ? "Iniciando..." : "Sí, iniciar viaje ahora"}
               </button>
             </div>
           </div>

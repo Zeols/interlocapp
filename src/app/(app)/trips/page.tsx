@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@mdi/react";
 import {
   mdiBus,
@@ -12,7 +12,7 @@ import {
   mdiFilterVariant,
   mdiChevronDown,
   mdiChevronUp,
-  mdiLoading,
+  mdiClose,
 } from "@mdi/js";
 import { AnimatedCircularProgressBar } from "@/registry/magicui/animated-circular-progress-bar";
 import {
@@ -21,16 +21,17 @@ import {
 } from "@/backend/actions/viajes";
 import { useCurrency } from "@/frontend/context/CurrencyContext";
 
-export default function TripsPage() {
+function TripsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { formatPrice } = useCurrency();
 
   const [trips, setTrips] = useState<ViajeDisponibleItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [origin, setOrigin] = useState("");
-  const [destination, setDestination] = useState("");
-  const [date, setDate] = useState("");
+  const [origin, setOrigin] = useState(() => searchParams.get("origin") || "");
+  const [destination, setDestination] = useState(() => searchParams.get("destination") || "");
+  const [date, setDate] = useState(() => searchParams.get("date") || "");
   const [scheduleFilter, setScheduleFilter] = useState<Record<string, boolean>>({
     mañana: false,
     tarde: false,
@@ -71,6 +72,12 @@ export default function TripsPage() {
     setCoopFilter({});
   };
 
+  const clearSearchInputs = () => {
+    setOrigin("");
+    setDestination("");
+    setDate("");
+  };
+
   const activeSchedules = Object.entries(scheduleFilter)
     .filter(([, v]) => v)
     .map(([k]) => k);
@@ -80,6 +87,7 @@ export default function TripsPage() {
     .map(([k]) => k);
 
   const hasFilters = activeSchedules.length > 0 || activeCoops.length > 0;
+  const hasSearchQuery = Boolean(origin.trim() || destination.trim() || date);
 
   const filtered = trips.filter((t) => {
     if (activeSchedules.length && !activeSchedules.includes(t.schedule)) return false;
@@ -87,14 +95,9 @@ export default function TripsPage() {
     return true;
   });
 
-  const goPurchase = (trip: {
-    origin: string;
-    destination: string;
-    departure: string;
-    cooperative: string;
-    price: number;
-  }) => {
+  const goPurchase = (trip: ViajeDisponibleItem) => {
     const params = new URLSearchParams({
+      tripId: trip.id.toString(),
       origin: trip.origin,
       destination: trip.destination,
       departure: trip.departure,
@@ -138,6 +141,17 @@ export default function TripsPage() {
               />
             </div>
           </div>
+          {hasSearchQuery && (
+            <button
+              type="button"
+              onClick={clearSearchInputs}
+              className="px-3.5 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              title="Limpiar búsqueda"
+            >
+              <Icon path={mdiClose} size={0.6} />
+              <span>Ver todas</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -341,6 +355,9 @@ export default function TripsPage() {
                       <div className="flex-1 flex flex-col items-center px-2 md:px-4 min-w-[60px] md:min-w-[120px]">
                         <p className="text-[11px] font-semibold text-gray-400 mb-1 flex items-center justify-center gap-1 whitespace-nowrap">
                           <Icon path={mdiClockOutline} size={0.5} /> {trip.duration}
+                          {trip.dateFormatted && (
+                            <span className="text-gray-400 font-medium">· {trip.dateFormatted}</span>
+                          )}
                         </p>
                         <div className="w-full flex items-center relative h-5">
                           <div className="w-1.5 h-1.5 rounded-full border-2 border-primary bg-white z-10" />
@@ -412,5 +429,13 @@ export default function TripsPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function TripsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-gray-500">Cargando viajes...</div>}>
+      <TripsContent />
+    </Suspense>
   );
 }

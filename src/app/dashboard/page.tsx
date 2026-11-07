@@ -72,8 +72,8 @@ export default function DashboardHome() {
       if (user) {
         setSession(user);
 
-        // Si el usuario logueado es AYUDANTE, cargamos su viaje activo real de la BD
-        if (user.rolNombre === "AYUDANTE") {
+        // Si el usuario logueado es AYUDANTE o CHOFER, cargamos su viaje activo real de la BD
+        if (user.rolNombre === "AYUDANTE" || user.rolNombre === "CHOFER") {
           const resViaje = await getViajeActivoAyudanteAction(user.idUsuario);
           if (resViaje.success && resViaje.data) {
             setViajeActivo(resViaje.data);
@@ -88,6 +88,8 @@ export default function DashboardHome() {
             setViajeActivo(null);
             setOperacionAyudante(null);
           }
+          setLoading(false);
+          return;
         }
       }
 
@@ -108,7 +110,7 @@ export default function DashboardHome() {
   }, [selectedCoopId, dateRange.desde, dateRange.hasta]);
 
   const rolUsuario = (session?.rolNombre || "").trim().toUpperCase();
-  const isAyudante = rolUsuario === "AYUDANTE";
+  const isAyudante = rolUsuario === "AYUDANTE" || rolUsuario === "CHOFER";
 
   // VISTA OPERATIVA AYUDANTE
   if (isAyudante) {
