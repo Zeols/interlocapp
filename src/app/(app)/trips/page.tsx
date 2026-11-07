@@ -87,14 +87,9 @@ export default function TripsPage() {
     return true;
   });
 
-  const goPurchase = (trip: {
-    origin: string;
-    destination: string;
-    departure: string;
-    cooperative: string;
-    price: number;
-  }) => {
+  const goPurchase = (trip: ViajeDisponibleItem) => {
     const params = new URLSearchParams({
+      tripId: trip.id.toString(),
       origin: trip.origin,
       destination: trip.destination,
       departure: trip.departure,
