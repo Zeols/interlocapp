@@ -35,7 +35,7 @@ export interface ViajeInput {
 async function limpiarAsignacionesHuerfanas() {
   const despachosActivos = await prisma.despacho.findMany({
     where: {
-      estado: 'EN_CURSO',
+      estado: { in: ['PENDIENTE', 'EN_CURSO'] },
       viaje: {
         estado: { in: ['PROGRAMADO', 'EN_CURSO'] },
       },
@@ -51,18 +51,18 @@ async function limpiarAsignacionesHuerfanas() {
     new Set(despachosActivos.map((d) => d.asignacionUnidad.idUnidad))
   );
 
-  await prisma.asignacionUnidad.updateMany({
-    where: {
-      estado: 'INICIADA',
-      ...(unidadesConViajeActivo.length > 0
-        ? { idUnidad: { notIn: unidadesConViajeActivo } }
-        : {}),
-    },
-    data: {
-      estado: 'FINALIZADA',
-      fechaHFin: new Date(),
-    },
-  });
+  if (unidadesConViajeActivo.length > 0) {
+    await prisma.asignacionUnidad.updateMany({
+      where: {
+        estado: 'INICIADA',
+        idUnidad: { notIn: unidadesConViajeActivo },
+      },
+      data: {
+        estado: 'FINALIZADA',
+        fechaHFin: new Date(),
+      },
+    });
+  }
 }
 
 export interface AsignacionInput {
@@ -1482,7 +1482,7 @@ export async function getViajeActivoAyudanteAction(idUsuario: number) {
     // Buscamos el despacho activo cuya asignación pertenezca a la misma unidad (el despacho apunta a la asignación del chofer)
     const despacho = await prisma.despacho.findFirst({
       where: {
-        estado: 'EN_CURSO',
+        estado: { in: ['EN_CURSO', 'PENDIENTE'] },
         asignacionUnidad: {
           idUnidad: { in: unidadesIds },
         },

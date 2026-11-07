@@ -249,7 +249,7 @@ export default function EmergenciasPage() {
             {incidentesCheq.map((inc) => {
               const viaje = inc.despacho?.viaje;
               const unidadOriginal = inc.despacho?.asignacionUnidad?.unidad;
-              const ayudanteOriginal = inc.despacho?.asignacionUnidad?.usuario;
+              const ayudanteOriginal = (inc as any).ayudanteOriginal || inc.despacho?.asignacionUnidad?.usuario;
               const pasajerosVarados = viaje?.boletos?.length || 0;
 
               return (
@@ -466,7 +466,7 @@ export default function EmergenciasPage() {
                             >
                               <option value="">Seleccione un ayudante...</option>
                               {ayudantesDisp
-                                .filter(ay => ay.idUsuario !== selectedIncidente?.despacho?.asignacionUnidad?.idUsuario)
+                                .filter(ay => ay.idUsuario !== (selectedIncidente?.ayudanteOriginal?.idUsuario || selectedIncidente?.despacho?.asignacionUnidad?.idUsuario))
                                 .map((ay) => (
                                   <option key={ay.idUsuario} value={ay.idUsuario}>
                                     {ay.nombre} {ay.apellido}

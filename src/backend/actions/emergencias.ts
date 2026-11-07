@@ -104,7 +104,34 @@ export async function getIncidentesChequeadorAction() {
       orderBy: { fechaHora: "desc" },
     });
 
-    return { success: true, data: incidentes };
+    const unidadesIds = incidentes
+      .map((inc) => inc.despacho?.asignacionUnidad?.idUnidad)
+      .filter((id): id is number => typeof id === "number");
+
+    const asignacionesAyudantes =
+      unidadesIds.length > 0
+        ? await prisma.asignacionUnidad.findMany({
+            where: {
+              idUnidad: { in: unidadesIds },
+              usuario: {
+                rol: { nombre: { in: ["AYUDANTE", "COBRADOR"] } },
+              },
+            },
+            orderBy: { fechaHInicio: "desc" },
+            include: { usuario: true },
+          })
+        : [];
+
+    const incidentesConAyudante = incidentes.map((inc) => {
+      const uId = inc.despacho?.asignacionUnidad?.idUnidad;
+      const asignacionAyudante = asignacionesAyudantes.find((a) => a.idUnidad === uId);
+      return {
+        ...inc,
+        ayudanteOriginal: asignacionAyudante?.usuario || null,
+      };
+    });
+
+    return { success: true, data: incidentesConAyudante };
   } catch (err: any) {
     console.error("Error al obtener incidentes para chequeador:", err);
     return { success: false, error: "Error al cargar incidentes de ruta." };
@@ -159,6 +186,33 @@ export async function getDatosGestionEmergenciaAction(idCooperativa?: number) {
       orderBy: { fechaHora: "desc" },
     });
 
+    const unidadesIds = incidentes
+      .map((inc) => inc.despacho?.asignacionUnidad?.idUnidad)
+      .filter((id): id is number => typeof id === "number");
+
+    const asignacionesAyudantes =
+      unidadesIds.length > 0
+        ? await prisma.asignacionUnidad.findMany({
+            where: {
+              idUnidad: { in: unidadesIds },
+              usuario: {
+                rol: { nombre: { in: ["AYUDANTE", "COBRADOR"] } },
+              },
+            },
+            orderBy: { fechaHInicio: "desc" },
+            include: { usuario: true },
+          })
+        : [];
+
+    const incidentesConAyudante = incidentes.map((inc) => {
+      const uId = inc.despacho?.asignacionUnidad?.idUnidad;
+      const asignacionAyudante = asignacionesAyudantes.find((a) => a.idUnidad === uId);
+      return {
+        ...inc,
+        ayudanteOriginal: asignacionAyudante?.usuario || null,
+      };
+    });
+
     // 1. Obtener los IDs de todos los usuarios (choferes y ayudantes) y unidades que tienen una asignación activa
     const asignacionesActivas = await prisma.asignacionUnidad.findMany({
       where: { estado: "INICIADA" },
@@ -200,7 +254,7 @@ export async function getDatosGestionEmergenciaAction(idCooperativa?: number) {
       },
     });
 
-    return { success: true, data: { incidentes, unidadesDisponibles, choferes, ayudantes } };
+    return { success: true, data: { incidentes: incidentesConAyudante, unidadesDisponibles, choferes, ayudantes } };
   } catch (err: any) {
     console.error("Error al cargar datos de gestión de emergencia:", err);
     return { success: false, error: "Error al cargar la información." };
@@ -242,7 +296,7 @@ export async function autorizarDespachoExtraordinarioAction(payload: {
             asignacionUnidad: {
               include: {
                 unidad: { include: { asientos: true } },
-                usuario: true, // Ayudante original del despacho
+                usuario: true, // Chofer original
               },
             },
           },
@@ -258,7 +312,21 @@ export async function autorizarDespachoExtraordinarioAction(payload: {
     const boletosVarados = viajeOriginal.boletos;
     const pasajerosVarados = boletosVarados.length;
     const unidadAfectada = incidente.despacho.asignacionUnidad.unidad;
-    const ayudanteOriginalId = incidente.despacho.asignacionUnidad.idUsuario;
+    const choferOriginalId = incidente.despacho.asignacionUnidad.idUsuario;
+
+    // Buscar el ayudante original real de la unidad afectada
+    const asignacionAyudanteOriginal = await prisma.asignacionUnidad.findFirst({
+      where: {
+        idUnidad: unidadAfectada.idUnidad,
+        idUsuario: { not: choferOriginalId },
+        usuario: {
+          rol: { nombre: { in: ["AYUDANTE", "COBRADOR"] } },
+        },
+      },
+      orderBy: { fechaHInicio: "desc" },
+      include: { usuario: true },
+    });
+    const ayudanteOriginalId = asignacionAyudanteOriginal?.idUsuario || null;
 
     const unidadesRepuesto = await prisma.unidad.findMany({
       where: { idUnidad: { in: idsUnidadesRepuesto } },
@@ -278,13 +346,15 @@ export async function autorizarDespachoExtraordinarioAction(payload: {
     }
 
     await prisma.$transaction(async (tx) => {
+      const ahora = new Date();
+
       // 1. Resolver incidente
       await tx.incidente.update({
         where: { idIncidente },
         data: { estado: "RESUELTO" },
       });
 
-      // 2. Enviar unidad afectada a mantenimiento y liberar sus asignaciones activas
+      // 2. Enviar unidad afectada a mantenimiento y finalizar sus asignaciones activas
       await tx.unidad.update({
         where: { idUnidad: unidadAfectada.idUnidad },
         data: { estado: "MANTENIMIENTO" },
@@ -292,7 +362,13 @@ export async function autorizarDespachoExtraordinarioAction(payload: {
 
       await tx.asignacionUnidad.updateMany({
         where: { idUnidad: unidadAfectada.idUnidad, estado: "INICIADA" },
-        data: { estado: "FINALIZADA", fechaHFin: new Date() },
+        data: { estado: "FINALIZADA", fechaHFin: ahora },
+      });
+
+      // Liberar asientos de la unidad averiada
+      await tx.asiento.updateMany({
+        where: { idUnidad: unidadAfectada.idUnidad },
+        data: { estado: "DISPONIBLE" },
       });
 
       // 3. Cancelar viaje original
@@ -301,63 +377,67 @@ export async function autorizarDespachoExtraordinarioAction(payload: {
         data: { estado: "CANCELADO" },
       });
 
-      // 4. Crear nuevo viaje de respaldo
-      const viajeDeRespaldo = await tx.viaje.create({
-        data: {
-          idRuta: viajeOriginal.idRuta,
-          fecha: new Date(),
-          hrSalidaProgramada: new Date(),
-          sentido: `${viajeOriginal.sentido ?? "RUTA"} (DESPACHO EXTRAORDINARIO)`,
-          estado: "EN_CURSO",
-        },
-      });
-
       let boletoIndex = 0;
 
-      // 5. Iterar sobre las unidades de repuesto asignando personal y pasaje
+      // 4. Iterar sobre las unidades de repuesto asignando viaje, personal y pasaje
       for (let i = 0; i < unidadesRepuesto.length; i++) {
         const unidadRepuesto = unidadesRepuesto[i];
         const choferId = idsChoferes[i];
 
+        // Cada despacho requiere un idViaje único (@unique en Despacho)
+        const viajeUnidad = await tx.viaje.create({
+          data: {
+            idRuta: viajeOriginal.idRuta,
+            fecha: ahora,
+            hrSalidaProgramada: ahora,
+            sentido: i === 0
+              ? `${viajeOriginal.sentido ?? "RUTA"} (DESPACHO EXTRAORDINARIO)`
+              : `${viajeOriginal.sentido ?? "RUTA"} (DESPACHO EXTRAORDINARIO - U${i + 1})`,
+            estado: "EN_CURSO",
+          },
+        });
+
         // Definir el ayudante según las reglas de negocio
         let ayudanteId: number | null = null;
-
-        if (i === 0 && mantenerAyudanteOriginal) {
+        if (i === 0 && mantenerAyudanteOriginal && ayudanteOriginalId) {
           ayudanteId = ayudanteOriginalId;
         } else {
-          const indexAyudante = i === 0 ? 0 : i - 1;
+          const indexAyudante = (i === 0 || !mantenerAyudanteOriginal) ? i : i - 1;
           if (idsAyudantesAdicionales && idsAyudantesAdicionales.length > indexAyudante) {
             ayudanteId = idsAyudantesAdicionales[indexAyudante];
           }
         }
 
-        const nuevaAsignacion = await tx.asignacionUnidad.create({
+        // Asignar Chofer
+        const asignacionChofer = await tx.asignacionUnidad.create({
           data: {
             idUnidad: unidadRepuesto.idUnidad,
-            idUsuario: choferId, // Asignación del chofer para la unidad de repuesto
-            fechaHInicio: new Date(),
+            idUsuario: choferId,
+            fechaHInicio: ahora,
             estado: "INICIADA",
           },
         });
 
-        if (ayudanteId && ayudanteId !== choferId) {
+        // Asignar Ayudante si aplica
+        if (ayudanteId) {
           await tx.asignacionUnidad.create({
             data: {
               idUnidad: unidadRepuesto.idUnidad,
               idUsuario: ayudanteId,
-              fechaHInicio: new Date(),
+              fechaHInicio: ahora,
               estado: "INICIADA",
             },
           });
         }
 
-        // Crear despacho vinculado al nuevo viaje de respaldo
+        // Crear despacho vinculado al viaje de esta unidad y la asignación del chofer
         await tx.despacho.create({
           data: {
-            idViaje: viajeDeRespaldo.idViaje,
-            idAsignacion: nuevaAsignacion.idAsignacion,
+            idViaje: viajeUnidad.idViaje,
+            idAsignacion: asignacionChofer.idAsignacion,
             estado: "EN_CURSO",
-            observacion: `Despacho extraordinario por emergencia (Incidente #${idIncidente}) - Unidad ${i + 1}`,
+            observacion: `Despacho extraordinario por emergencia (Incidente #${idIncidente}) - Unidad ${unidadRepuesto.numeroUnidad}`,
+            fechaHora: ahora,
           },
         });
 
@@ -379,7 +459,7 @@ export async function autorizarDespachoExtraordinarioAction(payload: {
             idUnidadAfectada: unidadAfectada.idUnidad,
             idUnidadRepuesto: unidadRepuesto.idUnidad,
             pasajerosVarados: pasajerosEnEstaUnidad,
-            observacion: `Transbordo de ${pasajerosEnEstaUnidad} pasajeros a la unidad ${unidadRepuesto.numeroUnidad} con chofer ID ${choferId}`,
+            observacion: `Transbordo de ${pasajerosEnEstaUnidad} pasajeros a la unidad ${unidadRepuesto.numeroUnidad} con chofer ID ${choferId}${ayudanteId ? ` y ayudante ID ${ayudanteId}` : ""}`,
           },
         });
 
@@ -388,14 +468,22 @@ export async function autorizarDespachoExtraordinarioAction(payload: {
           const boletoActual = boletosVarados[boletoIndex];
           const asientoDestino = asientosUnidad[j];
 
-          const idAsientoFinal = unidadesRepuesto.length === 1 && boletoActual.idAsiento
-            ? boletoActual.idAsiento
-            : asientoDestino.idAsiento;
+          const idAsientoFinal =
+            unidadesRepuesto.length === 1 && boletoActual.idAsiento
+              ? boletoActual.idAsiento
+              : (asientoDestino ? asientoDestino.idAsiento : boletoActual.idAsiento);
+
+          if (idAsientoFinal) {
+            await tx.asiento.update({
+              where: { idAsiento: idAsientoFinal },
+              data: { estado: "OCUPADO" },
+            });
+          }
 
           await tx.boleto.update({
             where: { idBoleto: boletoActual.idBoleto },
             data: {
-              idViaje: viajeDeRespaldo.idViaje,
+              idViaje: viajeUnidad.idViaje,
               idAsiento: idAsientoFinal,
             },
           });
@@ -406,6 +494,10 @@ export async function autorizarDespachoExtraordinarioAction(payload: {
     });
 
     revalidatePath("/dashboard/emergencias");
+    revalidatePath("/dashboard/ayudante");
+    revalidatePath("/dashboard/viajes");
+    revalidatePath("/dashboard");
+    revalidatePath("/trips");
     return { success: true, message: "Despacho de emergencia autorizado y ejecutado exitosamente." };
   } catch (err: any) {
     console.error("Error al autorizar despacho extraordinario:", err);
