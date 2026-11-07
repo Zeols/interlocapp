@@ -4,6 +4,12 @@ import { prisma } from '../db';
 import { getSession } from '../lib/session';
 import { procesarVentaBoletos, ItemBoletoInput } from './ventas';
 import { revalidatePath } from 'next/cache';
+import {
+  getManaguaDateISO,
+  parseDateOnlyUTC,
+  formatManaguaTime,
+  formatDateOnlyEsNI,
+} from '@/lib/date-time';
 
 const TAQUILLA_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO'];
 
@@ -78,8 +84,7 @@ export async function getSalidasDelDiaTaquillaAction(): Promise<{
         ? { idCooperativa: session.idCooperativa }
         : {};
 
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfDay = parseDateOnlyUTC(getManaguaDateISO());
 
     const viajes = await prisma.viaje.findMany({
       where: {
@@ -124,14 +129,18 @@ export async function getSalidasDelDiaTaquillaAction(): Promise<{
     const salidas: SalidaTaquillaItem[] = viajes.map((v) => {
       let origen = 'Origen';
       let destino = 'Destino';
+      const esRetorno = v.sentido === 'VUELTA' || v.sentido === 'RETORNO';
 
       if (v.ruta.puntosRuta && v.ruta.puntosRuta.length > 0) {
-        origen = v.ruta.puntosRuta[0].punto.nombre;
-        destino = v.ruta.puntosRuta[v.ruta.puntosRuta.length - 1].punto.nombre;
+        const puntosOrdenados = esRetorno ? [...v.ruta.puntosRuta].reverse() : v.ruta.puntosRuta;
+        origen = puntosOrdenados[0].punto.nombre;
+        destino = puntosOrdenados[puntosOrdenados.length - 1].punto.nombre;
       } else {
         const parts = v.ruta.nombre.split('-');
-        origen = parts[0]?.trim() || v.ruta.nombre;
-        destino = parts[1]?.trim() || 'Destino';
+        const p0 = parts[0]?.trim() || v.ruta.nombre;
+        const p1 = parts[1]?.trim() || 'Destino';
+        origen = esRetorno ? p1 : p0;
+        destino = esRetorno ? p0 : p1;
       }
 
       const totalAsientos = v.despacho?.asignacionUnidad?.unidad?.asientos?.length || 15;
@@ -139,10 +148,7 @@ export async function getSalidasDelDiaTaquillaAction(): Promise<{
       const asientosDisponibles = Math.max(0, totalAsientos - asientosOcupados);
       const precioBase = Number(v.ruta.tarifas[0]?.monto) || 85;
 
-      const salidaDate = new Date(v.hrSalidaProgramada);
-      const horaSalida = !isNaN(salidaDate.getTime())
-        ? salidaDate.toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit', hour12: true })
-        : '06:00 AM';
+      const horaSalida = formatManaguaTime(v.hrSalidaProgramada);
 
       return {
         idViaje: v.idViaje,
@@ -150,7 +156,7 @@ export async function getSalidasDelDiaTaquillaAction(): Promise<{
         destino,
         rutaNombre: v.ruta.nombre,
         cooperativa: v.ruta.cooperativa.nombre,
-        fecha: new Date(v.fecha).toLocaleDateString('es-NI', { day: '2-digit', month: 'short', year: 'numeric' }),
+        fecha: formatDateOnlyEsNI(v.fecha),
         horaSalida,
         unidadNumero: v.despacho?.asignacionUnidad?.unidad?.numeroUnidad || 'Sin bus',
         unidadPlaca: v.despacho?.asignacionUnidad?.unidad?.placa || 'N/A',
@@ -325,12 +331,14 @@ export async function venderBoletosTaquillaAction(input: {
     let origen = 'Managua';
     let destino = 'Destino';
     if (viaje?.ruta.puntosRuta && viaje.ruta.puntosRuta.length > 0) {
-      origen = viaje.ruta.puntosRuta[0].punto.nombre;
-      destino = viaje.ruta.puntosRuta[viaje.ruta.puntosRuta.length - 1].punto.nombre;
+      const esRetorno = viaje.sentido === 'VUELTA' || viaje.sentido === 'RETORNO';
+      const puntosOrdenados = esRetorno ? [...viaje.ruta.puntosRuta].reverse() : viaje.ruta.puntosRuta;
+      origen = puntosOrdenados[0].punto.nombre;
+      destino = puntosOrdenados[puntosOrdenados.length - 1].punto.nombre;
     }
 
-    const fechaSalida = viaje ? new Date(viaje.fecha).toLocaleDateString('es-NI', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
-    const horaSalida = viaje ? new Date(viaje.hrSalidaProgramada).toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit', hour12: true }) : '';
+    const fechaSalida = viaje ? formatDateOnlyEsNI(viaje.fecha) : '';
+    const horaSalida = viaje ? formatManaguaTime(viaje.hrSalidaProgramada) : '';
 
     const asientosMap = new Map(input.asientos.map((a) => [a.idAsiento, a.numero]));
 

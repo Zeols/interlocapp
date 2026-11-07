@@ -3,6 +3,7 @@
 import { prisma } from '../db';
 import { getSession } from '../lib/session';
 import { revalidatePath } from 'next/cache';
+import { formatManaguaTime, formatDateOnlyEsNI } from '@/lib/date-time';
 
 const OPERATIONAL_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO', 'CHOFER', 'AYUDANTE', 'CHEQUEADOR'];
 
@@ -22,22 +23,28 @@ export interface ResultadoValidacionBoleto {
   cooperativaNombre: string;
 }
 
-function parseOrigenDestino(ruta: {
-  nombre: string;
-  puntosRuta?: { orden: number; punto: { nombre: string } }[];
-}): { origen: string; destino: string } {
+function parseOrigenDestino(
+  ruta: {
+    nombre: string;
+    puntosRuta?: { orden: number; punto: { nombre: string } }[];
+  },
+  sentido?: string | null
+): { origen: string; destino: string } {
+  const esRetorno = sentido === 'VUELTA' || sentido === 'RETORNO';
   if (ruta.puntosRuta && ruta.puntosRuta.length > 0) {
     const sorted = [...ruta.puntosRuta].sort((a, b) => a.orden - b.orden);
+    const ordered = esRetorno ? [...sorted].reverse() : sorted;
     return {
-      origen: sorted[0].punto.nombre,
-      destino: sorted[sorted.length - 1].punto.nombre,
+      origen: ordered[0].punto.nombre,
+      destino: ordered[ordered.length - 1].punto.nombre,
     };
   }
   const parts = ruta.nombre.split('-');
-  return {
-    origen: parts[0]?.trim() || 'Origen',
-    destino: parts[1]?.trim() || 'Destino',
-  };
+  const first = parts[0]?.trim() || 'Origen';
+  const second = parts[1]?.trim() || 'Destino';
+  return esRetorno
+    ? { origen: second, destino: first }
+    : { origen: first, destino: second };
 }
 
 /**
@@ -146,7 +153,7 @@ export async function validarBoletoAction(
       }
     }
 
-    const { origen, destino } = parseOrigenDestino(boleto.viaje.ruta);
+    const { origen, destino } = parseOrigenDestino(boleto.viaje.ruta, boleto.viaje.sentido);
 
     // Si ya fue abordado
     if (boleto.estado === 'ABORDADO') {
@@ -166,10 +173,7 @@ export async function validarBoletoAction(
           destino,
           unidadNumero: boleto.viaje.despacho?.asignacionUnidad.unidad.numeroUnidad || 'S/N',
           placaUnidad: boleto.viaje.despacho?.asignacionUnidad.unidad.placa || 'N/A',
-          horaSalida: boleto.viaje.hrSalidaProgramada.toLocaleTimeString('es-NI', {
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
+          horaSalida: formatManaguaTime(boleto.viaje.hrSalidaProgramada),
           cooperativaNombre: coopBoleto.nombre,
         },
       };
@@ -219,7 +223,7 @@ export async function validarBoletoAction(
     revalidatePath('/taquilla');
     revalidatePath('/dashboard');
 
-    const rutasPuntos = parseOrigenDestino(boletoActualizado.viaje.ruta);
+    const rutasPuntos = parseOrigenDestino(boletoActualizado.viaje.ruta, boletoActualizado.viaje.sentido);
 
     return {
       success: true,
@@ -235,10 +239,7 @@ export async function validarBoletoAction(
         destino: rutasPuntos.destino,
         unidadNumero: boletoActualizado.viaje.despacho?.asignacionUnidad.unidad.numeroUnidad || 'S/N',
         placaUnidad: boletoActualizado.viaje.despacho?.asignacionUnidad.unidad.placa || 'N/A',
-        horaSalida: boletoActualizado.viaje.hrSalidaProgramada.toLocaleTimeString('es-NI', {
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
+        horaSalida: formatManaguaTime(boletoActualizado.viaje.hrSalidaProgramada),
         cooperativaNombre: coopBoleto.nombre,
       },
     };
@@ -319,7 +320,7 @@ export async function getManifiestoViajeAction(idViaje?: number) {
     const totalBoletos = viaje.boletos.length;
     const capacidadUnidad = viaje.despacho?.asignacionUnidad?.unidad?.asientos?.length || 15;
 
-    const { origen, destino } = parseOrigenDestino(viaje.ruta);
+    const { origen, destino } = parseOrigenDestino(viaje.ruta, viaje.sentido);
     const choferNombre = viaje.despacho?.asignacionUnidad?.usuario
       ? `${viaje.despacho.asignacionUnidad.usuario.nombre} ${viaje.despacho.asignacionUnidad.usuario.apellido}`.trim()
       : 'Sin chofer';
@@ -331,7 +332,7 @@ export async function getManifiestoViajeAction(idViaje?: number) {
         origen,
         destino,
         cooperativa: viaje.ruta.cooperativa.nombre,
-        horaSalida: viaje.hrSalidaProgramada.toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' }),
+        horaSalida: formatManaguaTime(viaje.hrSalidaProgramada),
         estadoViaje: viaje.estado,
         unidad: viaje.despacho?.asignacionUnidad?.unidad.numeroUnidad || 'Sin asignar',
         placa: viaje.despacho?.asignacionUnidad?.unidad.placa || 'N/A',
@@ -408,14 +409,9 @@ export async function getMisBoletosAction(): Promise<{ success: boolean; data: M
     });
 
     const items: MiBoletoItem[] = boletos.map((b) => {
-      const { origen, destino } = parseOrigenDestino(b.viaje.ruta);
-      const salidaDate = new Date(b.viaje.hrSalidaProgramada);
-      const fecha = !isNaN(salidaDate.getTime())
-        ? salidaDate.toLocaleDateString('es-NI', { day: 'numeric', month: 'short', year: 'numeric' })
-        : 'Fecha programada';
-      const horaSalida = !isNaN(salidaDate.getTime())
-        ? salidaDate.toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit', hour12: true })
-        : '06:00 AM';
+      const { origen, destino } = parseOrigenDestino(b.viaje.ruta, b.viaje.sentido);
+      const fecha = formatDateOnlyEsNI(b.viaje.fecha);
+      const horaSalida = formatManaguaTime(b.viaje.hrSalidaProgramada);
 
       let estadoMapeado: 'ACTIVO' | 'UTILIZADO' | 'CANCELADO' = 'ACTIVO';
       if (b.estado === 'ABORDADO') estadoMapeado = 'UTILIZADO';
