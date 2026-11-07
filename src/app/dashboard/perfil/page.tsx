@@ -88,7 +88,7 @@ export default function AdminProfilePage() {
         }
       } catch (err) {
         console.error("Error al cargar perfil administrativo:", err);
-        setFeedback({ type: "error", text: "Error de conexión al cargar datos del perfil." });
+        setFeedback({ type: "error", text: "Error al cargar los datos de perfil" });
       } finally {
         setLoading(false);
       }
@@ -270,11 +270,10 @@ export default function AdminProfilePage() {
       {/* Alerta de Feedback */}
       {feedback && (
         <div
-          className={`flex items-center justify-between p-4 rounded-xl border text-sm font-medium animate-fadeIn ${
-            feedback.type === "success"
+          className={`flex items-center justify-between p-4 rounded-xl border text-sm font-medium animate-fadeIn ${feedback.type === "success"
               ? "bg-emerald-50 text-emerald-800 border-emerald-200"
               : "bg-red-50 text-red-800 border-red-200"
-          }`}
+            }`}
         >
           <div className="flex items-center gap-2.5">
             <Icon
@@ -311,9 +310,8 @@ export default function AdminProfilePage() {
               type="button"
               onClick={() => setShowPhotoActionsModal(true)}
               disabled={processingImage}
-              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center font-bold text-2xl shadow-2xs cursor-pointer select-none touch-manipulation disabled:opacity-80 active:scale-95 block ${
-                processingImage ? "pointer-events-none opacity-80" : ""
-              }`}
+              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-slate-100 border border-slate-200 text-slate-800 flex items-center justify-center font-bold text-2xl shadow-2xs cursor-pointer select-none touch-manipulation disabled:opacity-80 active:scale-95 block ${processingImage ? "pointer-events-none opacity-80" : ""
+                }`}
               title="Toca para gestionar foto de perfil"
               aria-label="Gestionar foto de perfil"
             >
@@ -372,11 +370,10 @@ export default function AdminProfilePage() {
       <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl max-w-fit border border-slate-200/60">
         <button
           onClick={() => setActiveTab("datos")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-            activeTab === "datos"
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${activeTab === "datos"
               ? "bg-white text-slate-900 shadow-2xs font-bold"
               : "text-slate-600 hover:text-slate-900"
-          }`}
+            }`}
         >
           <Icon path={mdiAccount} size={0.7} />
           <span>Información Personal</span>
@@ -384,11 +381,10 @@ export default function AdminProfilePage() {
 
         <button
           onClick={() => setActiveTab("password")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-            activeTab === "password"
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${activeTab === "password"
               ? "bg-white text-slate-900 shadow-2xs font-bold"
               : "text-slate-600 hover:text-slate-900"
-          }`}
+            }`}
         >
           <Icon path={mdiKeyOutline} size={0.7} />
           <span>Seguridad y Contraseña</span>
@@ -778,7 +774,7 @@ export default function AdminProfilePage() {
               <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight mb-2">
                 ¿Quitar foto de perfil?
               </h3>
-              
+
               <p className="text-xs text-slate-500 leading-relaxed mb-6">
                 Tu foto actual será eliminada de tu cuenta y volverás a ver tus iniciales predeterminadas.
               </p>
