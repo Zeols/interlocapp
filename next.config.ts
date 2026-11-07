@@ -11,10 +11,6 @@ const nextConfig: NextConfig = {
     // Evita que advertencias menores de tipado bloqueen el build en contenedor
     ignoreBuildErrors: true,
   },
-  eslint: {
-    // Evita que warnings de ESLint detengan la compilación en producción
-    ignoreDuringBuilds: true,
-  },
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb',
