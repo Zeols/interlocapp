@@ -301,7 +301,9 @@ export async function getCurrentUserAction(): Promise<SessionPayload | null> {
 // ==========================================
 
 function generateSixDigitCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  console.log(`[AUTH VERIFICATION CODE GENERATED] >>> ${code} <<<`);
+  return code;
 }
 
 /**

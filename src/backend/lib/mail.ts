@@ -161,18 +161,9 @@ export async function sendEmail({
   attachments = [],
 }: SendMailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
-    const client = getMailTransporter();
-    if (!client) {
-      console.warn(
-        '[MailService Warning] Variables SMTP no detectadas (SMTP_USER y SMTP_PASS). En Vercel, agrégalas en Project Settings > Environment Variables.'
-      );
-      return {
-        success: false,
-        error: 'Servicio de correo no configurado en variables de entorno (SMTP_USER/SMTP_PASS).',
-      };
-    }
+    const cleanText = text || stripHtmlToText(html);
 
-    // Soporte para simular o desactivar globalmente envíos de correo en testing
+    // 1. Soporte para simular o desactivar globalmente envíos de correo en testing
     if (process.env.DISABLE_EMAIL_SENDING === 'true') {
       console.log(`[MailService] Envío simulado (DISABLE_EMAIL_SENDING=true) para: ${Array.isArray(to) ? to.join(', ') : to}`);
       return {
@@ -181,13 +172,57 @@ export async function sendEmail({
       };
     }
 
+    // 2. Envío vía Resend (HTTP API sobre puerto 443 HTTPS - Evita bloqueo de puertos SMTP en Railway / Render / Serverless)
+    if (process.env.RESEND_API_KEY) {
+      const resendFrom = process.env.RESEND_FROM || 'InterlocApp <onboarding@resend.dev>';
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: resendFrom,
+          to: Array.isArray(to) ? to : [to],
+          subject,
+          html,
+          text: cleanText,
+        }),
+      });
+
+      const resData = await res.json().catch(() => null);
+      if (!res.ok) {
+        const errorMsg = resData?.message || `Error en Resend API (HTTP ${res.status})`;
+        console.error('[MailService Resend Error]:', errorMsg);
+        return {
+          success: false,
+          error: errorMsg,
+        };
+      }
+
+      return {
+        success: true,
+        messageId: resData?.id,
+      };
+    }
+
+    // 3. Envío tradicional SMTP (Nodemailer)
+    const client = getMailTransporter();
+    if (!client) {
+      console.warn(
+        '[MailService Warning] Variables de correo no detectadas (SMTP_USER/SMTP_PASS o RESEND_API_KEY).'
+      );
+      return {
+        success: false,
+        error: 'Servicio de correo no configurado en variables de entorno (configura RESEND_API_KEY o SMTP_USER/SMTP_PASS).',
+      };
+    }
+
     // Envío de adjuntos solo si se especificaron explícitamente (sin archivos pesados embebidos para acelerar la entrega)
     const finalAttachments = [...attachments];
 
     const config = getMailConfig();
     let info;
-
-    const cleanText = text || stripHtmlToText(html);
 
     try {
       const sendPromise = client.sendMail({
