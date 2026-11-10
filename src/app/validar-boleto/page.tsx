@@ -12,7 +12,7 @@ import {
   mdiTicketConfirmationOutline,
   mdiRefresh,
   mdiCamera,
-  mdiCameraOff,
+  mdiCameraFlipOutline,
   mdiClose,
   mdiArrowLeft,
   mdiMapMarker,
@@ -64,7 +64,30 @@ export default function ValidarBoletoPage() {
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [isCheckingCamera, setIsCheckingCamera] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraFacingMode, setCameraFacingMode] = useState<"environment" | "user">("environment");
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Precargar motor jsQR para compatibilidad multiplataforma (iOS Safari, Firefox, Windows Chrome/Edge)
+  const ensureJsQRLoaded = (): Promise<any> => {
+    if (typeof window === "undefined") return Promise.resolve(null);
+    if ((window as any).jsQR) return Promise.resolve((window as any).jsQR);
+    return new Promise((resolve) => {
+      const existing = document.querySelector('script[data-jsqr="true"]') as HTMLScriptElement | null;
+      if (existing) {
+        existing.addEventListener("load", () => resolve((window as any).jsQR));
+        existing.addEventListener("error", () => resolve(null));
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "/vendor/jsQR.js";
+      script.async = true;
+      script.dataset.jsqr = "true";
+      script.onload = () => resolve((window as any).jsQR);
+      script.onerror = () => resolve(null);
+      document.head.appendChild(script);
+    });
+  };
 
   // Cargar usuario y viaje
   const loadData = async () => {
@@ -94,6 +117,7 @@ export default function ValidarBoletoPage() {
 
   useEffect(() => {
     loadData();
+    ensureJsQRLoaded();
   }, []);
 
   const ejecutarValidacion = async (codigo: string) => {
@@ -131,35 +155,54 @@ export default function ValidarBoletoPage() {
     await ejecutarValidacion(codigoInput);
   };
 
+  const detenerStreamActual = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+  };
+
   // Verificación y apertura de la cámara del dispositivo
-  const checkAndOpenCamera = async () => {
+  const iniciarFlujoCamara = async (facing: "environment" | "user") => {
     setFeedbackError(null);
     setIsCheckingCamera(true);
 
     if (typeof window === "undefined" || !navigator?.mediaDevices?.getUserMedia) {
-      setFeedbackError("Este navegador o dispositivo no soporta acceso a la cámara.");
+      setFeedbackError("Este navegador o dispositivo no soporta acceso a la cámara (requiere HTTPS o localhost).");
       setIsCheckingCamera(false);
       return;
     }
 
     try {
-      // 1. Verificar si existen dispositivos de videoinput conectados
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter((d) => d.kind === "videoinput");
+      await ensureJsQRLoaded();
+      detenerStreamActual();
 
-      if (videoDevices.length === 0) {
-        setFeedbackError("No se detectó ninguna cámara física conectada en este dispositivo.");
-        setIsCheckingCamera(false);
-        return;
+      let stream: MediaStream;
+      try {
+        // 1. Solicitar flujo de video con la cámara seleccionada (trasera por defecto en móviles)
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: facing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+      } catch {
+        // 2. Fallback automático para webcams de escritorio o dispositivos sin restricción de facingMode
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
       }
 
-      // 2. Solicitar flujo de video (priorizando cámara trasera en móviles)
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } },
-        audio: false,
-      });
-
+      streamRef.current = stream;
       setCameraStream(stream);
+      setCameraFacingMode(facing);
       setShowCameraModal(true);
     } catch (err: any) {
       console.error("Error al acceder a la cámara:", err);
@@ -167,6 +210,8 @@ export default function ValidarBoletoPage() {
         setFeedbackError("Permiso de cámara denegado. Concede permiso de cámara en los ajustes de tu navegador.");
       } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
         setFeedbackError("No se encontró ninguna cámara disponible en el equipo.");
+      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        setFeedbackError("La cámara está siendo utilizada por otra aplicación.");
       } else {
         setFeedbackError("No se pudo iniciar la cámara: " + (err.message || "Error desconocido."));
       }
@@ -175,19 +220,27 @@ export default function ValidarBoletoPage() {
     }
   };
 
+  const checkAndOpenCamera = async () => {
+    await iniciarFlujoCamara(cameraFacingMode);
+  };
+
+  const cambiarCamara = async () => {
+    const nextFacing = cameraFacingMode === "environment" ? "user" : "environment";
+    await iniciarFlujoCamara(nextFacing);
+  };
+
   const cerrarCamara = () => {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach((track) => track.stop());
-      setCameraStream(null);
-    }
+    detenerStreamActual();
     setShowCameraModal(false);
   };
 
-  // Detección automática en video con BarcodeDetector
+  // Detección automática en video con motor híbrido (jsQR + BarcodeDetector)
   useEffect(() => {
     if (showCameraModal && cameraStream && videoRef.current) {
-      videoRef.current.srcObject = cameraStream;
-      videoRef.current.play().catch(() => {});
+      const videoEl = videoRef.current;
+      videoEl.srcObject = cameraStream;
+      videoEl.setAttribute("playsinline", "true");
+      videoEl.play().catch(() => {});
 
       let active = true;
       let detector: any = null;
@@ -201,35 +254,73 @@ export default function ValidarBoletoPage() {
         }
       }
 
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+      const procesarCodigoDetectado = (rawCode: string) => {
+        if (!active || !rawCode) return;
+        const trimmed = rawCode.trim();
+        if (!trimmed) return;
+
+        active = false;
+        cerrarCamara();
+
+        let displayCode = trimmed;
+        if (displayCode.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(displayCode);
+            if (parsed.c) displayCode = String(parsed.c);
+            else if (parsed.b) displayCode = `BOLETO-${parsed.b}`;
+          } catch {
+            // Mantener código si falla JSON
+          }
+        }
+        setCodigoInput(displayCode);
+        ejecutarValidacion(trimmed);
+      };
+
       const interval = setInterval(async () => {
-        if (!active || !detector || !videoRef.current) return;
+        if (!active || !videoRef.current) return;
+        const vid = videoRef.current;
+        if (vid.readyState < vid.HAVE_CURRENT_DATA || vid.videoWidth === 0 || vid.videoHeight === 0) {
+          return;
+        }
+
         try {
-          if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
-            const detected = await detector.detect(videoRef.current);
-            if (detected && detected.length > 0) {
-              const code = detected[0].rawValue;
-              if (code) {
-                active = false;
-                cerrarCamara();
-                let displayCode = code.trim();
-                if (displayCode.startsWith('{')) {
-                  try {
-                    const parsed = JSON.parse(displayCode);
-                    if (parsed.c) displayCode = String(parsed.c);
-                    else if (parsed.b) displayCode = `BOLETO-${parsed.b}`;
-                  } catch {
-                    // Mantener raw si falla JSON
-                  }
-                }
-                setCodigoInput(displayCode);
-                ejecutarValidacion(code);
-              }
+          // 1. Decodificación universal por Canvas + jsQR (funciona en Windows, iOS Safari, Firefox y Android)
+          const jsQRFunc = typeof window !== "undefined" ? (window as any).jsQR : null;
+          if (jsQRFunc && ctx) {
+            const maxDim = 640;
+            const scale = Math.min(1, maxDim / Math.max(vid.videoWidth, vid.videoHeight));
+            const width = Math.max(1, Math.floor(vid.videoWidth * scale));
+            const height = Math.max(1, Math.floor(vid.videoHeight * scale));
+
+            if (canvas.width !== width) canvas.width = width;
+            if (canvas.height !== height) canvas.height = height;
+
+            ctx.drawImage(vid, 0, 0, width, height);
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const qrResult = jsQRFunc(imageData.data, width, height, {
+              inversionAttempts: "attemptBoth",
+            });
+
+            if (qrResult && qrResult.data) {
+              procesarCodigoDetectado(qrResult.data);
+              return;
+            }
+          }
+
+          // 2. Fallback o soporte adicional con BarcodeDetector nativo
+          if (detector) {
+            const detected = await detector.detect(vid);
+            if (detected && detected.length > 0 && detected[0].rawValue) {
+              procesarCodigoDetectado(detected[0].rawValue);
             }
           }
         } catch {
           // Errores de frame intermedio ignorados
         }
-      }, 350);
+      }, 250);
 
       return () => {
         active = false;
@@ -241,11 +332,11 @@ export default function ValidarBoletoPage() {
   // Limpiar stream al desmontar el componente
   useEffect(() => {
     return () => {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach((t) => t.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
       }
     };
-  }, [cameraStream]);
+  }, []);
 
   const boletosFiltrados = (manifiesto?.boletos || []).filter((b) => {
     if (filtroManifiesto === "abordados") return b.estado === "ABORDADO";
@@ -384,7 +475,10 @@ export default function ValidarBoletoPage() {
               <input
                 type="text"
                 value={codigoInput}
-                onChange={(e) => setCodigoInput(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCodigoInput(val.trim().startsWith("{") ? val : val.toUpperCase());
+                }}
                 placeholder="Ingresa código o escanea QR (ej: BOLETO-14)..."
                 className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs sm:text-sm font-semibold rounded-lg py-2.5 pl-9 pr-3.5 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 focus:bg-white transition-all font-mono"
                 autoFocus
@@ -666,9 +760,16 @@ export default function ValidarBoletoPage() {
 
             {/* Modal Footer */}
             <div className="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between gap-3 text-xs">
-              <span className="text-slate-400 text-[11px]">
-                Validación y detección automática
-              </span>
+              <button
+                type="button"
+                onClick={cambiarCamara}
+                disabled={isCheckingCamera}
+                className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                title="Alternar entre cámara trasera y frontal"
+              >
+                <Icon path={mdiCameraFlipOutline} size={0.65} />
+                <span>Cambiar Cámara</span>
+              </button>
               <button
                 type="button"
                 onClick={cerrarCamara}

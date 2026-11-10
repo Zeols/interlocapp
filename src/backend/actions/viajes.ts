@@ -30,9 +30,35 @@ export interface ViajeInput {
 
 /**
  * Libera automáticamente asignaciones de unidad que quedaron en estado INICIADA
- * pero cuya unidad ya no tiene ningún despacho asociado a un viaje PROGRAMADO o EN_CURSO.
+ * pero cuya unidad ya no tiene ningún despacho asociado a un viaje PROGRAMADO o EN_CURSO,
+ * y cierra viajes EN_CURSO rezagados de jornadas anteriores (> 18 horas).
  */
 async function limpiarAsignacionesHuerfanas() {
+  const ahora = new Date();
+  const limiteViajeRezagado = new Date(ahora.getTime() - 18 * 60 * 60 * 1000);
+
+  // 1. Cerrar viajes EN_CURSO rezagados de días anteriores (> 18h desde su salida programada)
+  const viajesRezagados = await prisma.viaje.findMany({
+    where: {
+      estado: 'EN_CURSO',
+      hrSalidaProgramada: { lt: limiteViajeRezagado },
+    },
+    select: { idViaje: true },
+  });
+
+  if (viajesRezagados.length > 0) {
+    const idsRezagados = viajesRezagados.map((v) => v.idViaje);
+    await prisma.viaje.updateMany({
+      where: { idViaje: { in: idsRezagados } },
+      data: { estado: 'FINALIZADO', hrLlegadaReal: ahora },
+    });
+    await prisma.despacho.updateMany({
+      where: { idViaje: { in: idsRezagados }, estado: { in: ['PENDIENTE', 'EN_CURSO'] } },
+      data: { estado: 'FINALIZADO' },
+    });
+  }
+
+  // 2. Consultar despachos con viajes realmente activos
   const despachosActivos = await prisma.despacho.findMany({
     where: {
       estado: { in: ['PENDIENTE', 'EN_CURSO'] },
@@ -51,6 +77,7 @@ async function limpiarAsignacionesHuerfanas() {
     new Set(despachosActivos.map((d) => d.asignacionUnidad.idUnidad))
   );
 
+  // 3. Liberar asignaciones y unidades que ya no tienen viaje activo (incluso si quedan 0 viajes activos)
   if (unidadesConViajeActivo.length > 0) {
     await prisma.asignacionUnidad.updateMany({
       where: {
@@ -59,8 +86,31 @@ async function limpiarAsignacionesHuerfanas() {
       },
       data: {
         estado: 'FINALIZADA',
-        fechaHFin: new Date(),
+        fechaHFin: ahora,
       },
+    });
+
+    await prisma.unidad.updateMany({
+      where: {
+        estado: 'EN_RUTA',
+        idUnidad: { notIn: unidadesConViajeActivo },
+      },
+      data: {
+        estado: 'DISPONIBLE',
+      },
+    });
+  } else {
+    await prisma.asignacionUnidad.updateMany({
+      where: { estado: 'INICIADA' },
+      data: {
+        estado: 'FINALIZADA',
+        fechaHFin: ahora,
+      },
+    });
+
+    await prisma.unidad.updateMany({
+      where: { estado: 'EN_RUTA' },
+      data: { estado: 'DISPONIBLE' },
     });
   }
 }
@@ -1957,7 +2007,7 @@ export interface RegistroControlChequeadorInput {
   idPuntoRuta: number;
   pasajerosConteo: number;
   observacion?: string;
-  tipo?: 'SALIDA_TERMINAL' | 'CONTROL_PASO';
+  tipo?: 'SALIDA_TERMINAL' | 'CONTROL_PASO' | 'LLEGADA_DESTINO';
 }
 
 /**
@@ -1970,6 +2020,8 @@ export async function getViajesChequeadorAction(coopIdFilter?: number) {
       return { success: false, error: 'No tienes permisos para consultar el panel del chequeador.', data: [] };
     }
 
+    await limpiarAsignacionesHuerfanas();
+
     const hoyManaguaISO = getManaguaDateISO();
     const fechaHoyUTC = parseDateOnlyUTC(hoyManaguaISO);
     const hoyInicioManagua = getManaguaStartOfDay(hoyManaguaISO);
@@ -1979,6 +2031,7 @@ export async function getViajesChequeadorAction(coopIdFilter?: number) {
 
     const viajes = await prisma.viaje.findMany({
       where: {
+        estado: { not: 'CANCELADO' },
         OR: [
           { fecha: fechaHoyUTC },
           {
@@ -2031,12 +2084,14 @@ export async function getViajesChequeadorAction(coopIdFilter?: number) {
     const items = viajes.map((v) => {
       const unidad = v.despacho?.asignacionUnidad.unidad;
       const puntos =
-        v.sentido === 'VUELTA' || v.sentido === 'RETORNO'
+        v.sentido?.includes('VUELTA') || v.sentido?.includes('RETORNO')
           ? [...v.ruta.puntosRuta].reverse()
           : v.ruta.puntosRuta;
       const origen = puntos[0]?.punto.nombre || 'Origen';
       const destino = puntos[puntos.length - 1]?.punto.nombre || 'Destino';
       const ultimoControl = v.controlesViaje[0] || null;
+      const primerControl =
+        v.controlesViaje.length > 0 ? v.controlesViaje[v.controlesViaje.length - 1] : null;
 
       const boletosAbordados = v.boletos.filter((b) => b.estado === 'ABORDADO').length;
       const totalBoletos = v.boletos.length;
@@ -2053,6 +2108,16 @@ export async function getViajesChequeadorAction(coopIdFilter?: number) {
           ? `${v.despacho.asignacionUnidad.usuario.nombre} ${v.despacho.asignacionUnidad.usuario.apellido || ''}`.trim()
           : 'Sin conductor',
         hrSalidaProgramada: v.hrSalidaProgramada.toISOString(),
+        hrSalidaEstimada: v.hrSalidaEstimada
+          ? v.hrSalidaEstimada.toISOString()
+          : primerControl
+          ? primerControl.fechaHora.toISOString()
+          : null,
+        hrLlegadaReal: v.hrLlegadaReal
+          ? v.hrLlegadaReal.toISOString()
+          : v.estado === 'FINALIZADO' && ultimoControl
+          ? ultimoControl.fechaHora.toISOString()
+          : null,
         estado: v.estado,
         boletosAbordados,
         totalBoletos,
@@ -2083,7 +2148,8 @@ export async function getViajesChequeadorAction(coopIdFilter?: number) {
 }
 
 /**
- * Registra un control de sellado digital (salida de terminal o paso por punto de control) por el Chequeador.
+ * Registra un control de sellado digital (salida de terminal, paso por carretera o llegada a destino) por el Chequeador.
+ * Si el punto sellado corresponde al destino final de la ruta (o tipo === 'LLEGADA_DESTINO'), finaliza el viaje y libera la unidad.
  */
 export async function registrarControlChequeadorAction(data: RegistroControlChequeadorInput) {
   try {
@@ -2095,14 +2161,41 @@ export async function registrarControlChequeadorAction(data: RegistroControlCheq
     const { idViaje, idPuntoRuta, pasajerosConteo, observacion, tipo = 'CONTROL_PASO' } = data;
     const fechaHoraManagua = getNowInManagua();
 
-    const puntoRuta = await prisma.puntoRuta.findUnique({
-      where: { idPuntoRuta },
-      include: { punto: true, ruta: true },
-    });
+    const [puntoRuta, viajeRecord] = await Promise.all([
+      prisma.puntoRuta.findUnique({
+        where: { idPuntoRuta },
+        include: { punto: true, ruta: true },
+      }),
+      prisma.viaje.findUnique({
+        where: { idViaje },
+        include: {
+          ruta: {
+            include: {
+              puntosRuta: { orderBy: { orden: 'asc' } },
+            },
+          },
+          despacho: {
+            include: { asignacionUnidad: true },
+          },
+        },
+      }),
+    ]);
 
-    if (!puntoRuta) {
-      return { success: false, error: 'El punto de control seleccionado no existe.' };
+    if (!puntoRuta || !viajeRecord) {
+      return { success: false, error: 'El viaje o punto de control seleccionado no existe.' };
     }
+
+    const puntosOrdenados =
+      viajeRecord.sentido?.includes('VUELTA') || viajeRecord.sentido?.includes('RETORNO')
+        ? [...viajeRecord.ruta.puntosRuta].reverse()
+        : viajeRecord.ruta.puntosRuta;
+
+    const ultimoPuntoRuta = puntosOrdenados[puntosOrdenados.length - 1];
+    const esPuntoFinal =
+      tipo === 'LLEGADA_DESTINO' ||
+      (tipo !== 'SALIDA_TERMINAL' &&
+        puntosOrdenados.length > 1 &&
+        ultimoPuntoRuta?.idPuntoRuta === idPuntoRuta);
 
     await prisma.$transaction(async (tx) => {
       // 1. Crear registro en controles_viaje
@@ -2113,31 +2206,58 @@ export async function registrarControlChequeadorAction(data: RegistroControlCheq
           idUsuario: session.idUsuario,
           pasajerosConteo,
           observacion: observacion?.trim() || null,
-          tipo,
+          tipo: esPuntoFinal ? 'LLEGADA_DESTINO' : tipo,
           fechaHora: fechaHoraManagua,
         },
       });
 
-      // 2. Si el tipo es SALIDA_TERMINAL y el viaje está PROGRAMADO, lo pasamos a EN_CURSO
-      if (tipo === 'SALIDA_TERMINAL') {
+      // 2. Si es el último punto de la ruta o cierre de destino, finalizar el viaje y liberar unidad
+      if (esPuntoFinal) {
+        await tx.viaje.update({
+          where: { idViaje },
+          data: {
+            estado: 'FINALIZADO',
+            hrLlegadaReal: fechaHoraManagua,
+          },
+        });
+
+        if (viajeRecord.despacho) {
+          const idUnidad = viajeRecord.despacho.asignacionUnidad.idUnidad;
+
+          await tx.despacho.update({
+            where: { idDespacho: viajeRecord.despacho.idDespacho },
+            data: { estado: 'FINALIZADO' },
+          });
+
+          await tx.asignacionUnidad.updateMany({
+            where: { idUnidad, estado: 'INICIADA' },
+            data: {
+              estado: 'FINALIZADA',
+              fechaHFin: fechaHoraManagua,
+            },
+          });
+
+          await tx.unidad.update({
+            where: { idUnidad },
+            data: { estado: 'DISPONIBLE' },
+          });
+
+          await tx.asiento.updateMany({
+            where: { idUnidad, estado: 'OCUPADO' },
+            data: { estado: 'DISPONIBLE' },
+          });
+        }
+      } else if (tipo === 'SALIDA_TERMINAL' || viajeRecord.estado === 'PROGRAMADO') {
+        // 3. Si es salida de terminal o estaba programado, pasarlo a EN_CURSO
         await tx.viaje.update({
           where: { idViaje },
           data: {
             estado: 'EN_CURSO',
-            hrSalidaEstimada: fechaHoraManagua,
+            hrSalidaEstimada: viajeRecord.hrSalidaEstimada || fechaHoraManagua,
           },
         });
 
-        const viajeRecord = await tx.viaje.findUnique({
-          where: { idViaje },
-          include: {
-            despacho: {
-              include: { asignacionUnidad: true },
-            },
-          },
-        });
-
-        if (viajeRecord?.despacho) {
+        if (viajeRecord.despacho) {
           await tx.despacho.update({
             where: { idDespacho: viajeRecord.despacho.idDespacho },
             data: { estado: 'EN_CURSO' },
@@ -2154,12 +2274,14 @@ export async function registrarControlChequeadorAction(data: RegistroControlCheq
     revalidatePath('/dashboard');
     revalidatePath('/dashboard/chequeador');
     revalidatePath('/dashboard/viajes');
+    revalidatePath('/dashboard/ayudante');
 
     return {
       success: true,
       data: {
         puntoNombre: puntoRuta.punto.nombre,
         horaRegistro: fechaHoraManagua.toISOString(),
+        finalizado: esPuntoFinal,
       },
     };
   } catch (error) {

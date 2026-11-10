@@ -41,6 +41,8 @@ interface ChequeadorViajeItem {
   placa: string;
   choferNombre: string;
   hrSalidaProgramada: string;
+  hrSalidaEstimada?: string | null;
+  hrLlegadaReal?: string | null;
   estado: string;
   boletosAbordados: number;
   totalBoletos: number;
@@ -71,7 +73,7 @@ export default function ChequeadorPage() {
   // Estados Modal de Sellado / Control
   const [viajeSeleccionado, setViajeSeleccionado] = useState<ChequeadorViajeItem | null>(null);
   const [idPuntoRutaSeleccionado, setIdPuntoRutaSeleccionado] = useState<number | null>(null);
-  const [tipoControl, setTipoControl] = useState<"SALIDA_TERMINAL" | "CONTROL_PASO">("SALIDA_TERMINAL");
+  const [tipoControl, setTipoControl] = useState<"SALIDA_TERMINAL" | "CONTROL_PASO" | "LLEGADA_DESTINO">("SALIDA_TERMINAL");
   const [conteoPasajeros, setConteoPasajeros] = useState<number>(0);
   const [observacion, setObservacion] = useState("");
   const [sellando, setSellando] = useState(false);
@@ -106,8 +108,12 @@ export default function ChequeadorPage() {
 
   const handleOpenSelloModal = (viaje: ChequeadorViajeItem) => {
     setViajeSeleccionado(viaje);
-    setIdPuntoRutaSeleccionado(viaje.puntosRuta[0]?.idPuntoRuta || null);
-    setTipoControl(viaje.estado === "PROGRAMADO" ? "SALIDA_TERMINAL" : "CONTROL_PASO");
+    const esProgramado = viaje.estado === "PROGRAMADO";
+    const defaultStop = esProgramado
+      ? viaje.puntosRuta[0]?.idPuntoRuta
+      : viaje.puntosRuta[1]?.idPuntoRuta || viaje.puntosRuta[0]?.idPuntoRuta;
+    setIdPuntoRutaSeleccionado(defaultStop || null);
+    setTipoControl(esProgramado ? "SALIDA_TERMINAL" : "CONTROL_PASO");
     setConteoPasajeros(viaje.boletosAbordados || viaje.totalBoletos || 0);
     setObservacion("");
   };
@@ -128,9 +134,12 @@ export default function ChequeadorPage() {
       });
 
       if (res.success) {
+        const finalizoMsg = (res.data as any)?.finalizado
+          ? " · Viaje finalizado y unidad liberada."
+          : ".";
         setFeedback({
           type: "success",
-          text: `Sello digital registrado exitosamente en ${res.data?.puntoNombre}.`,
+          text: `Sello digital registrado exitosamente en ${res.data?.puntoNombre}${finalizoMsg}`,
         });
         setViajeSeleccionado(null);
         await fetchViajes();
@@ -285,8 +294,44 @@ export default function ChequeadorPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredViajes.map((viaje) => {
-            const delayMin = calculateDelayMinutes(viaje.hrSalidaProgramada);
-            const punctuality = getPunctualityStatus(delayMin);
+            // Determinar estado temporal sin acumular tiempo infinito en viajes finalizados o ya iniciados
+            let punctuality: { label: string; className: string };
+
+            if (viaje.estado === "FINALIZADO") {
+              const horaFin = viaje.hrLlegadaReal || viaje.ultimoControl?.fechaHora;
+              punctuality = {
+                label: horaFin ? `Llegó ${formatManaguaTime(horaFin)}` : "Viaje Finalizado",
+                className: "text-slate-600 bg-slate-100 border-slate-200",
+              };
+            } else if (viaje.estado === "EN_CURSO") {
+              if (viaje.hrSalidaEstimada) {
+                const diffSalida = calculateDelayMinutes(viaje.hrSalidaProgramada, viaje.hrSalidaEstimada);
+                const statusSalida = getPunctualityStatus(diffSalida);
+                punctuality = {
+                  label:
+                    statusSalida.status === "RETRASADO"
+                      ? `Salió +${diffSalida} min`
+                      : `Salió ${formatManaguaTime(viaje.hrSalidaEstimada)}`,
+                  className: statusSalida.className,
+                };
+              } else {
+                punctuality = {
+                  label: "En tránsito",
+                  className: "text-emerald-700 bg-emerald-50 border-emerald-200",
+                };
+              }
+            } else {
+              // Viaje PROGRAMADO (por salir)
+              const delayMin = calculateDelayMinutes(viaje.hrSalidaProgramada);
+              if (delayMin < -5) {
+                punctuality = {
+                  label: "Por salir",
+                  className: "text-sky-700 bg-sky-50 border-sky-200",
+                };
+              } else {
+                punctuality = getPunctualityStatus(delayMin);
+              }
+            }
 
             return (
               <div
@@ -317,7 +362,11 @@ export default function ChequeadorPage() {
                           : "bg-blue-50 text-blue-800 border-blue-200"
                       }`}
                     >
-                      {viaje.estado === "EN_CURSO" ? "En Ruta" : viaje.estado}
+                      {viaje.estado === "EN_CURSO"
+                        ? "En Ruta"
+                        : viaje.estado === "FINALIZADO"
+                        ? "Finalizado"
+                        : "Programado"}
                     </span>
                   </div>
 
@@ -374,7 +423,11 @@ export default function ChequeadorPage() {
                   className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-50"
                 >
                   <Icon path={mdiStamper} size={0.65} />
-                  <span>Sellar Tarjeta de Control</span>
+                  <span>
+                    {viaje.estado === "FINALIZADO"
+                      ? "Recorrido Finalizado"
+                      : "Sellar Tarjeta de Control"}
+                  </span>
                 </button>
               </div>
             );
@@ -412,13 +465,30 @@ export default function ChequeadorPage() {
                 <label className="text-xs font-semibold text-slate-700">Punto de Control o Terminal:</label>
                 <select
                   value={idPuntoRutaSeleccionado || ""}
-                  onChange={(e) => setIdPuntoRutaSeleccionado(Number(e.target.value))}
+                  onChange={(e) => {
+                    const selectedId = Number(e.target.value);
+                    setIdPuntoRutaSeleccionado(selectedId);
+                    const lastStop = viajeSeleccionado.puntosRuta[viajeSeleccionado.puntosRuta.length - 1];
+                    const firstStop = viajeSeleccionado.puntosRuta[0];
+                    if (lastStop && selectedId === lastStop.idPuntoRuta && viajeSeleccionado.puntosRuta.length > 1) {
+                      setTipoControl("LLEGADA_DESTINO");
+                    } else if (firstStop && selectedId === firstStop.idPuntoRuta && viajeSeleccionado.estado === "PROGRAMADO") {
+                      setTipoControl("SALIDA_TERMINAL");
+                    } else if (tipoControl === "LLEGADA_DESTINO") {
+                      setTipoControl("CONTROL_PASO");
+                    }
+                  }}
                   className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:border-slate-400"
                   required
                 >
-                  {viajeSeleccionado.puntosRuta.map((pr) => (
+                  {viajeSeleccionado.puntosRuta.map((pr, idx) => (
                     <option key={pr.idPuntoRuta} value={pr.idPuntoRuta}>
-                      Estación #{pr.orden}: {pr.nombre}
+                      Parada #{idx + 1}: {pr.nombre}
+                      {idx === 0
+                        ? " (Origen)"
+                        : idx === viajeSeleccionado.puntosRuta.length - 1
+                        ? " (Destino Final)"
+                        : ""}
                     </option>
                   ))}
                 </select>
@@ -426,28 +496,50 @@ export default function ChequeadorPage() {
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700">Tipo de Control:</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
-                    onClick={() => setTipoControl("SALIDA_TERMINAL")}
-                    className={`py-2 px-3 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                    onClick={() => {
+                      setTipoControl("SALIDA_TERMINAL");
+                      if (viajeSeleccionado.puntosRuta[0]) {
+                        setIdPuntoRutaSeleccionado(viajeSeleccionado.puntosRuta[0].idPuntoRuta);
+                      }
+                    }}
+                    className={`py-2 px-2 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
                       tipoControl === "SALIDA_TERMINAL"
                         ? "bg-slate-900 text-white border-slate-900"
                         : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                     }`}
                   >
-                    Salida de Terminal
+                    Salida Terminal
                   </button>
                   <button
                     type="button"
                     onClick={() => setTipoControl("CONTROL_PASO")}
-                    className={`py-2 px-3 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                    className={`py-2 px-2 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
                       tipoControl === "CONTROL_PASO"
                         ? "bg-slate-900 text-white border-slate-900"
                         : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                     }`}
                   >
-                    Punto en Carretera
+                    Paso en Ruta
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTipoControl("LLEGADA_DESTINO");
+                      const lastStop = viajeSeleccionado.puntosRuta[viajeSeleccionado.puntosRuta.length - 1];
+                      if (lastStop) {
+                        setIdPuntoRutaSeleccionado(lastStop.idPuntoRuta);
+                      }
+                    }}
+                    className={`py-2 px-2 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
+                      tipoControl === "LLEGADA_DESTINO"
+                        ? "bg-emerald-700 text-white border-emerald-700"
+                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    Llegada / Fin
                   </button>
                 </div>
               </div>
