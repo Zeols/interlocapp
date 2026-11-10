@@ -79,16 +79,20 @@ export async function validarBoletoAction(
       if (trimmed.startsWith('{')) {
         try {
           const parsed = JSON.parse(trimmed);
-          if (parsed.b !== undefined && parsed.b !== null) {
-            idBoleto = Number(parsed.b);
-          } else if (parsed.idBoleto !== undefined && parsed.idBoleto !== null) {
-            idBoleto = Number(parsed.idBoleto);
-          } else if (parsed.c && typeof parsed.c === 'string') {
-            const m = parsed.c.match(/(\d+)/);
+          const bVal = parsed.b ?? parsed.B ?? parsed.idBoleto ?? parsed.IDBOLETO;
+          const cVal = parsed.c ?? parsed.C;
+          if (bVal !== undefined && bVal !== null) {
+            idBoleto = Number(bVal);
+          } else if (cVal && typeof cVal === 'string') {
+            const m = cVal.match(/(\d+)/);
             if (m) idBoleto = Number(m[1]);
           }
         } catch {
-          // No es JSON válido, continúa con parsing de texto
+          // Si el JSON está truncado o fue convertido a mayúsculas (ej. NULL), extraer llave "b" o "idBoleto"
+          const bKeyMatch = trimmed.match(/"(?:b|idBoleto)"\s*:\s*(\d+)/i);
+          if (bKeyMatch) {
+            idBoleto = Number(bKeyMatch[1]);
+          }
         }
       }
 

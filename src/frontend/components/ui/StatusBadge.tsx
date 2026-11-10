@@ -44,13 +44,13 @@ export function StatusBadge({
 
 export function getVariantFromStatus(status: string): StatusVariant {
   const s = (status || "").toUpperCase();
-  if (["ACTIVO", "COMPLETADO", "PAGADO", "DISPONIBLE", "VALIDADO"].includes(s)) {
+  if (["ACTIVO", "COMPLETADO", "CONFIRMADO", "PAGADO", "DISPONIBLE", "VALIDADO"].includes(s)) {
     return "success";
   }
   if (["PROGRAMADO", "EN_TRANSITO", "EN_RUTA", "PENDIENTE", "ABORDANDO"].includes(s)) {
     return "warning";
   }
-  if (["CANCELADO", "INACTIVO", "BLOQUEADO", "ANULADO", "OCUPADO"].includes(s)) {
+  if (["CANCELADO", "RECHAZADO", "INACTIVO", "BLOQUEADO", "ANULADO", "OCUPADO"].includes(s)) {
     return "danger";
   }
   if (["REASIGNADO", "TAQUILLA", "WEB"].includes(s)) {

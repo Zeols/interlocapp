@@ -261,6 +261,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   };
 
   const badgeRol = getRolBadge();
+  const isCollapsedDesktop = !sidebarOpen && !mobileMenuOpen;
 
   return (
     <div className="min-h-screen bg-slate-50 flex text-slate-900">
@@ -272,28 +273,42 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* Sidebar (Desktop collapsable + Mobile slide-over) */}
+      {/* Sidebar (Desktop collapsable rail w-64 / w-20 + Mobile slide-over) */}
       <aside
-        className={`w-64 bg-white border-r border-slate-200 flex flex-col fixed inset-y-0 left-0 z-50 transition-all duration-300 ease-in-out ${
+        className={`bg-white border-r border-slate-200 flex flex-col fixed inset-y-0 left-0 z-50 transition-all duration-300 ease-in-out ${
           mobileMenuOpen
-            ? "translate-x-0"
+            ? "w-64 translate-x-0"
             : sidebarOpen
-            ? "-translate-x-full lg:translate-x-0"
-            : "-translate-x-full"
+            ? "w-64 -translate-x-full lg:translate-x-0"
+            : "w-64 lg:w-20 -translate-x-full lg:translate-x-0"
         }`}
       >
-        {/* Cabecera del Sidebar */}
-        <div className="p-4 border-b border-slate-100 shrink-0">
-          <div className="flex items-center justify-between">
-            <Link href="/dashboard" className="flex items-center gap-2.5">
+        {/* Cabecera del Sidebar con Burguer Menú */}
+        <div className={`border-b border-slate-100 shrink-0 ${isCollapsedDesktop ? "p-4 lg:p-3" : "p-4"}`}>
+          <div className={`flex items-center ${isCollapsedDesktop ? "justify-between lg:justify-center" : "justify-between"}`}>
+            <Link
+              href="/dashboard"
+              className={`flex items-center gap-2.5 min-w-0 ${isCollapsedDesktop ? "lg:hidden" : ""}`}
+            >
               <Logo size={0.85} />
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-slate-900 text-base tracking-tight">InterlocApp</span>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${badgeRol.color}`}>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="font-bold text-slate-900 text-base tracking-tight truncate">InterlocApp</span>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border shrink-0 ${badgeRol.color}`}>
                   {badgeRol.label}
                 </span>
               </div>
             </Link>
+
+            {/* Botón Burguer Menú en Escritorio (dentro del Sidebar para alternar vista de iconos) */}
+            <button
+              onClick={() => setSidebarOpen((prev) => !prev)}
+              className="hidden lg:flex items-center justify-center p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80 shadow-2xs transition-colors cursor-pointer shrink-0"
+              title={sidebarOpen ? "Ocultar panel (ver solo iconos)" : "Expandir panel lateral"}
+              aria-label="Alternar panel lateral"
+            >
+              <Icon path={mdiMenu} size={0.75} />
+            </button>
+
             <button
               onClick={() => setMobileMenuOpen(false)}
               className="lg:hidden text-slate-400 hover:text-slate-600 p-1.5 rounded-md hover:bg-slate-100 cursor-pointer"
@@ -304,11 +319,16 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
 
           {selectedCoop && (
-            <div className="mt-3 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200/80 flex items-center gap-2.5">
+            <div
+              title={`${selectedCoop.nombre} (Cooperativa asignada)`}
+              className={`mt-3 rounded-lg bg-slate-50 border border-slate-200/80 flex items-center ${
+                isCollapsedDesktop ? "px-3 py-2 gap-2.5 lg:px-0 lg:py-2 lg:justify-center" : "px-3 py-2 gap-2.5"
+              }`}
+            >
               <div className="w-6 h-6 rounded-md bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 font-bold text-xs">
                 <Icon path={mdiDomain} size={0.55} />
               </div>
-              <div className="min-w-0">
+              <div className={`min-w-0 ${isCollapsedDesktop ? "lg:hidden" : ""}`}>
                 <p className="text-xs font-bold text-slate-900 truncate leading-tight" title={selectedCoop.nombre}>
                   {selectedCoop.nombre}
                 </p>
@@ -340,11 +360,22 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        {/* Navegación por Secciones Estructuradas con scroll fino y estilizado */}
-        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-300">
-          {navigationSections.map((sec) => (
+        {/* Navegación por Secciones Estructuradas (soporta modo completo y modo solo iconos) */}
+        <nav
+          className={`flex-1 py-3 overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 ${
+            isCollapsedDesktop ? "px-3 lg:px-2 space-y-4 lg:space-y-2" : "px-3 space-y-4"
+          }`}
+        >
+          {navigationSections.map((sec, secIdx) => (
             <div key={sec.title} className="space-y-1">
-              <span className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              {secIdx > 0 && isCollapsedDesktop && (
+                <div className="hidden lg:block h-px bg-slate-100 mx-2 my-1.5" />
+              )}
+              <span
+                className={`px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider block ${
+                  isCollapsedDesktop ? "lg:hidden" : ""
+                }`}
+              >
                 {sec.title}
               </span>
               <div className="space-y-0.5">
@@ -355,16 +386,30 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                       key={item.path}
                       href={item.path}
                       onClick={() => setMobileMenuOpen(false)}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-xs font-medium relative ${
+                      title={item.name}
+                      aria-label={item.name}
+                      className={`flex items-center rounded-lg transition-colors text-xs font-medium relative ${
+                        isCollapsedDesktop
+                          ? "gap-2.5 px-3 py-2 lg:justify-center lg:px-0 lg:py-2.5"
+                          : "gap-2.5 px-3 py-2"
+                      } ${
                         isActive
                           ? "bg-slate-900 text-white shadow-2xs font-semibold"
                           : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                       }`}
                     >
-                      <Icon path={item.icon} size={0.7} className="shrink-0" />
-                      <span className="flex-1">{item.name}</span>
+                      <Icon path={item.icon} size={isCollapsedDesktop ? 0.8 : 0.7} className="shrink-0" />
+                      <span className={`flex-1 truncate ${isCollapsedDesktop ? "lg:hidden" : ""}`}>
+                        {item.name}
+                      </span>
                       {item.name === "Atender Emergencias" && emergenciasCount > 0 && (
-                        <span className="bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                        <span
+                          className={`bg-rose-600 text-white text-[10px] font-bold rounded-full shrink-0 ${
+                            isCollapsedDesktop
+                              ? "px-1.5 py-0.5 lg:absolute lg:top-1 lg:right-2 lg:px-1 lg:py-0 lg:text-[9px] lg:min-w-[16px] lg:h-4 lg:flex lg:items-center lg:justify-center"
+                              : "px-1.5 py-0.5"
+                          }`}
+                        >
                           {emergenciasCount > 99 ? "99+" : emergenciasCount}
                         </span>
                       )}
@@ -377,11 +422,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Footer del Sidebar: Perfil de usuario y Cerrar Sesión */}
-        <div className="p-3 border-t border-slate-100 space-y-2 shrink-0">
+        <div className={`border-t border-slate-100 space-y-2 shrink-0 ${isCollapsedDesktop ? "p-3 lg:p-2" : "p-3"}`}>
           <Link
             href="/dashboard/perfil"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
+            title={`${userName} - Mi Perfil`}
+            className={`flex items-center rounded-lg text-slate-600 hover:bg-slate-100 transition-colors ${
+              isCollapsedDesktop ? "gap-2.5 px-2.5 py-1.5 lg:justify-center lg:px-0 lg:py-2" : "gap-2.5 px-2.5 py-1.5"
+            }`}
           >
             {userFoto ? (
               <img
@@ -394,7 +442,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                 {userInitial}
               </div>
             )}
-            <div className="min-w-0 flex-1">
+            <div className={`min-w-0 flex-1 ${isCollapsedDesktop ? "lg:hidden" : ""}`}>
               <p className="text-xs font-semibold text-slate-900 truncate leading-none">{userName}</p>
               <p className="text-[10px] text-slate-400 truncate mt-0.5">{userEmail}</p>
             </div>
@@ -402,10 +450,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
           <button
             onClick={handleOpenLogout}
-            className="flex items-center gap-2.5 w-full px-2.5 py-1.5 text-slate-600 hover:bg-rose-50 hover:text-rose-700 rounded-lg transition-colors text-xs font-medium cursor-pointer"
+            title="Cerrar Sesión"
+            aria-label="Cerrar Sesión"
+            className={`flex items-center w-full text-slate-600 hover:bg-rose-50 hover:text-rose-700 rounded-lg transition-colors text-xs font-medium cursor-pointer ${
+              isCollapsedDesktop ? "gap-2.5 px-2.5 py-1.5 lg:justify-center lg:px-0 lg:py-2" : "gap-2.5 px-2.5 py-1.5"
+            }`}
           >
-            <Icon path={mdiLogout} size={0.65} className="text-slate-400" />
-            <span>Cerrar Sesión</span>
+            <Icon path={mdiLogout} size={0.7} className="text-slate-400 shrink-0" />
+            <span className={isCollapsedDesktop ? "lg:hidden" : ""}>Cerrar Sesión</span>
           </button>
         </div>
       </aside>
@@ -413,16 +465,16 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       {/* Main Content Area */}
       <main
         className={`flex-1 flex flex-col min-h-screen relative w-full overflow-x-hidden transition-all duration-300 ease-in-out ${
-          sidebarOpen ? "ml-0 lg:ml-64" : "ml-0"
+          sidebarOpen ? "ml-0 lg:ml-64" : "ml-0 lg:ml-20"
         }`}
       >
         <header className="h-14 sm:h-15 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={handleToggleSidebar}
-              className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80 shadow-2xs transition-colors cursor-pointer shrink-0"
-              title={sidebarOpen ? "Colapsar panel lateral" : "Expandir panel lateral"}
-              aria-label="Alternar panel lateral"
+              className="lg:hidden p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80 shadow-2xs transition-colors cursor-pointer shrink-0"
+              title="Abrir menú de navegación"
+              aria-label="Abrir menú de navegación"
             >
               <Icon path={mdiMenu} size={0.75} />
             </button>
