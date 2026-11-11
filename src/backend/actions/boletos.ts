@@ -389,37 +389,54 @@ export async function getManifiestoViajeAction(idViaje?: number) {
   }
 }
 
-export interface MiBoletoItem {
+export interface BoletoDetalleItem {
   id: string;
+  idBoleto: number;
   codigoBoleto: string;
-  origen: string;
-  destino: string;
-  fecha: string;
-  horaSalida: string;
   asientoNumero: string;
-  cooperativa: string;
   precio: number;
   estado: 'ACTIVO' | 'UTILIZADO' | 'CANCELADO';
 }
 
+export interface GrupoBoletosItem {
+  idViaje: number;
+  origen: string;
+  destino: string;
+  fecha: string;
+  horaSalida: string;
+  hrSalidaDate?: string;
+  cooperativa: string;
+  unidadNumero: string;
+  placaUnidad: string;
+  totalPagado: number;
+  cantidadBoletos: number;
+  boletosAbordados: number;
+  asientosResumen: string;
+  estadoPrincipal: 'ACTIVO' | 'UTILIZADO' | 'CANCELADO';
+  boletos: BoletoDetalleItem[];
+}
+
+// Alias de retrocompatibilidad
+export type MiBoletoItem = GrupoBoletosItem;
+
 /**
- * Obtiene los boletos comprados o asignados al usuario autenticado.
+ * Obtiene los boletos comprados por el usuario autenticado, agrupados por viaje.
  */
-export async function getMisBoletosAction(): Promise<{ success: boolean; data: MiBoletoItem[]; error?: string }> {
+export async function getMisBoletosAction(): Promise<{ success: boolean; data: GrupoBoletosItem[]; error?: string }> {
   try {
     const session = await getSession();
     if (!session) {
       return { success: false, error: 'Debes iniciar sesión para consultar tus boletos.', data: [] };
     }
 
-    // Consultar boletos pertenecientes exclusivamente al usuario en sesión
+    // Consultar boletos pertenecientes al usuario en sesión
     const boletos = await prisma.boleto.findMany({
       where: {
         venta: {
           idUsuarioComprador: session.idUsuario,
         },
       },
-      take: 20,
+      take: 100,
       orderBy: { fechaHora: 'desc' },
       include: {
         asiento: true,
@@ -434,12 +451,23 @@ export async function getMisBoletosAction(): Promise<{ success: boolean; data: M
                 },
               },
             },
+            despacho: {
+              include: {
+                asignacionUnidad: {
+                  include: {
+                    unidad: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
     });
 
-    const items: MiBoletoItem[] = boletos.map((b) => {
+    const gruposMap = new Map<number, GrupoBoletosItem>();
+
+    for (const b of boletos) {
       const { origen, destino } = parseOrigenDestino(b.viaje.ruta, b.viaje.sentido);
       const fecha = formatDateOnlyEsNI(b.viaje.fecha);
       const horaSalida = formatManaguaTime(b.viaje.hrSalidaProgramada);
@@ -448,19 +476,68 @@ export async function getMisBoletosAction(): Promise<{ success: boolean; data: M
       if (b.estado === 'ABORDADO') estadoMapeado = 'UTILIZADO';
       else if (b.estado === 'CANCELADO') estadoMapeado = 'CANCELADO';
 
-      return {
+      const detalle: BoletoDetalleItem = {
         id: `b-${b.idBoleto}`,
+        idBoleto: b.idBoleto,
         codigoBoleto: `BOLETO-${b.idBoleto}`,
-        origen,
-        destino,
-        fecha,
-        horaSalida,
         asientoNumero: b.asiento ? String(b.asiento.numero) : 'De pie',
-        cooperativa: b.viaje.ruta.cooperativa.nombre,
         precio: Number(b.monto),
         estado: estadoMapeado,
       };
-    });
+
+      const existing = gruposMap.get(b.idViaje);
+      if (!existing) {
+        gruposMap.set(b.idViaje, {
+          idViaje: b.idViaje,
+          origen,
+          destino,
+          fecha,
+          horaSalida,
+          hrSalidaDate: b.viaje.hrSalidaProgramada.toISOString(),
+          cooperativa: b.viaje.ruta.cooperativa.nombre,
+          unidadNumero: b.viaje.despacho?.asignacionUnidad?.unidad?.numeroUnidad || 'S/N',
+          placaUnidad: b.viaje.despacho?.asignacionUnidad?.unidad?.placa || 'N/A',
+          totalPagado: Number(b.monto),
+          cantidadBoletos: 1,
+          boletosAbordados: estadoMapeado === 'UTILIZADO' ? 1 : 0,
+          asientosResumen: detalle.asientoNumero === 'De pie' ? 'De pie' : `#${detalle.asientoNumero}`,
+          estadoPrincipal: estadoMapeado,
+          boletos: [detalle],
+        });
+      } else {
+        existing.boletos.push(detalle);
+        existing.totalPagado += Number(b.monto);
+        existing.cantidadBoletos += 1;
+        if (estadoMapeado === 'UTILIZADO') {
+          existing.boletosAbordados += 1;
+        }
+
+        // Ordenar asientos numéricamente
+        existing.boletos.sort((a, b) => {
+          const numA = parseInt(a.asientoNumero, 10);
+          const numB = parseInt(b.asientoNumero, 10);
+          if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+          return a.asientoNumero.localeCompare(b.asientoNumero);
+        });
+
+        // Actualizar resumen de asientos
+        const asientosList = existing.boletos.map((t) =>
+          t.asientoNumero === 'De pie' ? 'De pie' : `#${t.asientoNumero}`
+        );
+        existing.asientosResumen = asientosList.join(', ');
+
+        // Estado principal del viaje: si al menos 1 está activo, el grupo está ACTIVO
+        if (existing.boletos.some((t) => t.estado === 'ACTIVO')) {
+          existing.estadoPrincipal = 'ACTIVO';
+        } else if (existing.boletos.some((t) => t.estado === 'UTILIZADO')) {
+          existing.estadoPrincipal = 'UTILIZADO';
+        } else {
+          existing.estadoPrincipal = 'CANCELADO';
+        }
+      }
+    }
+
+    const items = Array.from(gruposMap.values());
 
     return { success: true, data: items };
   } catch (error) {
