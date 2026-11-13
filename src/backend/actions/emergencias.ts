@@ -87,6 +87,7 @@ export async function getIncidentesChequeadorAction() {
                 ruta: true,
                 boletos: {
                   where: { estado: { in: ["PAGADO", "ABORDADO"] } },
+                  select: { idBoleto: true},
                 },
               },
             },
