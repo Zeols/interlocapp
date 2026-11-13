@@ -3,6 +3,7 @@
 import { prisma } from '../db';
 import { broadcastSeatUpdate, broadcastTripOccupancy, EstadoAsientoRealtime } from '../lib/realtime';
 import { getSession } from '../lib/session';
+import { limpiarAsignacionesHuerfanas } from './viajes';
 
 export type { EstadoAsientoRealtime };
 
@@ -58,6 +59,7 @@ export async function getAsientosViajeRealtimeAction(
 ): Promise<{ success: boolean; data: AsientoRealtimeItem[]; error?: string }> {
   try {
     purgeExpiredLocks();
+    await limpiarAsignacionesHuerfanas();
 
     const session = await getSession();
     const effectiveUserId = idUsuarioActual ?? session?.idUsuario ?? undefined;
@@ -168,6 +170,15 @@ export async function bloquearAsientoTemporalAction(data: {
   try {
     const { idViaje, idAsiento, numeroAsiento, idUsuario, nombreUsuario } = data;
     purgeExpiredLocks();
+    await limpiarAsignacionesHuerfanas();
+
+    const viaje = await prisma.viaje.findUnique({
+      where: { idViaje },
+      select: { estado: true },
+    });
+    if (!viaje || !['PROGRAMADO', 'EN_CURSO'].includes(viaje.estado)) {
+      return { success: false, error: 'Este viaje ya ha finalizado o venció.' };
+    }
 
     const session = await getSession();
     const effectiveUserId = idUsuario ?? session?.idUsuario ?? null;

@@ -7,6 +7,7 @@ import { sendTicketEmail } from '../lib/mail';
 import { notificarCompraAsientoRealtimeAction } from './asientos-realtime';
 import { notificarUsuarioPush } from './push';
 import { getNowInManagua, formatManaguaTime, formatManaguaDate, getManaguaDateISO } from '@/lib/date-time';
+import { limpiarAsignacionesHuerfanas } from './viajes';
 
 // Interfaces
 export interface EquipajeInput {
@@ -138,6 +139,8 @@ export async function procesarVentaBoletos(data: VentaInput) {
       return { success: false, error: 'Debe seleccionar al menos un asiento.' };
     }
 
+    await limpiarAsignacionesHuerfanas();
+
     // 1. Validar existencia del viaje
     const viaje = await prisma.viaje.findUnique({
       where: { idViaje: data.idViaje },
@@ -152,6 +155,10 @@ export async function procesarVentaBoletos(data: VentaInput) {
 
     if (!viaje) {
       return { success: false, error: 'El viaje seleccionado no existe.' };
+    }
+
+    if (viaje.estado === 'FINALIZADO' || viaje.estado === 'CANCELADO') {
+      return { success: false, error: 'No se pueden comprar boletos para un viaje que ya finalizó o fue cancelado.' };
     }
 
     // 2. Resolver Tipo de Venta (por defecto WEB si no se especifica)
