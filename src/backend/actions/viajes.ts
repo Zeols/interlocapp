@@ -16,6 +16,7 @@ import {
 } from '@/lib/date-time';
 
 const MANAGE_VIAJES_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'CHEQUEADOR'];
+const DURACION_VIAJE_MS = 2 * 60 * 60 * 1000; // 2 horas de duración estimada del viaje
 
 export interface ViajeInput {
   idRuta: number;
@@ -29,36 +30,100 @@ export interface ViajeInput {
 }
 
 /**
- * Libera automáticamente asignaciones de unidad que quedaron en estado INICIADA
- * pero cuya unidad ya no tiene ningún despacho asociado a un viaje PROGRAMADO o EN_CURSO,
- * y cierra viajes EN_CURSO rezagados de jornadas anteriores (> 18 horas).
+ * Vence automáticamente viajes cuya duración estimada (2h) ya expiró, cancela sus boletos no abordados,
+ * sincroniza despachos huérfanos y libera asignaciones, unidades y asientos sin viaje activo.
  */
-async function limpiarAsignacionesHuerfanas() {
+export async function limpiarAsignacionesHuerfanas() {
   const ahora = new Date();
-  const limiteViajeRezagado = new Date(ahora.getTime() - 18 * 60 * 60 * 1000);
+  const limiteExpiracionViaje = new Date(ahora.getTime() - DURACION_VIAJE_MS);
 
-  // 1. Cerrar viajes EN_CURSO rezagados de días anteriores (> 18h desde su salida programada)
-  const viajesRezagados = await prisma.viaje.findMany({
+  // 1. Buscar viajes PROGRAMADO o EN_CURSO cuyo tiempo de viaje (salida + 2h) ya expiró
+  const viajesVencidos = await prisma.viaje.findMany({
     where: {
-      estado: 'EN_CURSO',
-      hrSalidaProgramada: { lt: limiteViajeRezagado },
+      estado: { in: ['PROGRAMADO', 'EN_CURSO'] },
+      hrSalidaProgramada: { lte: limiteExpiracionViaje },
+      OR: [
+        { hrSalidaEstimada: null },
+        { hrSalidaEstimada: { lte: limiteExpiracionViaje } },
+      ],
     },
-    select: { idViaje: true },
+    include: {
+      boletos: {
+        where: { estado: 'ABORDADO' },
+        select: { idBoleto: true },
+      },
+    },
   });
 
-  if (viajesRezagados.length > 0) {
-    const idsRezagados = viajesRezagados.map((v) => v.idViaje);
-    await prisma.viaje.updateMany({
-      where: { idViaje: { in: idsRezagados } },
-      data: { estado: 'FINALIZADO', hrLlegadaReal: ahora },
-    });
-    await prisma.despacho.updateMany({
-      where: { idViaje: { in: idsRezagados }, estado: { in: ['PENDIENTE', 'EN_CURSO'] } },
-      data: { estado: 'FINALIZADO' },
-    });
+  if (viajesVencidos.length > 0) {
+    const idsParaFinalizar: number[] = [];
+    const idsParaCancelar: number[] = [];
+
+    for (const v of viajesVencidos) {
+      // Si el viaje estaba EN_CURSO o tuvo pasajeros que abordaron, se cierra como FINALIZADO.
+      // Si quedó en PROGRAMADO sin abordajes y ya pasó su tiempo, se marca como CANCELADO por vencimiento.
+      if (v.estado === 'EN_CURSO' || v.boletos.length > 0) {
+        idsParaFinalizar.push(v.idViaje);
+      } else {
+        idsParaCancelar.push(v.idViaje);
+      }
+    }
+
+    if (idsParaFinalizar.length > 0) {
+      await prisma.viaje.updateMany({
+        where: { idViaje: { in: idsParaFinalizar } },
+        data: { estado: 'FINALIZADO', hrLlegadaReal: ahora },
+      });
+      await prisma.despacho.updateMany({
+        where: { idViaje: { in: idsParaFinalizar }, estado: { in: ['PENDIENTE', 'EN_CURSO'] } },
+        data: { estado: 'FINALIZADO' },
+      });
+    }
+
+    if (idsParaCancelar.length > 0) {
+      await prisma.viaje.updateMany({
+        where: { idViaje: { in: idsParaCancelar } },
+        data: { estado: 'CANCELADO' },
+      });
+      await prisma.despacho.updateMany({
+        where: { idViaje: { in: idsParaCancelar }, estado: { in: ['PENDIENTE', 'EN_CURSO'] } },
+        data: { estado: 'CANCELADO' },
+      });
+    }
   }
 
-  // 2. Consultar despachos con viajes realmente activos
+  // 2. Sincronizar despachos huérfanos cuyo viaje ya esté FINALIZADO o CANCELADO
+  await prisma.despacho.updateMany({
+    where: {
+      estado: { in: ['PENDIENTE', 'EN_CURSO'] },
+      viaje: { estado: 'FINALIZADO' },
+    },
+    data: { estado: 'FINALIZADO' },
+  });
+
+  await prisma.despacho.updateMany({
+    where: {
+      estado: { in: ['PENDIENTE', 'EN_CURSO'] },
+      viaje: { estado: 'CANCELADO' },
+    },
+    data: { estado: 'CANCELADO' },
+  });
+
+  // 3. Vencer (pasar a CANCELADO) todos los boletos RESERVADO o PAGADO (no abordados)
+  //    que pertenezcan a viajes que ya finalizaron o fueron cancelados
+  await prisma.boleto.updateMany({
+    where: {
+      estado: { in: ['RESERVADO', 'PAGADO'] },
+      viaje: {
+        estado: { in: ['FINALIZADO', 'CANCELADO'] },
+      },
+    },
+    data: {
+      estado: 'CANCELADO',
+    },
+  });
+
+  // 4. Consultar despachos con viajes realmente activos
   const despachosActivos = await prisma.despacho.findMany({
     where: {
       estado: { in: ['PENDIENTE', 'EN_CURSO'] },
@@ -77,7 +142,7 @@ async function limpiarAsignacionesHuerfanas() {
     new Set(despachosActivos.map((d) => d.asignacionUnidad.idUnidad))
   );
 
-  // 3. Liberar asignaciones y unidades que ya no tienen viaje activo (incluso si quedan 0 viajes activos)
+  // 5. Liberar asignaciones, unidades y asientos que ya no tienen viaje activo
   if (unidadesConViajeActivo.length > 0) {
     await prisma.asignacionUnidad.updateMany({
       where: {
@@ -99,6 +164,16 @@ async function limpiarAsignacionesHuerfanas() {
         estado: 'DISPONIBLE',
       },
     });
+
+    await prisma.asiento.updateMany({
+      where: {
+        estado: { not: 'DISPONIBLE' },
+        idUnidad: { notIn: unidadesConViajeActivo },
+      },
+      data: {
+        estado: 'DISPONIBLE',
+      },
+    });
   } else {
     await prisma.asignacionUnidad.updateMany({
       where: { estado: 'INICIADA' },
@@ -110,6 +185,11 @@ async function limpiarAsignacionesHuerfanas() {
 
     await prisma.unidad.updateMany({
       where: { estado: 'EN_RUTA' },
+      data: { estado: 'DISPONIBLE' },
+    });
+
+    await prisma.asiento.updateMany({
+      where: { estado: { not: 'DISPONIBLE' } },
       data: { estado: 'DISPONIBLE' },
     });
   }
@@ -464,6 +544,11 @@ export async function finalizarViaje(idViaje: number) {
         where: { idUnidad, estado: 'OCUPADO' },
         data: { estado: 'DISPONIBLE' },
       });
+
+      await tx.boleto.updateMany({
+        where: { idViaje, estado: { in: ['RESERVADO', 'PAGADO'] } },
+        data: { estado: 'CANCELADO' },
+      });
     });
 
     revalidatePath('/dashboard/viajes');
@@ -519,6 +604,8 @@ export interface ViajeMonitorItem {
 
 export async function getViajesByCooperativa(idCooperativa?: number): Promise<{ success: boolean; data: ViajeMonitorItem[]; error?: string }> {
   try {
+    await limpiarAsignacionesHuerfanas();
+
     const whereClause: any = {};
     if (idCooperativa) {
       whereClause.ruta = { idCooperativa };
@@ -1014,7 +1101,12 @@ export async function cancelarViajeAction(idViaje: number, motivo?: string) {
         });
       }
 
-      // Marcamos el viaje como cancelado
+      // Marcamos el viaje como cancelado y cancelamos boletos no abordados
+      await tx.boleto.updateMany({
+        where: { idViaje, estado: { in: ['RESERVADO', 'PAGADO'] } },
+        data: { estado: 'CANCELADO' },
+      });
+
       await tx.viaje.update({
         where: { idViaje },
         data: { estado: 'CANCELADO' },
@@ -1285,6 +1377,8 @@ export async function getViajesDisponiblesAction(filters?: {
   date?: string;
 }): Promise<{ success: boolean; data: ViajeDisponibleItem[]; error?: string }> {
   try {
+    await limpiarAsignacionesHuerfanas();
+
     const viajes = await prisma.viaje.findMany({
       where: {
         estado: { in: ['PROGRAMADO', 'EN_CURSO'] },
@@ -1393,7 +1487,10 @@ export async function getViajesDisponiblesAction(filters?: {
       const salidaDate = new Date(v.hrSalidaProgramada);
       const departure = formatManaguaTime(salidaDate);
 
-      const arrivalDate = new Date(salidaDate.getTime() + 2 * 60 * 60 * 1000);
+      const arrivalDate = new Date(salidaDate.getTime() + DURACION_VIAJE_MS);
+      if (arrivalDate <= new Date()) {
+        continue;
+      }
       const arrival = formatManaguaTime(arrivalDate);
 
       const hour = getManaguaHour(salidaDate);
@@ -1433,6 +1530,7 @@ export async function getViajesDisponiblesAction(filters?: {
 
 export async function getDetalleViajeCompraAction(idViaje: number) {
   try {
+    await limpiarAsignacionesHuerfanas();
     const v = await prisma.viaje.findUnique({
       where: { idViaje },
       include: {
@@ -1732,6 +1830,11 @@ export async function actualizarParadaActualAction(idViaje: number, idPunto: num
             data: { estado: 'DISPONIBLE' },
           });
         }
+
+        await tx.boleto.updateMany({
+          where: { idViaje, estado: { in: ['RESERVADO', 'PAGADO'] } },
+          data: { estado: 'CANCELADO' },
+        });
       }
     });
 
@@ -1900,6 +2003,11 @@ export async function confirmarPasoParadaConDescensosAction(
             data: { estado: 'DISPONIBLE' },
           });
         }
+
+        await tx.boleto.updateMany({
+          where: { idViaje, estado: { in: ['RESERVADO', 'PAGADO'] } },
+          data: { estado: 'CANCELADO' },
+        });
       }
     });
 
@@ -2247,6 +2355,11 @@ export async function registrarControlChequeadorAction(data: RegistroControlCheq
             data: { estado: 'DISPONIBLE' },
           });
         }
+
+        await tx.boleto.updateMany({
+          where: { idViaje, estado: { in: ['RESERVADO', 'PAGADO'] } },
+          data: { estado: 'CANCELADO' },
+        });
       } else if (tipo === 'SALIDA_TERMINAL' || viajeRecord.estado === 'PROGRAMADO') {
         // 3. Si es salida de terminal o estaba programado, pasarlo a EN_CURSO
         await tx.viaje.update({
