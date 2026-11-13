@@ -149,8 +149,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
     // 2. Operaciones en Ruta
     const operacionesItems = [];
-    if (isSuperAdmin || isAdminCoop || isChequeador) {
+    if (isSuperAdmin || isAdminCoop || isChequeador || isChequeador) {
       operacionesItems.push({ name: "Salidas y Despacho", path: "/dashboard/viajes", icon: mdiBus });
+    }
+    if (isSuperAdmin || isAdminCoop || isChequeador ) {
       operacionesItems.push({ name: "Puntos de Control", path: "/dashboard/chequeador", icon: mdiClipboardCheckOutline });
     }
     operacionesItems.push({ name: "Validar Boletos", path: "/validar-boleto", icon: mdiQrcodeScan });
