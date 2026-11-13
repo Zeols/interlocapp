@@ -5,6 +5,7 @@ import { getSession } from '../lib/session';
 import { revalidatePath } from 'next/cache';
 import { formatManaguaTime, formatDateOnlyEsNI } from '@/lib/date-time';
 import { notificarUsuarioPush } from './push';
+import { limpiarAsignacionesHuerfanas } from './viajes';
 
 const OPERATIONAL_ROLES = ['SUPER_ADMIN', 'ADMIN_COOP', 'TAQUILLERO', 'CHOFER', 'AYUDANTE', 'CHEQUEADOR'];
 
@@ -68,6 +69,8 @@ export async function validarBoletoAction(
         error: `Acceso denegado. Tu rol (${session.rolNombre}) no tiene permisos para validar boletos.`,
       };
     }
+
+    await limpiarAsignacionesHuerfanas();
 
     // Extraer idBoleto numérico de diferentes formatos posibles (JSON de QR, prefijo BOLETO-, número directo)
     let idBoleto: number | null = null;
@@ -210,6 +213,13 @@ export async function validarBoletoAction(
       };
     }
 
+    if (boleto.viaje.estado === 'FINALIZADO' || boleto.viaje.estado === 'CANCELADO') {
+      return {
+        success: false,
+        error: `El viaje de este boleto (#${boleto.idBoleto}) ya ha finalizado o venció.`,
+      };
+    }
+
     // Actualizar estado a ABORDADO
     const boletoActualizado = await prisma.boleto.update({
       where: { idBoleto },
@@ -290,6 +300,8 @@ export async function getManifiestoViajeAction(idViaje?: number) {
     if (!session) {
       return { success: false, error: 'No autorizado' };
     }
+
+    await limpiarAsignacionesHuerfanas();
 
     const coopFilter = session.rolNombre === 'SUPER_ADMIN' ? {} : session.idCooperativa ? { idCooperativa: session.idCooperativa } : {};
 
@@ -429,6 +441,8 @@ export async function getMisBoletosAction(): Promise<{ success: boolean; data: G
       return { success: false, error: 'Debes iniciar sesión para consultar tus boletos.', data: [] };
     }
 
+    await limpiarAsignacionesHuerfanas();
+
     // Consultar boletos pertenecientes al usuario en sesión
     const boletos = await prisma.boleto.findMany({
       where: {
@@ -472,9 +486,17 @@ export async function getMisBoletosAction(): Promise<{ success: boolean; data: G
       const fecha = formatDateOnlyEsNI(b.viaje.fecha);
       const horaSalida = formatManaguaTime(b.viaje.hrSalidaProgramada);
 
+      const viajeTerminado =
+        b.viaje.estado === 'FINALIZADO' ||
+        b.viaje.estado === 'CANCELADO' ||
+        new Date(b.viaje.hrSalidaProgramada.getTime() + 2 * 60 * 60 * 1000) <= new Date();
+
       let estadoMapeado: 'ACTIVO' | 'UTILIZADO' | 'CANCELADO' = 'ACTIVO';
-      if (b.estado === 'ABORDADO') estadoMapeado = 'UTILIZADO';
-      else if (b.estado === 'CANCELADO') estadoMapeado = 'CANCELADO';
+      if (b.estado === 'ABORDADO') {
+        estadoMapeado = 'UTILIZADO';
+      } else if (b.estado === 'CANCELADO' || viajeTerminado) {
+        estadoMapeado = 'CANCELADO';
+      }
 
       const detalle: BoletoDetalleItem = {
         id: `b-${b.idBoleto}`,
