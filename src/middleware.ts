@@ -25,10 +25,21 @@ const DASHBOARD_ROUTE_PERMISSIONS: Array<{ prefix: string; roles: string[] }> = 
 ];
 
 // Rutas públicas que no requieren autenticación
-const PUBLIC_ROUTES = ['/', '/login', '/signup', '/forgot'];
+const PUBLIC_ROUTES = ['/', '/login', '/signup', '/forgot', '/manifest.webmanifest'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Permitir activos estáticos de /public, scripts vendor y recursos multimedia
+  if (
+    pathname.startsWith('/vendor/') ||
+    pathname.startsWith('/icons/') ||
+    pathname.startsWith('/images/') ||
+    pathname.endsWith('manifest.webmanifest') ||
+    /\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|css|woff2?|map|webmanifest)$/.test(pathname)
+  ) {
+    return NextResponse.next();
+  }
 
   // Permitir endpoints de autenticación pública y webhooks
   if (pathname.startsWith('/api/webhooks') || pathname.startsWith('/api/auth')) {
@@ -115,8 +126,8 @@ export const config = {
      * Aplica a todas las rutas excepto:
      * - _next/static (archivos estáticos compilados)
      * - _next/image (optimización de imágenes)
-     * - favicon.ico, icon.svg, logo.svg y extensiones multimedia
+     * - vendor, manifest.webmanifest, favicon.ico, icon.svg, logo.svg y extensiones estáticas
      */
-    '/((?!_next/static|_next/image|favicon.ico|icon.svg|logo.svg|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|vendor|manifest.webmanifest|favicon.ico|icon.svg|logo.svg|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|css|woff2?|map|webmanifest)$).*)',
   ],
 };

@@ -186,7 +186,7 @@ export default function TicketsPage() {
                   </div>
                 ) : (
                   <div className="absolute top-0 right-0 bg-gray-400 text-white text-[10px] font-bold uppercase tracking-wider px-3.5 py-1 rounded-bl-lg">
-                    {grupo.estadoPrincipal === "UTILIZADO" ? "Completado" : grupo.estadoPrincipal}
+                    {grupo.estadoPrincipal === "UTILIZADO" ? "Completado" : "Vencido / Cancelado"}
                   </div>
                 )}
 
@@ -234,7 +234,7 @@ export default function TicketsPage() {
                             <span
                               key={b.id}
                               className={`inline-block px-1.5 py-0.2 rounded text-[11px] font-extrabold ${
-                                b.estado === "UTILIZADO"
+                                b.estado !== "ACTIVO"
                                   ? "bg-slate-200 text-slate-500 line-through"
                                   : "bg-primary/10 text-primary"
                               }`}
@@ -396,7 +396,7 @@ export default function TicketsPage() {
                     ? "Listo para validar"
                     : currentBoleto.estado === "UTILIZADO"
                     ? "Abordado"
-                    : "Cancelado"}
+                    : "Vencido / Cancelado"}
                 </span>
               </div>
             </div>
