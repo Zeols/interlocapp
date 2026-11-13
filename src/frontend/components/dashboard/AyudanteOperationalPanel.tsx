@@ -75,7 +75,7 @@ export function AyudanteOperationalPanel({
 
   const capacidad = operacionAyudante?.capacidadTotal || 0;
   const aBordo = operacionAyudante?.pasajerosABordo || 0;
-  const libres = operacionAyudante?.asientosDisponibles?.length || 0;
+  const libres = Math.max(0, capacidad - aBordo);
   const totalVendidos = operacionAyudante?.totalVendidos || 0;
 
   // Ley de Parkinson: Preselección automática del primer asiento libre disponible
