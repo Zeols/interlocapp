@@ -149,7 +149,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
     // 2. Operaciones en Ruta
     const operacionesItems = [];
-    if (isSuperAdmin || isAdminCoop || isChequeador || isChequeador) {
+    if (isSuperAdmin || isAdminCoop || isChequeador || isTaquillero) {
       operacionesItems.push({ name: "Salidas y Despacho", path: "/dashboard/viajes", icon: mdiBus });
     }
     if (isSuperAdmin || isAdminCoop || isChequeador ) {
