@@ -1,6 +1,4 @@
 import nodemailer, { type Transporter } from 'nodemailer';
-import path from 'path';
-import fs from 'fs';
 
 // Tipos de datos para el servicio de correos
 export interface SendMailOptions {
@@ -29,6 +27,11 @@ export interface WelcomeEmailData {
   name: string;
 }
 
+interface BrevoRecipient {
+  email: string;
+  name?: string;
+}
+
 // Convierte HTML a texto plano limpio para snippets de preview en clientes de correo
 export function stripHtmlToText(html: string): string {
   return html
@@ -39,20 +42,61 @@ export function stripHtmlToText(html: string): string {
     .trim();
 }
 
-// Helper para obtener configuración SMTP actual
+function parseEmailAddress(raw: string): BrevoRecipient {
+  const trimmed = raw.trim();
+  const match = trimmed.match(/^(.+?)\s*<([^>]+)>$/);
+  if (match) {
+    const cleanName = match[1].replace(/^["']|["']$/g, '').trim();
+    return { name: cleanName || undefined, email: match[2].trim() };
+  }
+  return { email: trimmed };
+}
+
+function getBrevoApiKey(): string {
+  const directKey = process.env.BREVO_API_KEY?.trim();
+  if (directKey) return directKey;
+  const smtpPass = process.env.SMTP_PASS?.trim() || '';
+  return smtpPass.startsWith('xkeysib-') ? smtpPass : '';
+}
+
+function getBrevoSender(): { name: string; email: string } {
+  const envEmail = process.env.BREVO_SENDER_EMAIL?.trim();
+  const envName = process.env.BREVO_SENDER_NAME?.trim();
+  const fromHeader = process.env.SMTP_FROM?.trim();
+
+  if (envEmail) {
+    return {
+      name: envName || 'InterlocApp',
+      email: envEmail,
+    };
+  }
+
+  if (fromHeader) {
+    const parsed = parseEmailAddress(fromHeader);
+    return {
+      name: envName || parsed.name || 'InterlocApp',
+      email: parsed.email,
+    };
+  }
+
+  return {
+    name: envName || 'InterlocApp',
+    email: 'interlocapp2026@gmail.com',
+  };
+}
+
+// Helper para obtener configuración SMTP actual (Brevo SMTP Relay por defecto)
 export function getMailConfig() {
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const host = process.env.SMTP_HOST || 'smtp-relay.brevo.com';
   const rawPort = parseInt(process.env.SMTP_PORT || '587', 10);
   const port = isNaN(rawPort) ? 587 : rawPort;
 
-  // En serverless (Vercel) y la mayoría de redes, el puerto 587 con STARTTLS (secure: false)
-  // es el estándar recomendado para evitar 'Greeting never received'.
-  // El puerto 465 requiere secure: true; el puerto 587 requiere obligatoriamente secure: false.
+  // El puerto 465 requiere secure: true; el puerto 587 usa STARTTLS (secure: false)
   let secure = port === 465;
   if (process.env.SMTP_SECURE !== undefined) {
     const isExplicitlyTrue = process.env.SMTP_SECURE === 'true';
     if (port === 587) {
-      secure = false; // El puerto 587 jamás debe usar secure: true (provoca bloqueo en el saludo TLS inicial)
+      secure = false;
     } else if (port === 465) {
       secure = true;
     } else {
@@ -60,11 +104,33 @@ export function getMailConfig() {
     }
   }
 
-  const user = process.env.SMTP_USER || process.env.EMAIL_USER || '';
-  const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS || '';
-  const from = process.env.SMTP_FROM || (user ? `InterlocApp <${user}>` : 'InterlocApp <notificaciones@interlocapp.com>');
+  const user = process.env.BREVO_SMTP_USER || process.env.SMTP_USER || process.env.EMAIL_USER || '';
+  const pass = process.env.BREVO_SMTP_KEY || process.env.SMTP_PASS || process.env.EMAIL_PASS || '';
+  const sender = getBrevoSender();
+  const from = process.env.SMTP_FROM || `${sender.name} <${sender.email}>`;
 
-  return { host, port, secure, user, pass, from };
+  return { host, port, secure, user, pass, from, senderEmail: sender.email };
+}
+
+// Ejecuta peticiones HTTPS a Brevo con reintentos ante timeouts transitorios de red
+async function fetchBrevoWithRetry(url: string, init: RequestInit, attempts = 3): Promise<Response> {
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(6000),
+      });
+      if (res.status < 500 || i === attempts - 1) {
+        return res;
+      }
+      lastError = new Error(`Brevo HTTP ${res.status}`);
+    } catch (err) {
+      lastError = err;
+      if (i === attempts - 1) throw err;
+    }
+  }
+  throw lastError;
 }
 
 // Crea una instancia de transporter con configuraciones optimizadas
@@ -74,24 +140,24 @@ function createTransporterInstance(
   secureOverride?: boolean
 ): Transporter {
   const port = portOverride ?? config.port;
-  const secure = secureOverride ?? (port === 465 ? true : false);
+  const secure = secureOverride ?? port === 465;
 
   return nodemailer.createTransport({
     host: config.host,
     port,
     secure,
     auth: {
-      user: config.user,
-      pass: config.pass.replace(/\s+/g, ''), // Remueve espacios si el usuario pegó la clave de aplicación con espacios
+      user: config.user.trim(),
+      pass: config.pass.trim(),
     },
     tls: {
-      rejectUnauthorized: false, // Compatibilidad con redes cloud/serverless
+      rejectUnauthorized: false,
     },
     requireTLS: port === 587,
     connectionTimeout: 10000,
     greetingTimeout: 8000,
     socketTimeout: 15000,
-    pool: false, // Desactivar pool en entornos serverless (Vercel) para evitar sockets congelados
+    pool: false,
   });
 }
 
@@ -100,20 +166,22 @@ let transporter: Transporter | null = null;
 let lastUsedUser = '';
 let lastUsedPass = '';
 let lastUsedPort = 0;
+let lastUsedHost = '';
 
 export function getMailTransporter(): Transporter | null {
   const config = getMailConfig();
-  if (!config.user || !config.pass) {
+  if (!config.user || !config.pass || config.pass.trim().startsWith('xkeysib-')) {
     return null;
   }
 
-  // Si cambiaron las credenciales o el puerto o no existe, recrear el transporter
   if (
     !transporter ||
+    lastUsedHost !== config.host ||
     lastUsedUser !== config.user ||
     lastUsedPass !== config.pass ||
     lastUsedPort !== config.port
   ) {
+    lastUsedHost = config.host;
     lastUsedUser = config.user;
     lastUsedPass = config.pass;
     lastUsedPort = config.port;
@@ -124,34 +192,143 @@ export function getMailTransporter(): Transporter | null {
 }
 
 /**
- * Valida la conexión SMTP configurada
+ * Valida la conexión con Brevo (API v3 o SMTP Relay)
  */
 export async function verifyEmailConnection(): Promise<{ success: boolean; message: string }> {
   try {
+    const apiKey = getBrevoApiKey();
+    if (apiKey) {
+      try {
+        const res = await fetchBrevoWithRetry('https://api.brevo.com/v3/account', {
+          method: 'GET',
+          headers: {
+            'api-key': apiKey,
+            accept: 'application/json',
+          },
+        });
+
+        if (res.ok) {
+          return {
+            success: true,
+            message: 'Conexión con Brevo API v3 verificada y lista para enviar correos.',
+          };
+        }
+
+        const errData = await res.json().catch(() => null);
+        if (res.status === 401 || res.status === 403) {
+          return {
+            success: false,
+            message: errData?.message || 'La clave BREVO_API_KEY es inválida o fue revocada.',
+          };
+        }
+      } catch (apiError) {
+        console.warn('[MailService] No se pudo verificar Brevo API v3, probando SMTP Relay:', apiError);
+      }
+    }
+
     const client = getMailTransporter();
     if (!client) {
       return {
         success: false,
-        message: 'No se han configurado las credenciales de correo (SMTP_USER y SMTP_PASS en el archivo .env).',
+        message: 'No se han configurado las credenciales de Brevo (BREVO_API_KEY o SMTP_USER/SMTP_PASS en .env).',
       };
     }
 
     await client.verify();
     return {
       success: true,
-      message: 'Conexión SMTP con Gmail verificada y lista para enviar correos.',
+      message: 'Conexión SMTP con Brevo verificada y lista para enviar correos.',
     };
   } catch (error: any) {
-    console.error('Error al verificar conexión SMTP con Gmail:', error);
+    console.error('Error al verificar conexión de correo con Brevo:', error);
     return {
       success: false,
-      message: error?.message || 'Error al autenticar contra el servidor SMTP de Gmail.',
+      message: error?.message || 'Error al autenticar contra el servicio de correo de Brevo.',
+    };
+  }
+}
+
+function formatBrevoAttachments(attachments: any[]): Array<{ name: string; content: string }> {
+  const result: Array<{ name: string; content: string }> = [];
+  for (const att of attachments) {
+    if (!att?.filename || !att?.content) continue;
+    const contentBase64 = Buffer.isBuffer(att.content)
+      ? att.content.toString('base64')
+      : typeof att.content === 'string'
+        ? att.encoding === 'base64'
+          ? att.content
+          : Buffer.from(att.content).toString('base64')
+        : null;
+    if (contentBase64) {
+      result.push({ name: String(att.filename), content: contentBase64 });
+    }
+  }
+  return result;
+}
+
+async function sendViaBrevoApi(params: {
+  apiKey: string;
+  to: string | string[];
+  subject: string;
+  html: string;
+  text: string;
+  attachments: any[];
+}): Promise<{ success: boolean; messageId?: string; error?: string; canFallbackToSmtp?: boolean }> {
+  const sender = getBrevoSender();
+  const recipients = (Array.isArray(params.to) ? params.to : [params.to]).map(parseEmailAddress);
+  const formattedAttachments = formatBrevoAttachments(params.attachments);
+
+  const payload: Record<string, unknown> = {
+    sender,
+    replyTo: sender,
+    to: recipients,
+    subject: params.subject,
+    htmlContent: params.html,
+    textContent: params.text,
+  };
+
+  if (formattedAttachments.length > 0) {
+    payload.attachment = formattedAttachments;
+  }
+
+  try {
+    const res = await fetchBrevoWithRetry('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': params.apiKey,
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const resData = await res.json().catch(() => null);
+    if (!res.ok) {
+      const errorMsg = resData?.message || `Error en Brevo API (HTTP ${res.status})`;
+      console.error('[MailService Brevo API Error]:', errorMsg);
+      return {
+        success: false,
+        error: errorMsg,
+        canFallbackToSmtp: res.status >= 500,
+      };
+    }
+
+    return {
+      success: true,
+      messageId: resData?.messageId,
+    };
+  } catch (err: any) {
+    console.warn('[MailService Brevo API Network Error]:', err?.message || err);
+    return {
+      success: false,
+      error: err?.message || 'Error de red al conectar con Brevo API.',
+      canFallbackToSmtp: true,
     };
   }
 }
 
 /**
- * Envío genérico de correos electrónicos con soporte para logo embebido (CID) y fallback de puerto
+ * Envío genérico de correos electrónicos usando Brevo (HTTP API v3 con respaldo SMTP Relay)
  */
 export async function sendEmail({
   to,
@@ -172,54 +349,49 @@ export async function sendEmail({
       };
     }
 
-    // 2. Envío vía Resend (HTTP API sobre puerto 443 HTTPS - Evita bloqueo de puertos SMTP en Railway / Render / Serverless)
-    if (process.env.RESEND_API_KEY) {
-      const resendFrom = process.env.RESEND_FROM || 'InterlocApp <onboarding@resend.dev>';
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: resendFrom,
-          to: Array.isArray(to) ? to : [to],
-          subject,
-          html,
-          text: cleanText,
-        }),
+    // 2. Envío principal vía Brevo HTTP API v3 (Puerto 443 HTTPS)
+    const apiKey = getBrevoApiKey();
+    let apiError: string | undefined;
+    if (apiKey) {
+      const apiResult = await sendViaBrevoApi({
+        apiKey,
+        to,
+        subject,
+        html,
+        text: cleanText,
+        attachments,
       });
 
-      const resData = await res.json().catch(() => null);
-      if (!res.ok) {
-        const errorMsg = resData?.message || `Error en Resend API (HTTP ${res.status})`;
-        console.error('[MailService Resend Error]:', errorMsg);
+      if (apiResult.success) {
         return {
-          success: false,
-          error: errorMsg,
+          success: true,
+          messageId: apiResult.messageId,
         };
       }
 
-      return {
-        success: true,
-        messageId: resData?.id,
-      };
+      apiError = apiResult.error;
+      if (!apiResult.canFallbackToSmtp) {
+        return {
+          success: false,
+          error: apiResult.error,
+        };
+      }
     }
 
-    // 3. Envío tradicional SMTP (Nodemailer)
+    // 3. Envío vía Brevo SMTP Relay (Nodemailer) como método directo o respaldo
     const client = getMailTransporter();
     if (!client) {
+      if (apiError) {
+        return { success: false, error: apiError };
+      }
       console.warn(
-        '[MailService Warning] Variables de correo no detectadas (SMTP_USER/SMTP_PASS o RESEND_API_KEY).'
+        '[MailService Warning] Variables de Brevo no detectadas (BREVO_API_KEY o SMTP_USER/SMTP_PASS).'
       );
       return {
         success: false,
-        error: 'Servicio de correo no configurado en variables de entorno (configura RESEND_API_KEY o SMTP_USER/SMTP_PASS).',
+        error: 'Servicio de correo Brevo no configurado en variables de entorno (configura BREVO_API_KEY o SMTP_USER/SMTP_PASS).',
       };
     }
-
-    // Envío de adjuntos solo si se especificaron explícitamente (sin archivos pesados embebidos para acelerar la entrega)
-    const finalAttachments = [...attachments];
 
     const config = getMailConfig();
     let info;
@@ -228,24 +400,23 @@ export async function sendEmail({
       const sendPromise = client.sendMail({
         from: config.from,
         to,
-        replyTo: config.user,
+        replyTo: config.senderEmail,
         subject,
         html,
         text: cleanText,
-        attachments: finalAttachments,
+        attachments: [...attachments],
         priority: 'high',
         headers: {
           'X-Priority': '1',
           'X-MSMail-Priority': 'High',
-          'Importance': 'high',
+          Importance: 'high',
         },
       });
 
-      // Timeout de protección de 8 segundos
       info = await Promise.race([
         sendPromise,
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Greeting never received (Timeout local)')), 8000)
+          setTimeout(() => reject(new Error('Greeting never received (Timeout SMTP)')), 8000)
         ),
       ]);
     } catch (primaryError: any) {
@@ -254,28 +425,27 @@ export async function sendEmail({
         primaryError?.command === 'CONN' ||
         primaryError?.message?.includes('Greeting never received');
 
-      // Si falló por timeout de conexión o saludo en Vercel, reintentar automáticamente en el puerto alternativo
       if (isConnectionIssue) {
         const altPort = config.port === 465 ? 587 : 465;
         const altSecure = altPort === 465;
         console.warn(
-          `[MailService Warning] Falló envío en puerto ${config.port} (${primaryError?.message}). Reintentando automáticamente en puerto alternativo ${altPort} (secure: ${altSecure})...`
+          `[MailService Warning] Falló envío SMTP en puerto ${config.port} (${primaryError?.message}). Reintentando en puerto ${altPort}...`
         );
 
         const fallbackTransporter = createTransporterInstance(config, altPort, altSecure);
         const fallbackPromise = fallbackTransporter.sendMail({
           from: config.from,
           to,
-          replyTo: config.user,
+          replyTo: config.senderEmail,
           subject,
           html,
           text: cleanText,
-          attachments: finalAttachments,
+          attachments: [...attachments],
           priority: 'high',
           headers: {
             'X-Priority': '1',
             'X-MSMail-Priority': 'High',
-            'Importance': 'high',
+            Importance: 'high',
           },
         });
 
@@ -304,12 +474,12 @@ export async function sendEmail({
     });
 
     let friendlyError = error?.message || 'Fallo desconocido al enviar correo.';
-    if (error?.code === 'EAUTH' || error?.responseCode === 535 || error?.message?.includes('BadCredentials')) {
+    if (error?.code === 'EAUTH' || error?.responseCode === 535 || error?.message?.includes('Authentication failed')) {
       friendlyError =
-        'Error de autenticación con Gmail: La contraseña de aplicación (SMTP_PASS) es incorrecta o fue revocada. Genera una nueva contraseña de aplicación en tu cuenta de Google.';
+        'Error de autenticación con Brevo SMTP: Verifica SMTP_USER y SMTP_PASS o utiliza BREVO_API_KEY.';
     } else if (error?.code === 'ETIMEDOUT' || error?.message?.includes('Greeting never received')) {
       friendlyError =
-        'Tiempo de espera agotado al conectar con el servidor SMTP. Configura el puerto 587 con STARTTLS en las variables de entorno de Vercel.';
+        'Tiempo de espera agotado al conectar con el servidor SMTP de Brevo. Verifica BREVO_API_KEY (HTTPS) o el puerto 587.';
     }
 
     return {

@@ -301,9 +301,7 @@ export async function getCurrentUserAction(): Promise<SessionPayload | null> {
 // ==========================================
 
 function generateSixDigitCode(): string {
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  console.log(`[AUTH VERIFICATION CODE GENERATED] >>> ${code} <<<`);
-  return code;
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 /**
@@ -382,7 +380,7 @@ export async function requestSignupCodeAction(input: SignupInput): Promise<Actio
       console.error('[Signup] Error al enviar correo de verificación:', emailResult.error);
       return {
         success: false,
-        error: `No se pudo enviar el correo con el código: ${emailResult.error || 'Verifica que las credenciales SMTP estén configuradas en Vercel o el archivo de entorno'}.`,
+        error: `No se pudo enviar el correo con el código: ${emailResult.error || 'Verifica la configuración de Brevo en el entorno'}.`,
       };
     }
 
@@ -920,7 +918,7 @@ export async function resendSignupCodeAction(correo: string): Promise<ActionResp
       console.error('[ResendSignup] Error al reenviar correo:', emailResult.error);
       return {
         success: false,
-        error: `No se pudo enviar el correo de verificación: ${emailResult.error || 'Revisa la configuración SMTP'}.`,
+        error: `No se pudo enviar el correo de verificación: ${emailResult.error || 'Revisa la configuración de Brevo'}.`,
       };
     }
 
@@ -1017,7 +1015,7 @@ export async function requestPasswordResetCodeAction(input: RequestPasswordReset
       console.error('[PasswordReset] Error al enviar código de recuperación:', emailResult.error);
       return {
         success: false,
-        error: `No se pudo enviar el correo de recuperación: ${emailResult.error || 'Revisa la configuración SMTP'}.`,
+        error: `No se pudo enviar el correo de recuperación: ${emailResult.error || 'Revisa la configuración de Brevo'}.`,
       };
     }
 
